@@ -1,5 +1,6 @@
-// server/src/entity/user.entity.js
+
 "use strict";
+
 import { EntitySchema } from "typeorm";
 
 const UserSchema = new EntitySchema({

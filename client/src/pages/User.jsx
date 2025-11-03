@@ -29,7 +29,7 @@ const Users = () => {
   const columns = [
     { title: "Nombre", field: "nombreCompleto", width: 350 },
     { title: "Correo", field: "email", width: 300 },
-    { title: "RUT", field: "rut", width: 150 },
+    { title: "RUT", field: "rutFormateado", width: 150 },
     { title: "Rol", field: "rol", width: 150 },
     { title: "Creado", field: "createdAt", width: 150 }
   ];
@@ -49,7 +49,7 @@ const Users = () => {
           data={users}
           columns={columns}
           filter={filterRut}
-          dataToFilter={'rut'}
+          dataToFilter={'rutFormateado'}
           initialSortName={'nombreCompleto'}
           onSelectionChange={handleSelectionChange}
         />

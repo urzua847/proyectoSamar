@@ -7,7 +7,9 @@ export function formatUserData(user) {
         ...user,
         nombreCompleto: startCase(user.nombreCompleto),
         rol: startCase(user.rol),
-        rut: formatRut(user.rut),
+        rut: user.rut,
+        rutFormateado: formatRut(user.rut),
         createdAt: formatTempo(user.createdAt, "DD-MM-YYYY")
     };
 }
+
