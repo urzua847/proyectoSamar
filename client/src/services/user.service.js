@@ -4,7 +4,6 @@ import { formatUserData } from '../helpers/formatData.js';
 export async function getUsers() {
     try {
         const { data } = await axios.get('/user');
-        // Damos formato a los datos recibidos (fechas, mayúsculas, etc.)
         const formattedData = data.data.map(formatUserData);
         return formattedData;
     } catch (error) {

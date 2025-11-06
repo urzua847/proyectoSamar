@@ -57,7 +57,7 @@ const Login = () => {
                 onSubmit={loginSubmit}
                 footerContent={
                     <p>
-                        ¿No tienes cuenta?, <a href="/register">¡Regístrate aquí!</a>
+                        ¿No tienes cuenta?, <a href="/register">Registrarse</a>
                     </p>
                 }
             />

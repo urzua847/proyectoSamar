@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  proyectosamar-app:
+    build: .
+    image: proyectosamar:1.0
+    restart: unless-stopped
+    
+    ports:
+      - "1546:5000" 
+      
+    env_file:
+      - .env
+      
+    environment:
+      NODE_ENV: production
+      PORT: 5000 

@@ -5,9 +5,9 @@ const Home = () => {
 
   return (
     <div style={{ textAlign: 'center', marginTop: '100px' }}>
-      <h1>¡Bienvenido a Proyecto Taller!</h1>
+      <h1>Bienvenido a Proyecto Samar</h1>
       {user && <h2>Hola, {user.nombreCompleto}</h2>}
-      <p>Esta es tu página de inicio.</p>
+      <p>Esta es la página de inicio.</p>
     </div>
   );
 };

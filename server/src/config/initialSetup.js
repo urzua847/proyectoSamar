@@ -1,4 +1,4 @@
-// server/src/config/initialSetup.js
+
 "use strict";
 import User from "../entity/user.entity.js";
 import { AppDataSource } from "./configDb.js";
@@ -9,7 +9,7 @@ export async function createUsers() {
     const userRepository = AppDataSource.getRepository(User);
     const count = await userRepository.count();
     if (count > 0) {
-        console.log("=> La base de datos ya tiene usuarios. No se crearán nuevos.");
+        console.log("La base de datos ya tiene usuarios. No se crearán nuevos.");
         return;
     }
 
@@ -26,14 +26,14 @@ export async function createUsers() {
       userRepository.save(
         userRepository.create({
           nombreCompleto: "Usuario1",
-          rut: "2-7",
+          rut: "12345678-9",
           email: "usuario1@correo.com",
           password: await encryptPassword("user123"),
           rol: "usuario",
         })
       ),
     ]);
-    console.log("* => Usuarios iniciales creados exitosamente");
+    console.log("Usuarios iniciales creados exitosamente");
   } catch (error) {
     console.error("Error al crear usuarios iniciales:", error);
   }

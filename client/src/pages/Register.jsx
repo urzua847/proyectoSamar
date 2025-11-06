@@ -28,7 +28,7 @@ const Register = () => {
     return (
         <main className="container">
             <Form
-                title="Crea tu cuenta"
+                title="Crea tu usuario"
                 fields={[
                     { name: "nombreCompleto", label: "Nombre completo", placeholder: "Juan Pérez", type: "text", required: true },
                     { name: "email", label: "Correo electrónico", placeholder: "example@gmail.cl", type: "email", required: true, errorMessageData: errorEmail, onChange: (e) => handleInputChange('email', e.target.value) },

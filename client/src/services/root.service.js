@@ -1,8 +1,7 @@
 import axios from 'axios';
 import cookies from 'js-cookie';
 
-const API_URL = '/api'; // Usamos la ruta base del proxy
-
+const API_URL = '/api'; 
 const instance = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
