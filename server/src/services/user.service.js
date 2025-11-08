@@ -1,4 +1,3 @@
-// server/src/services/user.service.js
 "use strict";
 import User from "../entity/user.entity.js";
 import { AppDataSource } from "../config/configDb.js";

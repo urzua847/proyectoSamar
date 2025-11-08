@@ -1,8 +1,6 @@
-// server/src/validations/auth.validation.js
 "use strict";
 import Joi from "joi";
 
-// --- Login sin cambios ---
 export const authValidation = Joi.object({
   email: Joi.string()
     .email()
@@ -23,10 +21,9 @@ export const authValidation = Joi.object({
 });
 
 
-// --- Registro con validaciones más flexibles ---
 export const registerValidation = Joi.object({
   nombreCompleto: Joi.string()
-    .min(3) // <-- Reducido de 15 a 3
+    .min(8) 
     .max(50)
     .required()
     .messages({
@@ -34,13 +31,13 @@ export const registerValidation = Joi.object({
       "any.required": "El nombre completo es obligatorio.",
       "string.min": "El nombre completo debe tener al menos 3 caracteres.",
     }),
-  rut: Joi.string() // <-- Se eliminó el patrón complejo
+  rut: Joi.string() 
     .required()
     .messages({
       "string.empty": "El rut no puede estar vacío.",
     }),
   email: Joi.string()
-    .email() // <-- Se eliminó la restricción de @gmail.cl
+    .email() 
     .required()
     .messages({
       "string.empty": "El correo electrónico no puede estar vacío.",
@@ -48,9 +45,8 @@ export const registerValidation = Joi.object({
       "string.email": "El formato del correo no es válido.",
     }),
   password: Joi.string()
-    .min(5) // <-- Reducido de 8 a 6
+    .min(5) 
     .required()
-    // Se eliminó el patrón para permitir cualquier caracter
     .messages({
       "string.empty": "La contraseña no puede estar vacía.",
       "any.required": "La contraseña es obligatoria.",
