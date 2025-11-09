@@ -9,8 +9,6 @@ import { connectDB } from "./config/configDb.js";
 import indexRoutes from "./routes/index.routes.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
 import { createUsers } from "./config/initialSetup.js";
-import path from "path";
-import { fileURLToPath } from "url";
 
 async function setupServer() {
   try {
@@ -22,17 +20,11 @@ async function setupServer() {
     app.use(express.json());
     app.use(cookieParser());
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-
-    app.use(express.static(path.join(__dirname, "public")));
-    app.use("/api", indexRoutes); 
     app.use(passport.initialize());
-    passportJwtSetup(); 
+    passportJwtSetup();
 
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, 'public', 'index.html'));
-    });
+    // Usar las rutas de la API
+    app.use("/api", indexRoutes);
 
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en ${DB_HOST}:${PORT}/api`);
@@ -46,8 +38,8 @@ async function setupServer() {
 async function setupAPI() {
   try {
     await connectDB();
-    await setupServer();
     await createUsers();
+    await setupServer();
   } catch (error) {
     console.log("Error en setupAPI: ", error);
   }

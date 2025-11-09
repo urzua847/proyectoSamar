@@ -1,5 +1,5 @@
-
 "use strict";
+
 import User from "../entity/user.entity.js";
 import { AppDataSource } from "./configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
@@ -9,7 +9,7 @@ export async function createUsers() {
     const userRepository = AppDataSource.getRepository(User);
     const count = await userRepository.count();
     if (count > 0) {
-        console.log("La base de datos ya tiene usuarios. No se crearán nuevos.");
+        console.log("La base de datos ya tiene usuarios.");
         return;
     }
 
