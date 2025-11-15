@@ -1,11 +1,11 @@
 "use strict";
 import { DataSource } from "typeorm";
-import { DB_DATABASE, DB_USER, DB_HOST, DB_PASSWORD } from "./configEnv.js";
+import { DB_DATABASE, DB_USER, DB_HOST, DB_PASSWORD, DB_PORT } from "./configEnv.js";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   host: DB_HOST,
-  port: 5432,
+  port: DB_PORT,
   username: DB_USER,
   password: DB_PASSWORD,
   database: DB_DATABASE,

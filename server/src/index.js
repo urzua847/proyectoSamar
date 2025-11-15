@@ -4,7 +4,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import passport from "passport";
-import { DB_HOST, PORT } from "./config/configEnv.js";
+import { PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import indexRoutes from "./routes/index.routes.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
@@ -26,12 +26,15 @@ async function setupServer() {
     // Usar las rutas de la API
     app.use("/api", indexRoutes);
 
-    app.listen(PORT, () => {
-      console.log(`Servidor corriendo en ${DB_HOST}:${PORT}/api`);
+    const HOST = process.env.HOST || "0.0.0.0";
+    app.listen(PORT, HOST, () => {
+      console.log(`Servidor corriendo en: http://${HOST}:${PORT}/api`);
+      console.log(`Entorno: ${process.env.NODE_ENV || "development"}`);
     });
 
   } catch (error) {
-    console.log("Error en setupServer: ", error);
+    console.error("Error en setupServer: ", error.message);
+    process.exit(1);
   }
 }
 
@@ -41,10 +44,14 @@ async function setupAPI() {
     await createUsers();
     await setupServer();
   } catch (error) {
-    console.log("Error en setupAPI: ", error);
+    console.error("Error en setupAPI: ", error.message);
+    process.exit(1);
   }
 }
 
 setupAPI()
   .then(() => console.log("API Iniciada exitosamente"))
-  .catch((error) => console.log("Error al iniciar la API: ", error));
+  .catch((error) => {
+    console.error("Error fatal al iniciar la API: ", error.message);
+    process.exit(1);
+  });
