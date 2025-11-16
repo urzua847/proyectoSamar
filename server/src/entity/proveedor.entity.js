@@ -2,40 +2,18 @@
 
 import { EntitySchema } from "typeorm";
 
-const UserSchema = new EntitySchema({
-  name: "User",
-  tableName: "users",
+const ProveedorSchema = new EntitySchema({
+  name: "Proveedor",
+  tableName: "proveedores",
   columns: {
     id: {
       type: "int",
       primary: true,
       generated: true,
     },
-    nombreCompleto: {
+    nombre: {
       type: "varchar",
       length: 255,
-      nullable: false,
-    },
-    rut: {
-      type: "varchar",
-      length: 12,
-      nullable: false,
-      unique: true,
-    },
-    email: {
-      type: "varchar",
-      length: 255,
-      nullable: false,
-      unique: true,
-    },
-    rol: {
-      type: "enum",
-      enum: ["administrador", "usuario", "operario"], 
-      default: "usuario",
-      nullable: false,
-    },
-    password: {
-      type: "varchar",
       nullable: false,
     },
     createdAt: {
@@ -50,13 +28,14 @@ const UserSchema = new EntitySchema({
       nullable: false,
     },
   },
+
   relations: {
-    lotesRecepcionados: {
+    lotes: {
         type: "one-to-many",
         target: "LoteRecepcion", 
-        inverseSide: "operario",
+        inverseSide: "proveedor",
     },
   },
 });
 
-export default UserSchema;
+export default ProveedorSchema;

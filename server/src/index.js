@@ -23,13 +23,11 @@ async function setupServer() {
     app.use(passport.initialize());
     passportJwtSetup();
 
-    // Usar las rutas de la API
     app.use("/api", indexRoutes);
 
     const HOST = process.env.HOST || "0.0.0.0";
     app.listen(PORT, HOST, () => {
       console.log(`Servidor corriendo en: http://${HOST}:${PORT}/api`);
-      console.log(`Entorno: ${process.env.NODE_ENV || "development"}`);
     });
 
   } catch (error) {

@@ -1,17 +1,83 @@
 version: '3.8'
 
 services:
-  proyectosamar-app:
-    build: .
-    image: proyectosamar:1.0
+  # PostgreSQL Database
+
+  db:
+    image: postgres:15-alpine
+    container_name: proyectosamar-db
     restart: unless-stopped
     
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-127412}
+      POSTGRES_DB: ${DB_DATABASE:-samar_db}
+    
     ports:
-      - "1546:5000" 
-      
-    env_file:
-      - .env
-      
+      - "${DB_PORT:-5432}:5432"
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  # Aplicación Node.js
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    container_name: proyectosamar-app
+    restart: unless-stopped
+    
+    depends_on:
+      db:
+        condition: service_healthy
+    
+    ports:
+      - "${APP_PORT:-1546}:5000"
+    
     environment:
       NODE_ENV: production
-      PORT: 5000 
+      PORT: 5000
+      HOST: 0.0.0.0
+      
+      # Base de datos (conecta con el servicio 'db')
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-127412}
+      DB_DATABASE: ${DB_DATABASE:-samar_db}
+      
+      # Claves secretas 
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-SFGSGDAF5165SDG51V}
+      cookieKey: ${cookieKey:-DGH2DSg4TH4VDbD12SFB}
+    
+    # Alternativa: usar archivo .env (descomenta y crea .env en raíz)
+    # env_file:
+    #   - .env
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    networks:
+      - app-network
+
+# Volúmenes (persistencia de datos)
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Redes
+networks:
+  app-network:
+    driver: bridge 
