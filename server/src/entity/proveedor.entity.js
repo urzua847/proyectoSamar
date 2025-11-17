@@ -15,6 +15,7 @@ const ProveedorSchema = new EntitySchema({
       type: "varchar",
       length: 255,
       nullable: false,
+      unique: true,
     },
     createdAt: {
       type: "timestamp with time zone",

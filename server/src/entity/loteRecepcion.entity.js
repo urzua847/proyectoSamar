@@ -47,6 +47,12 @@ const LoteRecepcionSchema = new EntitySchema({
       target: "User",
       nullable: false, 
     },
+    materiaPrima: {
+      type: "many-to-one",
+      target: "MateriaPrima",
+      inverseSide: "lotes",
+      nullable: false,
+    },
     productosTerminados: {
         type: "one-to-many",
         target: "ProductoTerminado",
