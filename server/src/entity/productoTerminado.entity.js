@@ -17,6 +17,11 @@ const ProductoTerminadoSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
+    calibre: {
+      type: "varchar",
+      length: 100, 
+      nullable: true, 
+    },
     fecha_produccion: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
