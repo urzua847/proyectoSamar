@@ -1,0 +1,82 @@
+.recepcion-container {
+    padding: 120px 20px 20px; /* Padding top para el Navbar */
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.content-wrapper {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.form-section, .weight-section {
+    flex: 1;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-width: 300px;
+}
+
+/* Estilos Calculadora */
+.weight-display {
+    background: #e3f2fd;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 2px solid #2196f3;
+}
+
+.weight-value {
+    display: block;
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #1565c0;
+}
+
+.weight-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.weight-controls input {
+    flex: 1;
+    padding: 10px;
+    font-size: 1.1em;
+}
+
+.add-btn {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.undo-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.weight-history ul {
+    list-style: none;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.weight-history li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}

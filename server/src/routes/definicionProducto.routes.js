@@ -5,12 +5,12 @@ import {
   getProductos,
   createProducto,
 } from "../controllers/definicionProducto.controller.js";
-import { isAdmin } from "../middlewares/authorization.middleware.js";
+import { isAdmin, isOperarioOrAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
 const router = Router();
 
-router.use(authenticateJwt, isAdmin);
+router.use(authenticateJwt, isOperarioOrAdmin);
 
 router.get("/", getProductos);
 router.post("/", createProducto);
