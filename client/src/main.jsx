@@ -9,6 +9,7 @@ import Error404 from './pages/Error404';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/styles.css';
 import Users from './pages/User';
+import Recepcion from './pages/Recepcion'; // Asegúrate de que la 'R' mayúscula coincida con tu archivo
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['administrador']}>
             <Users />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/recepcion',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <Recepcion />
           </ProtectedRoute>
         )
       }

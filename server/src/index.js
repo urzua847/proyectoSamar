@@ -62,7 +62,7 @@ async function setupServer() {
     app.use("/api", indexRoutes);
 
     app.listen(PORT, () => {
-      console.log(`=> Servidor corriendo en ${HOST}:${PORT}/api`);
+      console.log(`Servidor corriendo en ${HOST}:${PORT}/api`);
     });
   } catch (error) {
     console.log("Error en index.js -> setupServer(), el error es: ", error);
@@ -80,7 +80,7 @@ async function setupAPI() {
 }
 
 setupAPI()
-  .then(() => console.log("=> API Iniciada exitosamente"))
+  .then(() => console.log("API Iniciada exitosamente"))
   .catch((error) =>
     console.log("Error en index.js -> setupAPI(), el error es: ", error),
   );

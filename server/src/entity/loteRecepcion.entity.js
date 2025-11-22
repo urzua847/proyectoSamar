@@ -11,6 +11,11 @@ const LoteRecepcionSchema = new EntitySchema({
       primary: true,
       generated: true,
     },
+  codigo: {
+      type: "varchar",
+      length: 20,
+      nullable: false,
+    },
     fecha_recepcion: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
