@@ -37,6 +37,12 @@ export const createLoteValidation = Joi.object({
         "number.positive": "El número de bandejas debe ser positivo.",
         "any.required": "El número de bandejas es obligatorio.",
     }),
+    pesadas: Joi.array()
+    .items(Joi.number().positive()) 
+    .optional() 
+    .messages({
+        "array.base": "El detalle de pesadas debe ser una lista.",
+    }),
 })
   .unknown(false)
   .messages({

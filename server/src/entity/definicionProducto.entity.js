@@ -17,10 +17,9 @@ const DefinicionProductoSchema = new EntitySchema({
       nullable: false,
       unique: true,
     },
-    categoria: {
-      type: "varchar",
-      length: 100,
-      nullable: true, 
+    calibres: {
+      type: "simple-array",
+      nullable: true,
     },
     createdAt: {
       type: "timestamp with time zone",
@@ -33,6 +32,12 @@ const DefinicionProductoSchema = new EntitySchema({
         target: "ProductoTerminado",
         inverseSide: "definicion",
     },
+    materiaPrima: {
+        type: "many-to-one",
+        target: "MateriaPrima",
+        joinColumn: { name: "materiaPrimaId" }, 
+        nullable: false 
+    }
   },
 });
 

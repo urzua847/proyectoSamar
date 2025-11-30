@@ -11,14 +11,10 @@ const LoteRecepcionSchema = new EntitySchema({
       primary: true,
       generated: true,
     },
-  codigo: {
+    codigo: {
       type: "varchar",
       length: 20,
       nullable: false,
-    },
-    fecha_recepcion: {
-      type: "timestamp with time zone",
-      default: () => "CURRENT_TIMESTAMP",
     },
     peso_bruto_kg: {
       type: "decimal",
@@ -26,9 +22,17 @@ const LoteRecepcionSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
+    detalle_pesadas:{
+      type: "simple-array",
+      nullable: true,
+    },
     numero_bandejas: {
       type: "int",
       nullable: false,
+    },
+    fecha_recepcion: {
+      type: "timestamp with time zone",
+      default: () => "CURRENT_TIMESTAMP",
     },
     createdAt: {
       type: "timestamp with time zone",
@@ -47,16 +51,16 @@ const LoteRecepcionSchema = new EntitySchema({
       inverseSide: "lotes",
       nullable: false, 
     },
-    operario: {
-      type: "many-to-one",
-      target: "User",
-      nullable: false, 
-    },
     materiaPrima: {
       type: "many-to-one",
       target: "MateriaPrima",
       inverseSide: "lotes",
       nullable: false,
+    },
+    operario: {
+      type: "many-to-one",
+      target: "User",
+      nullable: false, 
     },
     productosTerminados: {
         type: "one-to-many",

@@ -12,11 +12,25 @@ export const createProductoValidation = Joi.object({
       "any.required": "El nombre es obligatorio.",
       "string.min": "El nombre debe tener al menos 3 caracteres.",
     }),
+    materiaPrimaId: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+        "any.required": "Debes seleccionar la materia prima base.",
+        "number.base": "El ID de materia prima debe ser un número."
+    }),
   categoria: Joi.string()
     .min(3)
     .max(100)
     .optional() 
     .allow(null, ''),
+  calibres: Joi.string()
+    .optional()
+    .allow(null, '')
+    .messages({
+      "string.base": "Los calibres deben ser un texto separado por comas.",
+    })
 })
   .unknown(false)
   .messages({
