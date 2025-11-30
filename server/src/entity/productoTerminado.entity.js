@@ -46,6 +46,12 @@ const ProductoTerminadoSchema = new EntitySchema({
         nullable: false,
     }
   },
+  ubicacion: {
+    type: "many-to-one",
+    target: "Ubicacion",
+    inverseSide: "productos",
+    nullable: false,
+  },
 });
 
 export default ProductoTerminadoSchema;
