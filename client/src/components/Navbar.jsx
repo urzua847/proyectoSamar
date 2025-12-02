@@ -30,6 +30,13 @@ const Navbar = () => {
                         <li><NavLink to="/recepcion">Recepción</NavLink></li>
                     )}
 
+                    {(userRole === 'administrador' || userRole === 'operario') && (
+                        <li><NavLink to="/produccion">Producción</NavLink></li>
+                    )}
+                    <li><NavLink to="/productos">Productos</NavLink></li>
+                    
+
+
                     <li><a href="/auth" onClick={handleLogout}>Cerrar sesión</a></li>
                 </ul>
             </div>

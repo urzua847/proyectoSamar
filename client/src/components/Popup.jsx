@@ -1,8 +1,10 @@
 import Form from './Form';
 import '@styles/popup.css';
 
-export default function Popup({ show, setShow, data, action }) {
+// Añadimos la prop 'title'
+export default function Popup({ show, setShow, data, action, title }) {
     const userData = data && data.length > 0 ? data[0] : {};
+    const isCreateMode = !userData.id; 
 
     const handleSubmit = (formData) => {
         const nonEmptyData = Object.fromEntries(
@@ -20,11 +22,11 @@ export default function Popup({ show, setShow, data, action }) {
                 <div className="popup">
                     <button className='close' onClick={() => setShow(false)}>X</button>
                     <Form
-                        title="Editar usuario"
+                        title={title || "Usuario"}
                         fields={[
-                            { label: "Nombre completo", name: "nombreCompleto", defaultValue: userData.nombreCompleto || "", fieldType: 'input', type: "text" },
-                            { label: "Correo electrónico", name: "email", defaultValue: userData.email || "", fieldType: 'input', type: "email" },
-                            { label: "RUT", name: "rut", defaultValue: userData.rut || "", fieldType: 'input', type: "text", pattern: patternRut, patternMessage: "Formato RUT inválido (sin puntos)." },
+                            { label: "Nombre completo", name: "nombreCompleto", defaultValue: userData.nombreCompleto || "", fieldType: 'input', type: "text", required: isCreateMode },
+                            { label: "Correo electrónico", name: "email", defaultValue: userData.email || "", fieldType: 'input', type: "email", required: isCreateMode },
+                            { label: "RUT", name: "rut", defaultValue: userData.rut || "", fieldType: 'input', type: "text", pattern: patternRut, patternMessage: "Formato RUT inválido", required: isCreateMode },
                             {
                                 label: "Rol",
                                 name: "rol",
@@ -37,10 +39,17 @@ export default function Popup({ show, setShow, data, action }) {
                                 required: true,
                                 defaultValue: userData.rol || "",
                             },
-                            { label: "Nueva contraseña (opcional)", name: "newPassword", placeholder: "**********", fieldType: 'input', type: "password" }
+                            { 
+                                label: isCreateMode ? "Contraseña" : "Nueva contraseña (opcional)", 
+                                name: isCreateMode ? "password" : "newPassword", 
+                                placeholder: "**********", 
+                                fieldType: 'input', 
+                                type: "password",
+                                required: isCreateMode // Obligatorio solo al crear
+                            }
                         ]}
                         onSubmit={handleSubmit}
-                        buttonText="Guardar Cambios"
+                        buttonText={isCreateMode ? "Crear Usuario" : "Guardar Cambios"}
                     />
                 </div>
             </div>

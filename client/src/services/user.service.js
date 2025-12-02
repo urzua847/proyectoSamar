@@ -29,3 +29,12 @@ export async function deleteUser(rut) {
         return error.response.data;
     }
 }
+
+export async function createUser(data) {
+    try {
+        const response = await axios.post('/user', data);
+        return response.data;
+    } catch (error) {
+        return error.response.data;
+    }
+}

@@ -1,17 +1,75 @@
-.table-container .tabulator {
-    border: 1px solid #ccc;
-    border-radius: 5px;
+/* client/src/styles/table.css */
+
+.table-container-native {
+    width: 100%;
+    overflow-x: auto;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background-color: white;
+    border: 1px solid #ddd; /* Borde exterior sutil */
 }
-.table-container .tabulator .tabulator-header {
+
+.samar-table {
+    width: 100%;
+    border-collapse: collapse; /* Importante para que las líneas se unan bien */
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* --- CABECERA --- */
+.samar-table thead {
     background-color: #003366;
-    color: #fff;
+    color: white;
 }
-.tabulator-row.tabulator-selectable:hover {
-    background-color: #eef7ff;
+
+.samar-table th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    /* Línea vertical en la cabecera */
+    border-right: 1px solid rgba(255, 255, 255, 0.2); 
 }
-.tabulator-row.tabulator-selected {
-    background-color: #d4eaff;
+
+/* --- CUERPO --- */
+.samar-table td {
+    padding: 12px 15px;
+    color: #333;
+    font-size: 0.95rem;
+    /* Líneas de la cuadrícula */
+    border-bottom: 1px solid #eee; /* Línea horizontal */
+    border-right: 1px solid #eee;  /* Línea vertical (NUEVO) */
 }
-.tabulator .tabulator-footer .tabulator-page {
-    padding: 5px 10px;
+
+/* Quitar la línea derecha de la última columna para que se vea limpio */
+.samar-table th:last-child,
+.samar-table td:last-child {
+    border-right: none;
+}
+
+/* --- INTERACCIÓN --- */
+.samar-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.samar-table tbody tr:hover {
+    background-color: #f1f8ff;
+}
+
+/* Fila Seleccionada */
+.samar-table tbody tr.selected-row {
+    background-color: #d0e7ff;
+    /* Borde izquierdo más grueso para destacar selección */
+    box-shadow: inset 4px 0 0 #003366; 
+}
+
+.no-data {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+    background: #fff;
+    border-radius: 8px;
 }

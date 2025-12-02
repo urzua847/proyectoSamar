@@ -19,3 +19,25 @@ export async function getMateriasPrimas() {
         return [];
     }
 }
+
+export async function getProductos() {
+    try {
+        const response = await axios.get('/productos');
+        return response.data.data;
+    } catch (error) {
+        console.error("Error obteniendo productos:", error);
+        return [];
+    }
+}
+
+export async function getUbicaciones() {
+    try {
+        const response = await axios.get('/ubicaciones');
+        return response.data.data;
+    } catch (error) {
+        console.error("Error obteniendo ubicaciones:", error);
+        return [];
+    }
+}
+
+
