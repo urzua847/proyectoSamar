@@ -15,6 +15,7 @@ const LoteRecepcionSchema = new EntitySchema({
       type: "varchar",
       length: 20,
       nullable: false,
+      unique: true,
     },
     peso_bruto_kg: {
       type: "decimal",

@@ -73,3 +73,33 @@
     background: #fff;
     border-radius: 8px;
 }
+
+.filter-row th {
+    padding: 5px 10px;
+    background-color: #002a52; /* Un tono un poco más oscuro que la cabecera */
+    border-top: none;
+}
+
+.column-filter-input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    box-sizing: border-box;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333;
+}
+
+.column-filter-input:focus {
+    outline: none;
+    border-color: #4a90e2;
+    background-color: #fff;
+    box-shadow: 0 0 3px rgba(74, 144, 226, 0.5);
+}
+
+/* Ajuste para que el mensaje de "sin resultados" se vea bien */
+.samar-table tbody tr td[colspan] {
+    border-right: none;
+    background-color: #f9f9f9;
+}

@@ -4,6 +4,8 @@ import '@styles/popup.css';
 // Añadimos la prop 'title'
 export default function Popup({ show, setShow, data, action, title }) {
     const userData = data && data.length > 0 ? data[0] : {};
+    
+    // Detectamos si estamos en modo CREAR (no hay ID de usuario)
     const isCreateMode = !userData.id; 
 
     const handleSubmit = (formData) => {
@@ -24,9 +26,32 @@ export default function Popup({ show, setShow, data, action, title }) {
                     <Form
                         title={title || "Usuario"}
                         fields={[
-                            { label: "Nombre completo", name: "nombreCompleto", defaultValue: userData.nombreCompleto || "", fieldType: 'input', type: "text", required: isCreateMode },
-                            { label: "Correo electrónico", name: "email", defaultValue: userData.email || "", fieldType: 'input', type: "email", required: isCreateMode },
-                            { label: "RUT", name: "rut", defaultValue: userData.rut || "", fieldType: 'input', type: "text", pattern: patternRut, patternMessage: "Formato RUT inválido", required: isCreateMode },
+                            { 
+                                label: "Nombre completo", 
+                                name: "nombreCompleto", 
+                                defaultValue: userData.nombreCompleto || "", 
+                                fieldType: 'input', 
+                                type: "text", 
+                                required: isCreateMode // Obligatorio al crear
+                            },
+                            { 
+                                label: "Correo electrónico", 
+                                name: "email", 
+                                defaultValue: userData.email || "", 
+                                fieldType: 'input', 
+                                type: "email", 
+                                required: isCreateMode 
+                            },
+                            { 
+                                label: "RUT", 
+                                name: "rut", 
+                                defaultValue: userData.rut || "", 
+                                fieldType: 'input', 
+                                type: "text", 
+                                pattern: patternRut, 
+                                patternMessage: "Formato RUT inválido (sin puntos)", 
+                                required: isCreateMode 
+                            },
                             {
                                 label: "Rol",
                                 name: "rol",
@@ -40,12 +65,14 @@ export default function Popup({ show, setShow, data, action, title }) {
                                 defaultValue: userData.rol || "",
                             },
                             { 
+                                // --- CAMBIO CLAVE: Nombre dinámico del campo ---
                                 label: isCreateMode ? "Contraseña" : "Nueva contraseña (opcional)", 
                                 name: isCreateMode ? "password" : "newPassword", 
+                                // ----------------------------------------------
                                 placeholder: "**********", 
                                 fieldType: 'input', 
                                 type: "password",
-                                required: isCreateMode // Obligatorio solo al crear
+                                required: isCreateMode // La contraseña es obligatoria solo al crear
                             }
                         ]}
                         onSubmit={handleSubmit}

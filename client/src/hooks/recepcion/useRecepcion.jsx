@@ -4,16 +4,13 @@ import { getProveedores, getMateriasPrimas } from '../../services/catalogos.serv
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
 
 const useRecepcion = () => {
-    // Estados para los catálogos 
     const [proveedores, setProveedores] = useState([]);
     const [materiasPrimas, setMateriasPrimas] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Estados para la Calculadora de Peso
-    const [pesadas, setPesadas] = useState([]); 
-    const [pesoActual, setPesoActual] = useState(""); 
+    const [pesadas, setPesadas] = useState([]);
+    const [pesoActual, setPesoActual] = useState("");
 
-    // Cargar datos al montar el componente
     useEffect(() => {
         async function loadData() {
             try {
@@ -21,8 +18,8 @@ const useRecepcion = () => {
                     getProveedores(),
                     getMateriasPrimas()
                 ]);
-                setProveedores(provData);
-                setMateriasPrimas(matData);
+                setProveedores(provData || []);
+                setMateriasPrimas(matData || []);
             } catch (error) {
                 console.error("Error cargando catálogos:", error);
                 showErrorAlert('Error', 'No se pudieron cargar los datos iniciales.');
@@ -33,28 +30,31 @@ const useRecepcion = () => {
         loadData();
     }, []);
 
-    // --- FUNCIONES DE LA CALCULADORA ---
-
     const agregarPesada = () => {
         const valor = parseFloat(pesoActual);
         if (valor > 0) {
-            setPesadas([...pesadas, valor]); 
-            setPesoActual(""); 
+            setPesadas([...pesadas, valor]);
+            setPesoActual("");
         }
     };
 
     const eliminarUltimaPesada = () => {
-        setPesadas(pesadas.slice(0, -1)); 
+        setPesadas(pesadas.slice(0, -1));
     };
 
+    // Calculamos el total localmente por si se usa en el UI
     const pesoTotal = pesadas.reduce((acc, curr) => acc + curr, 0);
 
-    // --- FUNCIÓN PARA GUARDAR (ENVIAR AL BACKEND) ---
-
+    // --- CORRECCIÓN AQUÍ ---
     const handleCreateLote = async (data) => {
-        if (pesoTotal <= 0) {
+        // 1. Determinamos qué datos usar (priorizamos los que vienen en 'data')
+        const finalPesadas = data.pesadas || pesadas; 
+        const finalPesoBruto = data.peso_bruto_kg !== undefined ? data.peso_bruto_kg : pesoTotal;
+
+        // 2. Validamos usando los datos finales
+        if (finalPesoBruto <= 0) {
             showErrorAlert('Atención', 'Debes ingresar al menos una pesada.');
-            return;
+            return false;
         }
 
         try {
@@ -62,23 +62,23 @@ const useRecepcion = () => {
                 proveedorId: Number(data.proveedor),
                 materiaPrimaId: Number(data.materiaPrima),
                 numero_bandejas: Number(data.numero_bandejas),
-                peso_bruto_kg: Number(pesoTotal.toFixed(2)),
-                pesadas: pesadas 
+                peso_bruto_kg: Number(finalPesoBruto), // Usamos el valor corregido
+                pesadas: finalPesadas                  // Usamos el array corregido
             };
 
             const response = await createLote(payload);
             
             if (response.status === 'Success') {
                 showSuccessAlert('¡Lote Registrado!', `Código: ${response.data.codigo}`);
-                setPesadas([]);
-                return true; 
+                setPesadas([]); // Limpiamos el estado local por si acaso
+                return true;
             } else {
-                showErrorAlert('Error', response.message || 'No se pudo registrar el lote.');
+                showErrorAlert('Error', response.message || 'No se pudo registrar.');
                 return false;
             }
         } catch (error) {
             console.error(error);
-            showErrorAlert('Error', 'Ocurrió un error inesperado al guardar.');
+            showErrorAlert('Error', 'Ocurrió un error inesperado.');
             return false;
         }
     };
@@ -88,6 +88,7 @@ const useRecepcion = () => {
         materiasPrimas,
         loading,
         pesadas,
+        setPesadas,
         pesoActual,
         setPesoActual,
         agregarPesada,

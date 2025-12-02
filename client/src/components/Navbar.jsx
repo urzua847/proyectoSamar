@@ -27,7 +27,7 @@ const Navbar = () => {
                     )}
 
                     {(userRole === 'administrador' || userRole === 'operario') && (
-                        <li><NavLink to="/recepcion">Recepción</NavLink></li>
+                        <li><NavLink to="/recepcion">Recepción MP</NavLink></li>
                     )}
 
                     {(userRole === 'administrador' || userRole === 'operario') && (

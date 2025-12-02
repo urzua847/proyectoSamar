@@ -35,14 +35,24 @@ export async function createLoteService(data, operarioEmail) {
     const dia = String(hoy.getDate()).padStart(2, '0');      
     const codigoBase = `${mes}${dia}`; 
 
-    const lotesHoy = await loteRepository.count({
-        where: {
-            codigo: Like(`${codigoBase}%`),
-        }
+    // Buscamos el ÚLTIMO lote creado hoy (ordenado por ID descendente)
+    const ultimoLote = await loteRepository.findOne({
+        where: { codigo: Like(`${codigoBase}%`) },
+        order: { id: "DESC" } 
     });
 
-    const secuencia = String(lotesHoy + 1).padStart(2, '0');
-    const codigoFinal = `${codigoBase}-${secuencia}`; 
+    let secuenciaNum = 1;
+
+    if (ultimoLote) {
+        // Si existe un último lote (ej: "1202-05"), extraemos el "05" y sumamos 1
+        const partes = ultimoLote.codigo.split('-');
+        if (partes.length > 1) {
+            secuenciaNum = parseInt(partes[1], 10) + 1;
+        }
+    }
+
+    const secuencia = String(secuenciaNum).padStart(2, '0');
+    const codigoFinal = `${codigoBase}-${secuencia}`;
 
     // 2. Crear la nueva instancia del lote
     const newLote = loteRepository.create({
@@ -70,12 +80,11 @@ export async function createLoteService(data, operarioEmail) {
 export async function getLotesActivosService() {
     try {
         const lotes = await loteRepository.find({
-            relations: ["proveedor", "materiaPrima"],
-            order: { createdAt: "DESC" } 
+            // Agregamos 'productosTerminados' para contar si tiene hijos
+            relations: ["proveedor", "materiaPrima", "productosTerminados"], 
+            order: { createdAt: "DESC" }
         });
-        if (!lotes || lotes.length === 0) {
-            return [null, "No se encontraron lotes activos"];
-        }
+        if (!lotes || lotes.length === 0) return [null, "No se encontraron lotes"];
         return [lotes, null];
     } catch (error) {
         throw new Error(error.message);
@@ -103,11 +112,19 @@ export async function getLoteByIdService(id) {
  */
 export async function updateLoteService(id, data) {
     try {
-        const loteId = Number(id);
-        const lote = await loteRepository.findOne({ where: { id: loteId } });
+        const lote = await loteRepository.findOne({ 
+            where: { id },
+            relations: ["productosTerminados"] // Necesario para verificar
+        });
+        
         if (!lote) return [null, "Lote no encontrado"];
 
-        // Actualizar relaciones si vienen en la data
+        // --- PROTECCIÓN DE INTEGRIDAD ---
+        if (lote.productosTerminados && lote.productosTerminados.length > 0) {
+            return [null, "No se puede editar este lote porque ya tiene producción registrada. La trazabilidad se vería afectada."];
+        }
+        // --------------------------------
+
         if (data.proveedorId) {
             const prov = await proveedorRepository.findOne({ where: { id: data.proveedorId } });
             if (prov) lote.proveedor = prov;
@@ -116,15 +133,10 @@ export async function updateLoteService(id, data) {
             const mat = await materiaPrimaRepository.findOne({ where: { id: data.materiaPrimaId } });
             if (mat) lote.materiaPrima = mat;
         }
-
-        // Actualizar campos simples
-        if (data.peso_bruto_kg !== undefined) lote.peso_bruto_kg = data.peso_bruto_kg;
-        if (data.numero_bandejas !== undefined) lote.numero_bandejas = data.numero_bandejas;
         
-        // Actualizar pesadas (el array)
-        if (data.pesadas) {
-            lote.detalle_pesadas = data.pesadas;
-        }
+        if (data.peso_bruto_kg) lote.peso_bruto_kg = data.peso_bruto_kg;
+        if (data.numero_bandejas) lote.numero_bandejas = data.numero_bandejas;
+        if (data.pesadas) lote.detalle_pesadas = data.pesadas;
 
         const loteActualizado = await loteRepository.save(lote);
         return [loteActualizado, null];
