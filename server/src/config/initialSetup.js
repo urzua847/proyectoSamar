@@ -18,17 +18,17 @@ async function createUsers() {
 
   await Promise.all([
     userRepository.save(userRepository.create({
-      nombreCompleto: "Admin General",
+      nombreCompleto: "Admin",
       rut: "11111111-1",
       email: "admin@correo.com",
       password: await encryptPassword("admin123"),
       rol: "administrador",
     })),
     userRepository.save(userRepository.create({
-      nombreCompleto: "Operario Planta",
+      nombreCompleto: "Operario",
       rut: "22222222-2",
       email: "operario@correo.com",
-      password: await encryptPassword("user123"),
+      password: await encryptPassword("123456"),
       rol: "operario",
     })),
   ]);
@@ -96,28 +96,44 @@ async function createProductos() {
   const count = await prodRepo.count();
   if (count > 0) return;
 
-  // Necesitamos la materia prima "Jaiba" para asociarla
   const jaiba = await matRepo.findOne({ where: { nombre: "Jaiba" } });
   if (!jaiba) return;
 
-  await prodRepo.save([
-    prodRepo.create({ 
-        nombre: "Carne Codo", 
-        materiaPrima: jaiba, 
-        calibres: ["L", "M", "S"] 
-    }),
+await prodRepo.save([
     prodRepo.create({ 
         nombre: "Carne Blanca", 
+        tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: ["250grs", "500grs", "1000grs"]
+        calibres: ["Primera", "Segunda"] 
     }),
     prodRepo.create({ 
-        nombre: "Pinza Cocktail", 
+        nombre: "Tres segmentos", 
+        tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: ["80-100", "100-120", "120-Up"] 
+        calibres: ["Grande", "Mediano"] 
     }),
     prodRepo.create({ 
-        nombre: "Carne Mixta", 
+        nombre: "Carne Pinza Chica", 
+        tipo: "primario", 
+        materiaPrima: jaiba, 
+        calibres: null 
+    }),
+    prodRepo.create({ 
+        nombre: "Pinza para Decorar", 
+        tipo: "primario", 
+        materiaPrima: jaiba, 
+        calibres: null 
+    }),
+
+    prodRepo.create({ 
+        nombre: "Pote Carne Jaiba 1kg", 
+        tipo: "elaborado", 
+        materiaPrima: jaiba, 
+        calibres: null 
+    }),
+     prodRepo.create({ 
+        nombre: "Pote Carne Jaiba 500g", 
+        tipo: "elaborado", 
         materiaPrima: jaiba, 
         calibres: null 
     }),
@@ -131,12 +147,12 @@ async function createProductos() {
 export async function createInitialData() {
   try {
     await createUsers();
-    await createMateriasPrimas(); // Debe ir antes de Productos
+    await createMateriasPrimas(); 
     await createProveedores();
     await createUbicaciones();
-    await createProductos();      // Depende de Materias Primas
+    await createProductos();      
     console.log("------------------------------------------");
-    console.log(" [SETUP] Base de datos poblada exitosamente");
+    console.log(" Base de datos poblada exitosamente");
     console.log("------------------------------------------");
   } catch (error) {
     console.error("Error en setup inicial:", error);

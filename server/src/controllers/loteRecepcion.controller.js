@@ -2,9 +2,12 @@
 
 import {
   createLoteService,
-  getLotesActivosService
+  getLotesActivosService, 
+  getLoteByIdService, 
+  updateLoteService, 
+  deleteLoteService
 } from "../services/loteRecepcion.service.js";
-import { createLoteValidation } from "../validations/loteRecepcion.validation.js";
+import { createLoteValidation, updateLoteValidation } from "../validations/loteRecepcion.validation.js";
 import {
   handleErrorClient,
   handleErrorServer,
@@ -46,6 +49,46 @@ export async function getLotesActivos(req, res) {
         const [lotes, error] = await getLotesActivosService();
         if (error) return handleErrorClient(res, 404, error);
         handleSuccess(res, 200, "Lotes activos encontrados", lotes);
+    } catch (error) {
+        handleErrorServer(res, 500, error.message);
+    }
+}
+
+export async function getLote(req, res) {
+    try {
+        const { id } = req.params;
+        const [lote, error] = await getLoteByIdService(id);
+        if (error) return handleErrorClient(res, 404, error);
+        handleSuccess(res, 200, "Lote encontrado", lote);
+    } catch (error) {
+        handleErrorServer(res, 500, error.message);
+    }
+}
+
+export async function updateLote(req, res) {
+    try {
+        const { id } = req.params;
+        const { body } = req;
+
+        const { error: validationError } = updateLoteValidation.validate(body);
+        if (validationError) return handleErrorClient(res, 400, validationError.message);
+
+        const [lote, error] = await updateLoteService(id, body);
+        if (error) return handleErrorClient(res, 400, error); // Puede ser 404 también
+
+        handleSuccess(res, 200, "Lote actualizado correctamente", lote);
+    } catch (error) {
+        handleErrorServer(res, 500, error.message);
+    }
+}
+
+export async function deleteLote(req, res) {
+    try {
+        const { id } = req.params;
+        const [lote, error] = await deleteLoteService(id);
+        if (error) return handleErrorClient(res, 400, error); // 400 si tiene hijos, 404 si no existe
+
+        handleSuccess(res, 200, "Lote eliminado correctamente", lote);
     } catch (error) {
         handleErrorServer(res, 500, error.message);
     }

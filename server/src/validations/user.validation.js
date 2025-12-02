@@ -20,3 +20,11 @@ export const userBodyValidation = Joi.object({
   password: Joi.string(), 
 })
   .or("nombreCompleto", "email", "newPassword", "rut", "rol");
+
+export const createUserValidation = Joi.object({
+  nombreCompleto: Joi.string().min(3).max(50).required(),
+  email: Joi.string().email().required(),
+  rut: Joi.string().required(),
+  password: Joi.string().min(6).required(),
+  rol: Joi.string().valid('administrador', 'usuario', 'operario').required(),
+}).unknown(false);

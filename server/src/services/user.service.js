@@ -3,6 +3,27 @@ import User from "../entity/user.entity.js";
 import { AppDataSource } from "../config/configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
 
+export async function createUserService(body) {
+  try {
+    const userRepository = AppDataSource.getRepository(User);
+    const { rut, email, password } = body;
+
+    const existingUser = await userRepository.findOne({ where: [{ rut }, { email }] });
+    if (existingUser) return [null, "El usuario ya existe (RUT o Email duplicado)"];
+
+    const newUser = userRepository.create({
+      ...body,
+      password: await encryptPassword(password) 
+    });
+
+    await userRepository.save(newUser);
+    const { password: _, ...dataUser } = newUser;
+    return [dataUser, null];
+  } catch (error) {
+    return [null, "Error interno del servidor"];
+  }
+}
+
 export async function getUserService(query) {
   try {
     const { rut, id, email } = query;

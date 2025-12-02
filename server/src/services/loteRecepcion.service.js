@@ -81,3 +81,78 @@ export async function getLotesActivosService() {
         throw new Error(error.message);
     }
 }
+
+/**
+ * Obtener un lote específico por ID (con todos sus detalles)
+ */
+export async function getLoteByIdService(id) {
+    try {
+        const lote = await loteRepository.findOne({
+            where: { id },
+            relations: ["proveedor", "materiaPrima", "operario", "productosTerminados"]
+        });
+        if (!lote) return [null, "Lote no encontrado"];
+        return [lote, null];
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}
+
+/**
+ * Actualizar un lote existente
+ */
+export async function updateLoteService(id, data) {
+    try {
+        const loteId = Number(id);
+        const lote = await loteRepository.findOne({ where: { id: loteId } });
+        if (!lote) return [null, "Lote no encontrado"];
+
+        // Actualizar relaciones si vienen en la data
+        if (data.proveedorId) {
+            const prov = await proveedorRepository.findOne({ where: { id: data.proveedorId } });
+            if (prov) lote.proveedor = prov;
+        }
+        if (data.materiaPrimaId) {
+            const mat = await materiaPrimaRepository.findOne({ where: { id: data.materiaPrimaId } });
+            if (mat) lote.materiaPrima = mat;
+        }
+
+        // Actualizar campos simples
+        if (data.peso_bruto_kg !== undefined) lote.peso_bruto_kg = data.peso_bruto_kg;
+        if (data.numero_bandejas !== undefined) lote.numero_bandejas = data.numero_bandejas;
+        
+        // Actualizar pesadas (el array)
+        if (data.pesadas) {
+            lote.detalle_pesadas = data.pesadas;
+        }
+
+        const loteActualizado = await loteRepository.save(lote);
+        return [loteActualizado, null];
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}
+
+/**
+ * Eliminar un lote (Solo si no tiene producción asociada)
+ */
+export async function deleteLoteService(id) {
+    try {
+        const lote = await loteRepository.findOne({ 
+            where: { id },
+            relations: ["productosTerminados"] 
+        });
+        
+        if (!lote) return [null, "Lote no encontrado"];
+
+        // PROTECCIÓN DE TRAZABILIDAD
+        if (lote.productosTerminados && lote.productosTerminados.length > 0) {
+            return [null, "No se puede eliminar este lote porque ya tiene producción asociada."];
+        }
+
+        await loteRepository.remove(lote);
+        return [lote, null];
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}

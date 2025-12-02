@@ -17,9 +17,15 @@ const DefinicionProductoSchema = new EntitySchema({
       nullable: false,
       unique: true,
     },
+    tipo: {
+      type: "enum",
+      enum: ["primario", "elaborado"],
+      default: "elaborado",
+      nullable: false,
+    },
     calibres: {
       type: "simple-array",
-      nullable: true,
+      nullable: true
     },
     createdAt: {
       type: "timestamp with time zone",

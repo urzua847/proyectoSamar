@@ -48,3 +48,28 @@ export const createLoteValidation = Joi.object({
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
   });
+
+export const updateLoteValidation = Joi.object({
+  proveedorId: Joi.number()
+    .integer()
+    .positive()
+    .optional(),
+  materiaPrimaId: Joi.number()
+    .integer()
+    .positive()
+    .optional(),
+  peso_bruto_kg: Joi.number()
+    .positive()
+    .optional(),
+  numero_bandejas: Joi.number()
+    .integer()
+    .positive()
+    .optional(),
+  pesadas: Joi.array()
+    .items(Joi.number().positive())
+    .optional(),
+})
+  .unknown(false)
+  .messages({
+    "object.unknown": "No se permiten propiedades adicionales.",
+  });
