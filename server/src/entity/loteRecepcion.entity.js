@@ -23,8 +23,14 @@ const LoteRecepcionSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
+    peso_actual: {
+      type: "decimal",
+      precision: 10,
+      scale: 2,
+      nullable: true, 
+    },
     detalle_pesadas:{
-      type: "simple-array",
+      type: "simple-json", // Stores array of objects: [{ cajas: 10, kilos: 100 }, ...]
       nullable: true,
     },
     numero_bandejas: {
@@ -34,6 +40,10 @@ const LoteRecepcionSchema = new EntitySchema({
     fecha_recepcion: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
+    },
+    estado: {
+      type: "boolean",
+      default: true, // true = Abierto, false = Cerrado
     },
     createdAt: {
       type: "timestamp with time zone",

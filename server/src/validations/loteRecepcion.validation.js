@@ -38,10 +38,15 @@ export const createLoteValidation = Joi.object({
         "any.required": "El número de bandejas es obligatorio.",
     }),
     pesadas: Joi.array()
-    .items(Joi.number().positive()) 
+    .items(
+      Joi.object({
+        cajas: Joi.number().integer().positive().required(),
+        kilos: Joi.number().positive().required()
+      })
+    ) 
     .optional() 
     .messages({
-        "array.base": "El detalle de pesadas debe ser una lista.",
+        "array.base": "El detalle de pesadas debe ser una lista de objetos.",
     }),
 })
   .unknown(false)
@@ -66,8 +71,14 @@ export const updateLoteValidation = Joi.object({
     .positive()
     .optional(),
   pesadas: Joi.array()
-    .items(Joi.number().positive())
+    .items(
+      Joi.object({
+        cajas: Joi.number().integer().positive().required(),
+        kilos: Joi.number().positive().required()
+      })
+    )
     .optional(),
+  estado: Joi.boolean().optional(),
 })
   .unknown(false)
   .messages({

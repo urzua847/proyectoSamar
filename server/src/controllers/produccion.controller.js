@@ -1,6 +1,6 @@
 "use strict";
 
-import { createProduccionService } from "../services/produccion.service.js";
+import { createProduccionService, getProduccionService } from "../services/produccion.service.js";
 import { createProduccionValidation } from "../validations/produccion.validation.js";
 import {
   handleErrorClient,
@@ -29,4 +29,16 @@ export async function createProduccion(req, res) {
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }
+}
+
+export async function getProduccion(req, res) {
+    try {
+        const [produccion, error] = await getProduccionService();
+        if (error) {
+            return handleErrorClient(res, 400, "Error al obtener producción", error);
+        }
+        handleSuccess(res, 200, "Producción obtenida exitosamente", produccion);
+    } catch (error) {
+        handleErrorServer(res, 500, error.message);
+    }
 }

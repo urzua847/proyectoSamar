@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import useRecepcion from '../hooks/recepcion/useRecepcion';
 import '../styles/popup.css';
@@ -9,36 +9,53 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
         proveedores, materiasPrimas,
         pesadas, setPesadas,
         pesoActual, setPesoActual,
-        agregarPesada, eliminarUltimaPesada, pesoTotal
+        cajasActual, setCajasActual,
+        agregarPesada, eliminarUltimaPesada,
+        pesoTotal, totalBandejas
     } = useRecepcion();
 
     const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm();
+    const cajasInputRef = useRef(null);
 
-    // EFECTO: Cargar datos si es edición
-    // Corrección: Agregamos todas las dependencias necesarias al array
+    // Wrapper para agregar pesada y devolver el foco
+    const handleAgregarPesada = () => {
+        const success = agregarPesada();
+        if (success !== false) { // Asumiendo que agregarPesada devuelve algo o simplemente no falla
+            // Pequeño timeout para asegurar que el renderizado ocurra (opcional pero seguro)
+            setTimeout(() => {
+                cajasInputRef.current?.focus();
+            }, 0);
+        }
+    };
+
     useEffect(() => {
         if (dataToEdit) {
             setValue('proveedor', dataToEdit.proveedor?.id);
             setValue('materiaPrima', dataToEdit.materiaPrima?.id);
-            setValue('numero_bandejas', dataToEdit.numero_bandejas);
-            
-            // Cargar pesadas históricas
+
             if (dataToEdit.detalle_pesadas) {
-                const pesadasArray = Array.isArray(dataToEdit.detalle_pesadas) 
-                    ? dataToEdit.detalle_pesadas.map(Number) 
-                    : dataToEdit.detalle_pesadas.split(',').map(Number);
+                // Handle both array (from DB) and string (legacy/csv) if needed
+                let pesadasArray = [];
+                if (Array.isArray(dataToEdit.detalle_pesadas)) {
+                    pesadasArray = dataToEdit.detalle_pesadas;
+                } else if (typeof dataToEdit.detalle_pesadas === 'string') {
+                    // Fallback for old string format "10,20,30" -> convert to dummy objects
+                    // This is temporary until all data is migrated
+                    pesadasArray = dataToEdit.detalle_pesadas.split(',').map(p => ({ cajas: 0, kilos: Number(p) }));
+                }
                 setPesadas(pesadasArray);
             }
         } else {
             reset();
             setPesadas([]);
         }
-    }, [dataToEdit, show, reset, setValue, setPesadas]); 
+    }, [dataToEdit, show, reset, setValue, setPesadas]);
 
     const onSubmit = async (formData) => {
         const finalData = {
             ...formData,
             peso_bruto_kg: pesoTotal,
+            numero_bandejas: totalBandejas,
             pesadas: pesadas
         };
         action(finalData);
@@ -51,12 +68,12 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
             <div className="popup" style={{ width: '900px', maxWidth: '95%' }}>
                 <button className='close' onClick={() => setShow(false)}>X</button>
                 <h2>{dataToEdit ? `Editar Lote ${dataToEdit.codigo}` : "Nueva Recepción"}</h2>
-                
+
                 <div className="content-wrapper" style={{ gap: '20px', alignItems: 'flex-start' }}>
                     {/* IZQUIERDA: FORMULARIO */}
                     <div className="form-section" style={{ flex: 1 }}>
                         <form className="form" onSubmit={handleSubmit(onSubmit)} style={{ width: '100%', padding: 0, boxShadow: 'none', background: 'transparent' }}>
-                            
+
                             <div className="container_inputs">
                                 <label>Proveedor</label>
                                 <select {...register("proveedor", { required: "Requerido" })}>
@@ -65,7 +82,6 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                                         <option key={p.id} value={p.id}>{p.nombre}</option>
                                     ))}
                                 </select>
-                                {/* Corrección: Usamos 'errors' para mostrar mensajes */}
                                 {errors.proveedor && <span className="error-message visible">{errors.proveedor.message}</span>}
                             </div>
 
@@ -80,10 +96,16 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                                 {errors.materiaPrima && <span className="error-message visible">{errors.materiaPrima.message}</span>}
                             </div>
 
+                            {/* Total Bandejas (Read Only) */}
                             <div className="container_inputs">
-                                <label>N° Bandejas</label>
-                                <input type="number" {...register("numero_bandejas", { required: "Requerido" })} />
-                                {errors.numero_bandejas && <span className="error-message visible">{errors.numero_bandejas.message}</span>}
+                                <label>Total Bandejas</label>
+                                <input type="number" value={totalBandejas} readOnly disabled style={{ backgroundColor: '#f0f0f0' }} />
+                            </div>
+
+                            {/* Total Peso (Read Only) */}
+                            <div className="container_inputs">
+                                <label>Total Kilos</label>
+                                <input type="number" value={pesoTotal.toFixed(2)} readOnly disabled style={{ backgroundColor: '#f0f0f0' }} />
                             </div>
 
                             <button type="submit" style={{ marginTop: '20px' }}>
@@ -91,37 +113,71 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                             </button>
                         </form>
                     </div>
-                    
-                    {/* DERECHA: CALCULADORA */}
-                     <div className="weight-section" style={{ flex: 1, padding: '15px', border: '1px solid #ddd' }}>
-                        <h3 style={{ marginTop: 0, color: '#003366' }}>Pesaje</h3>
-                        
-                         <div className="weight-display" style={{ padding: '15px', marginBottom: '15px' }}>
-                            <span className="weight-label">Total:</span>
-                            <span className="weight-value" style={{ fontSize: '2rem' }}>{pesoTotal.toFixed(2)} kg</span>
+
+                    {/* DERECHA: REGISTRO DE TANDAS */}
+                    <div className="weight-section" style={{ flex: 1, padding: '15px', border: '1px solid #ddd' }}>
+                        <h3 style={{ marginTop: 0, color: '#003366' }}>Registro de Tandas</h3>
+
+                        <div className="weight-controls" style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.8rem' }}>Cajas</label>
+                                <input
+                                    ref={cajasInputRef}
+                                    type="number"
+                                    placeholder="Cant."
+                                    value={cajasActual}
+                                    onChange={(e) => setCajasActual(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAgregarPesada()}
+                                    style={{ marginBottom: 0, width: '100%' }}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.8rem' }}>Kilos</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    placeholder="Kg"
+                                    value={pesoActual}
+                                    onChange={(e) => setPesoActual(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAgregarPesada()}
+                                    style={{ marginBottom: 0, width: '100%' }}
+                                />
+                            </div>
+                            <button type="button" onClick={handleAgregarPesada} className="add-btn" style={{ margin: 0, alignSelf: 'flex-end', height: '38px' }}>+</button>
                         </div>
 
-                        <div className="weight-controls">
-                             <input type="number" step="0.1" placeholder="kg" value={pesoActual} onChange={(e) => setPesoActual(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && agregarPesada()} style={{ marginBottom: 0 }} />
-                             <button type="button" onClick={agregarPesada} className="add-btn" style={{ margin: 0 }}>+</button>
+                        <div className="weight-history" style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                <thead style={{ background: '#f9f9f9' }}>
+                                    <tr>
+                                        <th style={{ padding: '8px', textAlign: 'left' }}>#</th>
+                                        <th style={{ padding: '8px', textAlign: 'center' }}>Cajas</th>
+                                        <th style={{ padding: '8px', textAlign: 'right' }}>Kilos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pesadas.map((p, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                                            <td style={{ padding: '8px' }}>{i + 1}</td>
+                                            <td style={{ padding: '8px', textAlign: 'center' }}>{p.cajas}</td>
+                                            <td style={{ padding: '8px', textAlign: 'right' }}>{p.kilos}</td>
+                                        </tr>
+                                    ))}
+                                    {pesadas.length === 0 && (
+                                        <tr>
+                                            <td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
+                                                Sin tandas registradas
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div className="weight-history" style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                             <ul style={{ padding: 0, listStyle: 'none' }}>
-                                {pesadas.map((p, i) => (
-                                    <li key={i} style={{ borderBottom: '1px solid #eee', padding: '5px', display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>Tanda {i + 1}</span>
-                                        <strong>{p} kg</strong>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        
-                        {/* Corrección: Usamos 'eliminarUltimaPesada' aquí */}
                         {pesadas.length > 0 && (
-                            <button type="button" onClick={eliminarUltimaPesada} className="undo-btn" style={{ width: '100%', marginTop: '10px' }}>Deshacer última</button>
+                            <button type="button" onClick={eliminarUltimaPesada} className="undo-btn" style={{ width: '100%', marginTop: '10px' }}>Deshacer última tanda</button>
                         )}
-                     </div>
+                    </div>
                 </div>
             </div>
         </div>

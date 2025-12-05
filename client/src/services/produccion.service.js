@@ -8,3 +8,12 @@ export async function createProduccion(data) {
         return error.response.data;
     }
 }
+
+export async function getProduccion() {
+    try {
+        const response = await axios.get('/produccion');
+        return response.data;
+    } catch (error) {
+        return error.response.data;
+    }
+}

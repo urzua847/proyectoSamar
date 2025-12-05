@@ -9,15 +9,15 @@ import '../styles/users.css';
 const Recepcion = () => {
     const { lotes, fetchLotes, setLotes } = useGetRecepciones();
     const { handleCreateLote } = useRecepcion();
-    
-    const { 
-        dataLote, setDataLote, 
-        isPopupOpen, setIsPopupOpen, 
-        handleEditClick, handleUpdate, handleDelete 
+
+    const {
+        dataLote, setDataLote,
+        isPopupOpen, setIsPopupOpen,
+        handleEditClick, handleUpdate, handleDelete
     } = useEditRecepcion(setLotes, fetchLotes);
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    
+
     // Estado de filtros
     const [filters, setFilters] = useState({
         codigo: '',
@@ -38,11 +38,11 @@ const Recepcion = () => {
         { header: "Producto", accessor: "materiaPrimaNombre" },
         { header: "Peso Total", accessor: "peso_bruto_kg" },
         { header: "Bandejas", accessor: "numero_bandejas" },
-        { 
-            header: "Estado", 
+        {
+            header: "Estado",
             accessor: "estadoTexto",
             render: (row) => (
-                <span style={{ 
+                <span style={{
                     color: row.estado ? '#155724' : '#721c24',
                     backgroundColor: row.estado ? '#d4edda' : '#f8d7da',
                     padding: '4px 8px',
@@ -81,36 +81,70 @@ const Recepcion = () => {
         }
     };
 
+    // Función para manejar el cierre del lote
+    const handleCloseLote = async () => {
+        if (!dataLote) return;
+
+        // Llamamos a handleUpdate pasando solo el estado
+        // Nota: handleUpdate en useEditRecepcion espera un objeto completo o parcial.
+        // Vamos a tener que adaptar handleUpdate o llamar directamente al servicio aquí.
+        // Para mantener la consistencia, mejor usamos una función dedicada en useEditRecepcion, 
+        // pero por ahora lo haremos aquí reutilizando handleUpdate si es posible, 
+        // o mejor aún, agregamos la lógica en useEditRecepcion.
+
+        // Vamos a asumir que handleUpdate puede manejar actualizaciones parciales si modificamos useEditRecepcion.
+        // Por ahora, pasaremos un objeto especial que useEditRecepcion entienda o modificamos useEditRecepcion primero.
+
+        // MEJOR ESTRATEGIA: Modificar useEditRecepcion primero para soportar cambio de estado.
+        // Pero como estoy editando este archivo, voy a agregar el botón y la lógica de deselección primero.
+    };
+
+    const handleRowClick = (row) => {
+        if (dataLote?.id === row.id) {
+            setDataLote(null); // Deseleccionar
+        } else {
+            setDataLote(row); // Seleccionar
+        }
+    };
+
     return (
         <div className='main-container'>
             <div className='table-wrapper'>
-                
+
                 <div className='top-table'>
                     <h1 className='title-table'>Recepción de Materia Prima</h1>
-                    
+
                     <div className='action-buttons'>
-                        <button 
-                            onClick={() => setIsCreateOpen(true)} 
+                        <button
+                            onClick={() => setIsCreateOpen(true)}
                             className="btn-new"
                         >
                             + Nuevo Ingreso
                         </button>
-                        
-                        <button 
-                            onClick={handleEditClick} 
+
+                        <button
+                            onClick={() => handleUpdate({ estado: false })} // Esto requiere que handleUpdate soporte esto
+                            disabled={!dataLote || !dataLote.estado}
+                            className="btn-delete" // Usamos estilo rojo para cerrar
+                            style={{ backgroundColor: '#fd7e14' }} // Naranja para diferenciar de eliminar
+                        >
+                            Cerrar Lote
+                        </button>
+
+                        <button
+                            onClick={handleEditClick}
                             // Se deshabilita si NO hay lote seleccionado O SI tiene producción
-                            disabled={!dataLote || dataLote.tieneProduccion} 
+                            disabled={!dataLote || dataLote.tieneProduccion || !dataLote.estado}
                             className="btn-edit"
-                            // Opcional: Cambiar el estilo o tooltip para indicar por qué está bloqueado
-                            title={dataLote?.tieneProduccion ? "No se puede editar: Tiene producción asociada" : "Editar Lote"}
+                            title={dataLote?.tieneProduccion ? "Tiene producción asociada" : (!dataLote?.estado ? "Lote Cerrado" : "Editar Lote")}
                         >
                             Editar
                         </button>
-                        
+
                         {isAdmin && (
-                            <button 
-                                onClick={handleDelete} 
-                                disabled={!dataLote} 
+                            <button
+                                onClick={handleDelete}
+                                disabled={!dataLote}
                                 className="btn-delete"
                             >
                                 Eliminar
@@ -153,12 +187,12 @@ const Recepcion = () => {
                         </div>
                     </div>
                 </div>
-                
+
                 {/* --- 3. TABLA --- */}
                 <Table
                     columns={columns}
                     data={filteredLotes}
-                    onRowClick={(row) => setDataLote(row)}
+                    onRowClick={handleRowClick}
                     selectedId={dataLote?.id}
                 />
             </div>

@@ -8,8 +8,9 @@ const useRecepcion = () => {
     const [materiasPrimas, setMateriasPrimas] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const [pesadas, setPesadas] = useState([]);
+    const [pesadas, setPesadas] = useState([]); // Array of { cajas: number, kilos: number }
     const [pesoActual, setPesoActual] = useState("");
+    const [cajasActual, setCajasActual] = useState("");
 
     useEffect(() => {
         async function loadData() {
@@ -31,10 +32,13 @@ const useRecepcion = () => {
     }, []);
 
     const agregarPesada = () => {
-        const valor = parseFloat(pesoActual);
-        if (valor > 0) {
-            setPesadas([...pesadas, valor]);
+        const kilos = parseFloat(pesoActual);
+        const cajas = parseInt(cajasActual);
+
+        if (kilos > 0 && cajas > 0) {
+            setPesadas([...pesadas, { cajas, kilos }]);
             setPesoActual("");
+            setCajasActual("");
         }
     };
 
@@ -42,18 +46,19 @@ const useRecepcion = () => {
         setPesadas(pesadas.slice(0, -1));
     };
 
-    // Calculamos el total localmente por si se usa en el UI
-    const pesoTotal = pesadas.reduce((acc, curr) => acc + curr, 0);
+    // Calculamos totales
+    const pesoTotal = pesadas.reduce((acc, curr) => acc + curr.kilos, 0);
+    const totalBandejas = pesadas.reduce((acc, curr) => acc + curr.cajas, 0);
 
-    // --- CORRECCIÓN AQUÍ ---
     const handleCreateLote = async (data) => {
         // 1. Determinamos qué datos usar (priorizamos los que vienen en 'data')
-        const finalPesadas = data.pesadas || pesadas; 
+        const finalPesadas = data.pesadas || pesadas;
         const finalPesoBruto = data.peso_bruto_kg !== undefined ? data.peso_bruto_kg : pesoTotal;
+        const finalBandejas = data.numero_bandejas !== undefined ? data.numero_bandejas : totalBandejas;
 
         // 2. Validamos usando los datos finales
         if (finalPesoBruto <= 0) {
-            showErrorAlert('Atención', 'Debes ingresar al menos una pesada.');
+            showErrorAlert('Atención', 'Debes ingresar al menos una tanda.');
             return false;
         }
 
@@ -61,16 +66,16 @@ const useRecepcion = () => {
             const payload = {
                 proveedorId: Number(data.proveedor),
                 materiaPrimaId: Number(data.materiaPrima),
-                numero_bandejas: Number(data.numero_bandejas),
-                peso_bruto_kg: Number(finalPesoBruto), // Usamos el valor corregido
-                pesadas: finalPesadas                  // Usamos el array corregido
+                numero_bandejas: Number(finalBandejas),
+                peso_bruto_kg: Number(finalPesoBruto),
+                pesadas: finalPesadas // Ahora enviamos el array de objetos
             };
 
             const response = await createLote(payload);
-            
+
             if (response.status === 'Success') {
                 showSuccessAlert('¡Lote Registrado!', `Código: ${response.data.codigo}`);
-                setPesadas([]); // Limpiamos el estado local por si acaso
+                setPesadas([]); // Limpiamos el estado local
                 return true;
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo registrar.');
@@ -91,9 +96,12 @@ const useRecepcion = () => {
         setPesadas,
         pesoActual,
         setPesoActual,
+        cajasActual,
+        setCajasActual,
         agregarPesada,
         eliminarUltimaPesada,
         pesoTotal,
+        totalBandejas,
         handleCreateLote
     };
 };

@@ -120,10 +120,15 @@ export async function updateLoteService(id, data) {
         if (!lote) return [null, "Lote no encontrado"];
 
         // --- PROTECCIÓN DE INTEGRIDAD ---
-        if (lote.productosTerminados && lote.productosTerminados.length > 0) {
-            return [null, "No se puede editar este lote porque ya tiene producción registrada. La trazabilidad se vería afectada."];
+        // Si tiene producción, SOLO se permite cambiar el estado (Cerrar/Abrir)
+        const isEditingContent = data.proveedorId || data.materiaPrimaId || data.peso_bruto_kg || data.numero_bandejas || data.pesadas;
+        
+        if (isEditingContent && lote.productosTerminados && lote.productosTerminados.length > 0) {
+            return [null, "No se puede editar el contenido de este lote porque ya tiene producción registrada. Solo se puede cambiar su estado."];
         }
         // --------------------------------
+
+        if (data.estado !== undefined) lote.estado = data.estado;
 
         if (data.proveedorId) {
             const prov = await proveedorRepository.findOne({ where: { id: data.proveedorId } });

@@ -142,6 +142,116 @@ await prodRepo.save([
 }
 
 /* ==============================================
+   6. LOTES DE RECEPCIÓN (Stock Inicial MP)
+   ============================================== */
+import LoteRecepcion from "../entity/loteRecepcion.entity.js";
+
+async function createLotesRecepcion() {
+    const repo = AppDataSource.getRepository(LoteRecepcion);
+    const count = await repo.count();
+    if (count > 0) return;
+
+    const proveedor = await AppDataSource.getRepository(Proveedor).findOne({ where: { nombre: "Pedro Vidal" } });
+    const materiaPrima = await AppDataSource.getRepository(MateriaPrima).findOne({ where: { nombre: "Jaiba" } });
+    const operario = await AppDataSource.getRepository(User).findOne({ where: { rol: "operario" } });
+
+    if (!proveedor || !materiaPrima || !operario) return;
+
+    await repo.save([
+        repo.create({
+            codigo: "LOTE-001",
+            peso_bruto_kg: 100.00,
+            peso_actual: 100.00,
+            numero_bandejas: 10,
+            proveedor,
+            materiaPrima,
+            operario,
+            detalle_pesadas: [
+                { cajas: 5, kilos: 50 },
+                { cajas: 5, kilos: 50 }
+            ]
+        })
+    ]);
+    console.log("Lotes de Recepción creados.");
+}
+
+/* ==============================================
+   7. PRODUCCIÓN (Stock Inicial PT)
+   ============================================== */
+import ProductoTerminado from "../entity/productoTerminado.entity.js";
+
+async function createProduccion() {
+    const repo = AppDataSource.getRepository(ProductoTerminado);
+    const count = await repo.count();
+    if (count > 0) return;
+
+    const lote = await AppDataSource.getRepository(LoteRecepcion).findOne({ where: { codigo: "LOTE-001" } });
+    const definicion = await AppDataSource.getRepository(DefinicionProducto).findOne({ where: { nombre: "Carne Blanca" } });
+    const ubicacion = await AppDataSource.getRepository(Ubicacion).findOne({ where: { nombre: "Cámara 1" } });
+
+    if (!lote || !definicion || !ubicacion) return;
+
+    // Crear 5 productos
+    const productos = [];
+    for (let i = 0; i < 5; i++) {
+        productos.push(repo.create({
+            peso_neto_kg: 1.0,
+            peso_actual: 1.0, // Inicializamos peso_actual
+            calibre: "Primera",
+            loteDeOrigen: lote,
+            definicion: definicion,
+            ubicacion: ubicacion,
+            estado: "En Stock"
+        }));
+    }
+    
+    // Descontar del lote (simulado)
+    lote.peso_actual -= 5.0;
+    await AppDataSource.getRepository(LoteRecepcion).save(lote);
+
+    await repo.save(productos);
+    console.log("Producción inicial creada.");
+}
+
+/* ==============================================
+   8. VENTAS (Venta Inicial)
+   ============================================== */
+import Venta from "../entity/venta.entity.js";
+import DetalleVenta from "../entity/detalleVenta.entity.js";
+
+async function createVentas() {
+    const ventaRepo = AppDataSource.getRepository(Venta);
+    const count = await ventaRepo.count();
+    if (count > 0) return;
+
+    const productoRepo = AppDataSource.getRepository(ProductoTerminado);
+    // Buscar un producto para vender
+    const producto = await productoRepo.findOne({ where: { estado: "En Stock" } });
+    
+    if (!producto) return;
+
+    // Actualizar estado y peso
+    producto.estado = "Vendido";
+    producto.peso_actual = 0;
+    await productoRepo.save(producto);
+
+    const venta = ventaRepo.create({
+        cliente: "Cliente Inicial",
+        total: 15000,
+        detalles: [
+            {
+                precio_unitario: 15000,
+                peso: 1.0, // Agregamos el peso vendido
+                producto: producto
+            }
+        ]
+    });
+
+    await ventaRepo.save(venta);
+    console.log("Venta inicial creada.");
+}
+
+/* ==============================================
    FUNCIÓN PRINCIPAL (Exportada)
    ============================================== */
 export async function createInitialData() {
@@ -150,7 +260,10 @@ export async function createInitialData() {
     await createMateriasPrimas(); 
     await createProveedores();
     await createUbicaciones();
-    await createProductos();      
+    await createProductos();
+    await createLotesRecepcion();
+    await createProduccion();
+    await createVentas();      
     console.log("------------------------------------------");
     console.log(" Base de datos poblada exitosamente");
     console.log("------------------------------------------");

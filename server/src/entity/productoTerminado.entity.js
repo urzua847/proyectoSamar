@@ -17,6 +17,12 @@ const ProductoTerminadoSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
+    peso_actual: {
+      type: "decimal",
+      precision: 10,
+      scale: 2,
+      nullable: true, // Nullable initially, populated on creation
+    },
     calibre: {
       type: "varchar",
       length: 100, 
