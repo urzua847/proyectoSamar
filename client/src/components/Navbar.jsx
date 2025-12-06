@@ -33,7 +33,7 @@ const Navbar = () => {
                     {(userRole === 'administrador' || userRole === 'operario') && (
                         <li><NavLink to="/produccion">Producción</NavLink></li>
                     )}
-                    <li><NavLink to="/productos">Productos</NavLink></li>
+                    <li><NavLink to="/ventas">Ventas</NavLink></li>
                     
 
 

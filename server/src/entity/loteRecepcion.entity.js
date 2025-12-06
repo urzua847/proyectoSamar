@@ -31,6 +31,15 @@ const LoteRecepcionSchema = new EntitySchema({
       type: "int",
       nullable: false,
     },
+    detalle_pesadas: {
+        type: "jsonb", 
+        nullable: true,
+    },
+    estado: {
+      type: "boolean",
+      default: true, // true = abierto, false = cerrado
+      nullable: false,
+    },
     fecha_recepcion: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",

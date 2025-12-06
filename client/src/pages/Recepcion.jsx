@@ -4,6 +4,8 @@ import useGetRecepciones from '../hooks/recepcion/useGetRecepciones';
 import useEditRecepcion from '../hooks/recepcion/useEditRecepcion';
 import useRecepcion from '../hooks/recepcion/useRecepcion';
 import PopupRecepcion from '../components/PopupRecepcion';
+import { updateLote } from '../services/recepcion.service';
+import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 import '../styles/users.css';
 
 const Recepcion = () => {
@@ -18,7 +20,7 @@ const Recepcion = () => {
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     
-    // Estado de filtros
+    // Estado de Filtros
     const [filters, setFilters] = useState({
         codigo: '',
         proveedorNombre: '',
@@ -30,9 +32,32 @@ const Recepcion = () => {
     const user = JSON.parse(sessionStorage.getItem('usuario'));
     const isAdmin = user?.rol === 'administrador';
 
-    // Columnas (Incluyendo todas las que pediste: Peso, Bandejas, etc.)
+    const handleToggleEstado = async () => {
+        if (!dataLote) return;
+
+        const nuevoEstado = !dataLote.estado;
+        const accion = nuevoEstado ? "Reabrir" : "Cerrar";
+        
+        if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${dataLote.codigo}?`)) return;
+
+        try {
+            const response = await updateLote(dataLote.id, { estado: nuevoEstado });
+            
+            if (response.status === 'Success') {
+                showSuccessAlert('¡Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
+                fetchLotes(); 
+                setDataLote(null); 
+            } else {
+                showErrorAlert('Error', response.message || "No se pudo cambiar el estado.");
+            }
+        } catch (error) {
+            console.error(error);
+            showErrorAlert('Error', "Ocurrió un error inesperado.");
+        }
+    };
+
     const columns = [
-        { header: "Lote", accessor: "codigo" },
+        { header: "Código", accessor: "codigo" },
         { header: "Fecha", accessor: "fechaFormateada" },
         { header: "Proveedor", accessor: "proveedorNombre" },
         { header: "Producto", accessor: "materiaPrimaNombre" },
@@ -89,42 +114,41 @@ const Recepcion = () => {
                     <h1 className='title-table'>Recepción de Materia Prima</h1>
                     
                     <div className='action-buttons'>
-                        <button 
-                            onClick={() => setIsCreateOpen(true)} 
-                            className="btn-new"
-                        >
+                        <button onClick={() => setIsCreateOpen(true)} className="btn-new">
                             + Nuevo Ingreso
                         </button>
                         
-                        <button 
-                            onClick={handleEditClick} 
-                            // Se deshabilita si NO hay lote seleccionado O SI tiene producción
-                            disabled={!dataLote || dataLote.tieneProduccion} 
-                            className="btn-edit"
-                            // Opcional: Cambiar el estilo o tooltip para indicar por qué está bloqueado
-                            title={dataLote?.tieneProduccion ? "No se puede editar: Tiene producción asociada" : "Editar Lote"}
-                        >
+                        <button onClick={handleEditClick} disabled={!dataLote} className="btn-edit">
                             Editar
                         </button>
+
+                        {/* --- BOTÓN RECUPERADO --- */}
+                        <button 
+                            onClick={handleToggleEstado} 
+                            disabled={!dataLote}
+                            style={{ 
+                                backgroundColor: dataLote?.estado ? '#ffc107' : '#17a2b8', 
+                                color: dataLote?.estado ? '#000' : '#fff',
+                                borderColor: 'transparent'
+                            }}
+                            className="btn-edit" // Reutilizamos clase base, sobreescribimos color arriba
+                        >
+                            {dataLote?.estado ? "Cerrar Lote" : "Reabrir Lote"}
+                        </button>
+                        {/* ------------------------ */}
                         
                         {isAdmin && (
-                            <button 
-                                onClick={handleDelete} 
-                                disabled={!dataLote} 
-                                className="btn-delete"
-                            >
+                            <button onClick={handleDelete} disabled={!dataLote} className="btn-delete">
                                 Eliminar
                             </button>
                         )}
                     </div>
                 </div>
 
-                {/* --- 2. PANEL DE FILTROS (Centrado) --- */}
                 <div className="filter-section">
-                    {/* Fila Superior (3 inputs) */}
                     <div className="filter-row-3">
                         <div className="filter-group">
-                            <label>Lote</label>
+                            <label>Código</label>
                             <input name="codigo" placeholder="Ej: 1121-01" value={filters.codigo} onChange={handleFilterChange} />
                         </div>
                         <div className="filter-group">
@@ -137,7 +161,6 @@ const Recepcion = () => {
                         </div>
                     </div>
 
-                    {/* Fila Inferior (2 inputs) */}
                     <div className="filter-row-2">
                         <div className="filter-group">
                             <label>Fecha</label>
@@ -154,7 +177,6 @@ const Recepcion = () => {
                     </div>
                 </div>
                 
-                {/* --- 3. TABLA --- */}
                 <Table
                     columns={columns}
                     data={filteredLotes}
@@ -163,7 +185,6 @@ const Recepcion = () => {
                 />
             </div>
 
-            {/* POPUPS */}
             <PopupRecepcion show={isCreateOpen} setShow={setIsCreateOpen} action={handleCreateSubmit} />
             <PopupRecepcion show={isPopupOpen} setShow={setIsPopupOpen} dataToEdit={dataLote} action={handleUpdate} />
         </div>

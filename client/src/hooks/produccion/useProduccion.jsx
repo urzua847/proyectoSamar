@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react';
 import { createProduccion } from '../../services/produccion.service';
-import { getLotesActivos } from '../../services/recepcion.service'; 
+import { getLotesActivos } from '../../services/recepcion.service';
 import { getProductos, getUbicaciones } from '../../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
 
 const useProduccion = () => {
     const [lotes, setLotes] = useState([]);
-    const [productos, setProductos] = useState([]);
+    const [productosCatalogo, setProductosCatalogo] = useState([]); // Lista maestra de productos
     const [ubicaciones, setUbicaciones] = useState([]);
-    const [calibresDisponibles, setCalibresDisponibles] = useState([]);
-    const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+    const [loteSeleccionado, setLoteSeleccionado] = useState("");
+    
+    // Estado de la planilla: { [idProducto]: { peso: "", ubicacion: "", calibre: "" } }
+    const [planilla, setPlanilla] = useState({});
 
-    const [loading, setLoading] = useState(true);
-
-    // 1. Cargar todos los catálogos al inicio
     useEffect(() => {
         async function loadData() {
             try {
@@ -22,72 +21,82 @@ const useProduccion = () => {
                     getProductos(),
                     getUbicaciones()
                 ]);
-                setLotes(lotesData || []);
-                setProductos(prodData || []);
+                
+                // Filtrar solo lotes ABIERTOS
+                const lotesAbiertos = (lotesData || []).filter(l => l.estado === true);
+                setLotes(lotesAbiertos);
+                
+                setProductosCatalogo(prodData || []);
                 setUbicaciones(ubicData || []);
             } catch (error) {
-                console.error("Error cargando datos:", error);
-            } finally {
-                setLoading(false);
+                console.error(error);
             }
         }
         loadData();
     }, []);
 
-    // 2. Lógica cuando cambia el producto seleccionado
-    const handleProductChange = (e, setValue) => {
-        const prodId = Number(e.target.value);
-        setValue('producto', prodId); 
-        
-        // Busca el producto completo para ver sus calibres
-        const prod = productos.find(p => p.id === prodId);
-        setProductoSeleccionado(prod);
-
-        if (prod && prod.calibres) {
-            const lista = Array.isArray(prod.calibres) ? prod.calibres : prod.calibres.split(',');
-            setCalibresDisponibles(lista);
-        } else {
-            setCalibresDisponibles([]);
-        }        
-        setValue('calibre', ''); 
+    // Maneja cambios en los inputs de la tabla
+    const handleInputChange = (prodId, field, value) => {
+        setPlanilla(prev => ({
+            ...prev,
+            [prodId]: {
+                ...prev[prodId],
+                [field]: value
+            }
+        }));
     };
 
-    // 3. Enviar al Backend
-    const handleCreateProduccion = async (data) => {
+    // Enviar Datos
+    const handleGuardarTodo = async () => {
+        if (!loteSeleccionado) {
+            showErrorAlert('Error', 'Seleccione un Lote de Origen.');
+            return;
+        }
+
+        // Filtramos solo los productos que tengan un peso ingresado > 0
+        const itemsParaGuardar = Object.keys(planilla)
+            .filter(prodId => planilla[prodId]?.peso > 0 && planilla[prodId]?.ubicacion)
+            .map(prodId => ({
+                definicionProductoId: Number(prodId),
+                ubicacionId: Number(planilla[prodId].ubicacion),
+                peso_neto_kg: Number(planilla[prodId].peso),
+                calibre: planilla[prodId].calibre || null
+            }));
+
+        if (itemsParaGuardar.length === 0) {
+            showErrorAlert('Atención', 'Ingrese peso y ubicación para al menos un producto.');
+            return;
+        }
+
         try {
             const payload = {
-                loteRecepcionId: Number(data.loteOrigen),
-                definicionProductoId: Number(data.producto),
-                ubicacionId: Number(data.ubicacion),
-                peso_neto_kg: Number(data.peso),
-                calibre: data.calibre || null 
+                loteRecepcionId: Number(loteSeleccionado),
+                items: itemsParaGuardar
             };
 
             const response = await createProduccion(payload);
 
             if (response.status === 'Success') {
-                showSuccessAlert('¡Producción Guardada!', 'El registro se ha creado exitosamente.');
-
-                return true; 
+                showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos.`);
+                setPlanilla({}); // Limpiar planilla
+                setLoteSeleccionado(""); // Limpiar lote
             } else {
-                showErrorAlert('Error', response.message || 'No se pudo registrar.');
-                return false;
+                showErrorAlert('Error', response.message || 'No se pudo guardar.');
             }
         } catch (error) {
-            showErrorAlert('Error', 'Error inesperado.');
-            return false;
+            showErrorAlert('Error', 'Fallo inesperado.');
         }
     };
 
     return {
         lotes,
-        productos,
+        productosCatalogo,
         ubicaciones,
-        calibresDisponibles,
-        productoSeleccionado,
-        loading,
-        handleProductChange, 
-        handleCreateProduccion
+        loteSeleccionado,
+        setLoteSeleccionado,
+        planilla,
+        handleInputChange,
+        handleGuardarTodo
     };
 };
 

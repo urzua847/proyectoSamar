@@ -1,101 +1,126 @@
 import useProduccion from '../hooks/produccion/useProduccion';
-import { useForm } from 'react-hook-form';
-import { showSuccessAlert } from '../helpers/sweetAlert';
-import '../styles/recepcion.css'; 
+import '../styles/users.css'; // Reutilizamos estilos base
+import '../styles/table.css'; // Reutilizamos estilos de tabla
 
 const Produccion = () => {
     const {
         lotes,
-        productos,
+        productosCatalogo,
         ubicaciones,
-        calibresDisponibles,
-        handleProductChange,
-        handleCreateProduccion
+        loteSeleccionado,
+        setLoteSeleccionado,
+        planilla,
+        handleInputChange,
+        handleGuardarTodo
     } = useProduccion();
 
-    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm();
-
-    const onSubmit = async (data) => {
-        const success = await handleCreateProduccion(data);
-        if (success) reset();
-    };
-
     return (
-        <div className="recepcion-container"> {/* Reutilizamos contenedor */}
-            <h1>Registro de Producción</h1>
-            
-            <div className="form-section" style={{ maxWidth: '600px', margin: '0 auto' }}>
-                <form className="form" onSubmit={handleSubmit(onSubmit)}>
-                    
-                    {/* 1. LOTE DE ORIGEN */}
-                    <div className="container_inputs">
-                        <label>Lote de Origen</label>
-                        <select {...register("loteOrigen", { required: "Seleccione un lote" })}>
+        <div className="main-container">
+            <div className="table-wrapper" style={{ maxWidth: '1000px' }}>
+                
+                <div className="top-table">
+                    <h1 className="title-table">Registro Masivo de Producción</h1>
+                </div>
+
+                {/* 1. SELECCIÓN DE LOTE */}
+                <div className="filter-section" style={{ alignItems: 'flex-start' }}>
+                    <div className="filter-group" style={{ width: '100%' }}>
+                        <label>Lote de Origen (Materia Prima)</label>
+                        <select 
+                            value={loteSeleccionado} 
+                            onChange={(e) => setLoteSeleccionado(e.target.value)}
+                            style={{ fontSize: '1.1rem', padding: '10px' }}
+                        >
                             <option value="">-- Seleccione Lote --</option>
                             {lotes.map(l => (
                                 <option key={l.id} value={l.id}>
-                                    {l.codigo} - {l.proveedor?.nombre} ({l.materiaPrima?.nombre})
+                                    {l.codigo} | {l.materiaPrimaNombre} ({l.proveedorNombre})
                                 </option>
                             ))}
                         </select>
-                        {errors.loteOrigen && <span className="error-message visible">{errors.loteOrigen.message}</span>}
                     </div>
+                </div>
 
-                    {/* 2. PRODUCTO (Con lógica especial onChange) */}
-                    <div className="container_inputs">
-                        <label>Producto</label>
-                        <select 
-                            {...register("producto", { required: "Seleccione un producto" })}
-                            onChange={(e) => handleProductChange(e, setValue)}
-                        >
-                            <option value="">-- Seleccione Producto --</option>
-                            {productos.map(p => (
-                                <option key={p.id} value={p.id}>{p.nombre}</option>
-                            ))}
-                        </select>
-                        {errors.producto && <span className="error-message visible">{errors.producto.message}</span>}
-                    </div>
+                {/* 2. PLANILLA DE INGRESO */}
+                {loteSeleccionado && (
+                    <div className="table-container-native" style={{ marginTop: '20px', overflowX: 'auto' }}>
+                        <table className="samar-table">
+                            <thead>
+                                <tr>
+                                    <th style={{width: '30%'}}>Producto</th>
+                                    <th style={{width: '20%'}}>Calibre</th>
+                                    <th style={{width: '25%'}}>Destino (Cámara)</th>
+                                    <th style={{width: '15%'}}>Peso (Kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {productosCatalogo.map((prod) => {
+                                    // Convertir calibres a array si es string
+                                    const calibres = typeof prod.calibres === 'string' 
+                                        ? prod.calibres.split(',') 
+                                        : (prod.calibres || []);
 
-                    {/* 3. CALIBRE (Condicional: Solo si hay calibres disponibles) */}
-                    {calibresDisponibles.length > 0 && (
-                        <div className="container_inputs">
-                            <label>Calibre</label>
-                            <select {...register("calibre", { required: "Seleccione calibre" })}>
-                                <option value="">-- Seleccione Calibre --</option>
-                                {calibresDisponibles.map((c, i) => (
-                                    <option key={i} value={c}>{c}</option>
-                                ))}
-                            </select>
-                            {errors.calibre && <span className="error-message visible">{errors.calibre.message}</span>}
+                                    return (
+                                        <tr key={prod.id} style={{ backgroundColor: planilla[prod.id]?.peso ? '#f0f9ff' : 'white' }}>
+                                            <td style={{ fontWeight: 'bold', color: '#003366' }}>
+                                                {prod.nombre}
+                                            </td>
+                                            
+                                            <td>
+                                                {calibres.length > 0 ? (
+                                                    <select
+                                                        value={planilla[prod.id]?.calibre || ""}
+                                                        onChange={(e) => handleInputChange(prod.id, 'calibre', e.target.value)}
+                                                        style={{ width: '100%', padding: '5px' }}
+                                                    >
+                                                        <option value="">-</option>
+                                                        {calibres.map((c, i) => <option key={i} value={c.trim()}>{c.trim()}</option>)}
+                                                    </select>
+                                                ) : (
+                                                    <span style={{ color: '#999', fontSize: '0.8rem' }}>N/A</span>
+                                                )}
+                                            </td>
+
+                                            <td>
+                                                <select
+                                                    value={planilla[prod.id]?.ubicacion || ""}
+                                                    onChange={(e) => handleInputChange(prod.id, 'ubicacion', e.target.value)}
+                                                    style={{ width: '100%', padding: '5px' }}
+                                                >
+                                                    <option value="">Seleccionar...</option>
+                                                    {ubicaciones.map(u => (
+                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    placeholder="0.0"
+                                                    value={planilla[prod.id]?.peso || ""}
+                                                    onChange={(e) => handleInputChange(prod.id, 'peso', e.target.value)}
+                                                    style={{ width: '100%', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}
+                                                />
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+
+                        <div style={{ padding: '20px', textAlign: 'right' }}>
+                            <button 
+                                onClick={handleGuardarTodo} 
+                                className="btn-new" 
+                                style={{ padding: '15px 30px', fontSize: '1.1rem' }}
+                            >
+                                Guardar Producción Completa
+                            </button>
                         </div>
-                    )}
-
-                    {/* 4. UBICACIÓN */}
-                    <div className="container_inputs">
-                        <label>Destino (Ubicación)</label>
-                        <select {...register("ubicacion", { required: "Seleccione ubicación" })}>
-                            <option value="">-- Seleccione Destino --</option>
-                            {ubicaciones.map(u => (
-                                <option key={u.id} value={u.id}>{u.nombre} ({u.tipo})</option>
-                            ))}
-                        </select>
-                        {errors.ubicacion && <span className="error-message visible">{errors.ubicacion.message}</span>}
                     </div>
-
-                    {/* 5. PESO NETO */}
-                    <div className="container_inputs">
-                        <label>Peso Neto (kg)</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="Ej: 20.5"
-                            {...register("peso", { required: "Ingrese el peso", min: 0.1 })} 
-                        />
-                        {errors.peso && <span className="error-message visible">{errors.peso.message}</span>}
-                    </div>
-
-                    <button type="submit">Guardar Producción</button>
-                </form>
+                )}
             </div>
         </div>
     );

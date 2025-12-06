@@ -2,30 +2,18 @@
 
 import { createProduccionService } from "../services/produccion.service.js";
 import { createProduccionValidation } from "../validations/produccion.validation.js";
-import {
-  handleErrorClient,
-  handleErrorServer,
-  handleSuccess,
-} from "../handlers/responseHandlers.js";
+import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
 export async function createProduccion(req, res) {
   try {
-    const { body } = req;
+    // Validar estructura { loteRecepcionId, items: [] }
+    const { error } = createProduccionValidation.validate(req.body);
+    if (error) return handleErrorClient(res, 400, "Error de validación", error.message);
 
-    // 1. Validar los datos de entrada
-    const { error: validationError } = createProduccionValidation.validate(body);
-    if (validationError) {
-      return handleErrorClient(res, 400, "Error de validación", validationError.message);
-    }
+    const [nuevosProductos, errorService] = await createProduccionService(req.body);
+    if (errorService) return handleErrorClient(res, 400, errorService);
 
-    // 2. Llamar al servicio para crear
-    const [newProduccion, error] = await createProduccionService(body);
-    if (error) {
-      return handleErrorClient(res, 400, "Error al registrar producción", error);
-    }
-
-    // 3. Enviar respuesta de éxito
-    handleSuccess(res, 201, "Producción registrada exitosamente", newProduccion);
+    handleSuccess(res, 201, "Producción registrada exitosamente", { cantidad: nuevosProductos.length });
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }
