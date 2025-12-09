@@ -1,5 +1,4 @@
 "use strict";
-
 import { AppDataSource } from "../config/configDb.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import LoteRecepcion from "../entity/loteRecepcion.entity.js";
@@ -15,35 +14,27 @@ export async function createProduccionService(data) {
   try {
     const { loteRecepcionId, items } = data;
 
-    // 1. Validar que el Lote de Origen existe y está ABIERTO
     const loteOrigen = await loteRepository.findOne({ where: { id: loteRecepcionId } });
     if (!loteOrigen) return [null, "El Lote de Recepción no existe."];
-    if (loteOrigen.estado === false) return [null, "El Lote está CERRADO, no se puede agregar producción."];
+    if (loteOrigen.estado === false) return [null, "El Lote está CERRADO."];
 
     const nuevosRegistros = [];
 
-    // 2. Procesar cada item de la lista
     for (const item of items) {
         const { definicionProductoId, ubicacionId, peso_neto_kg, calibre } = item;
 
-        // Validar Producto
         const definicion = await productoDefRepository.findOne({ where: { id: definicionProductoId } });
-        if (!definicion) return [null, `El producto ID ${definicionProductoId} no existe.`];
+        if (!definicion) return [null, `Producto ID ${definicionProductoId} inválido.`];
 
-        // Validar Ubicación
         const ubicacion = await ubicacionRepository.findOne({ where: { id: ubicacionId } });
-        if (!ubicacion) return [null, `La ubicación ID ${ubicacionId} no existe.`];
+        if (!ubicacion) return [null, `Ubicación ID ${ubicacionId} inválida.`];
 
-        // Validar Calibre (Si aplica)
         if (definicion.calibres && definicion.calibres.length > 0) {
-             // Si el producto tiene calibres, y el enviado no está en la lista (o es nulo), error.
-             // Ojo: Si viene calibre, debe coincidir. Si no viene y es obligatorio en tu lógica, ajusta aquí.
             if (calibre && !definicion.calibres.includes(calibre)) {
-                return [null, `El calibre '${calibre}' no es válido para ${definicion.nombre}.`];
+                return [null, `Calibre '${calibre}' inválido para ${definicion.nombre}.`];
             }
         }
 
-        // Preparar instancia
         const nuevoProd = produccionRepository.create({
             peso_neto_kg,
             calibre,
@@ -56,11 +47,72 @@ export async function createProduccionService(data) {
         nuevosRegistros.push(nuevoProd);
     }
 
-    // 3. Guardar todo (en una transacción idealmente, pero save con array funciona bien)
     await produccionRepository.save(nuevosRegistros);
-    
     return [nuevosRegistros, null];
 
+  } catch (error) {
+    console.error("Error en createProduccionService:", error);
+    throw new Error(error.message);
+  }
+}
+
+export async function getProducciones() {
+    try {
+        const response = await axios.get('/produccion');
+        const data = response.data.data.map(prod => ({
+            id: prod.id,
+            loteCodigo: prod.loteDeOrigen?.codigo,
+            fechaRecepcion: formatTempo(prod.loteDeOrigen?.fecha_recepcion, "DD-MM-YYYY"),
+            proveedorNombre: prod.loteDeOrigen?.proveedor?.nombre,
+            materiaPrimaNombre: prod.loteDeOrigen?.materiaPrima?.nombre,
+            productoFinalNombre: prod.definicion?.nombre,
+            estadoLote: prod.loteDeOrigen?.estado ? 'Abierto' : 'Cerrado',
+            ubicacionNombre: prod.ubicacion?.nombre,
+            peso_neto_kg: prod.peso_neto_kg,
+            calibre: prod.calibre || '-'
+        }));
+        return data;
+    } catch (error) {
+        return [];
+    }
+}
+
+export async function getStockCamarasService() {
+  try {
+    const stock = await produccionRepository
+      .createQueryBuilder("prod")
+      .leftJoin("prod.ubicacion", "ubi")
+      .leftJoin("prod.definicion", "def")
+      .select("ubi.nombre", "ubicacionNombre")
+      .addSelect("def.nombre", "productoNombre")
+      .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
+      .where("prod.estado = :estado", { estado: "En Stock" })
+      .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
+      .groupBy("ubi.nombre")
+      .addGroupBy("def.nombre")
+      .orderBy("ubi.nombre", "ASC")
+      .getRawMany();
+
+    return [stock, null];
+  } catch (error) {
+    console.error("Error en getStockCamarasService:", error); // <--- ESTO TE MOSTRARÁ EL ERROR REAL
+    throw new Error(error.message);
+  }
+}
+
+export async function getProduccionesService() {
+  try {
+    const producciones = await produccionRepository.find({
+      relations: [
+        "loteDeOrigen",
+        "loteDeOrigen.proveedor",
+        "loteDeOrigen.materiaPrima",
+        "definicion",
+        "ubicacion"
+      ],
+      order: { fecha_produccion: "DESC" }
+    });
+    return [producciones, null];
   } catch (error) {
     throw new Error(error.message);
   }

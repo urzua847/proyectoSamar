@@ -1,127 +1,115 @@
-import useProduccion from '../hooks/produccion/useProduccion';
-import '../styles/users.css'; // Reutilizamos estilos base
-import '../styles/table.css'; // Reutilizamos estilos de tabla
+import { useState, useMemo } from 'react';
+import Table from '../components/Table';
+import useGetProducciones from '../hooks/produccion/useGetProducciones';
+import PopupProduccion from '../components/PopupProduccion';
+import '../styles/users.css'; 
 
 const Produccion = () => {
-    const {
-        lotes,
-        productosCatalogo,
-        ubicaciones,
-        loteSeleccionado,
-        setLoteSeleccionado,
-        planilla,
-        handleInputChange,
-        handleGuardarTodo
-    } = useProduccion();
+    const { producciones, fetchProducciones } = useGetProducciones();
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    // --- FILTROS (3 Arriba, 2 Abajo) ---
+    const [filters, setFilters] = useState({
+        loteCodigo: '',
+        proveedorNombre: '',
+        materiaPrimaNombre: '',
+        productoFinalNombre: '',
+        ubicacionNombre: ''
+    });
+
+    // Columnas según tu orden específico
+    const columns = [
+        { header: "Lote", accessor: "loteCodigo" },
+        { header: "Recepción", accessor: "fechaRecepcion" },
+        { header: "Proveedor", accessor: "proveedorNombre" },
+        { header: "Producto (MP)", accessor: "materiaPrimaNombre" },
+        { header: "Producto Final", accessor: "productoFinalNombre" },
+        { header: "Peso (Kg)", accessor: "peso_neto_kg" }, // Agregado para ver cuánto
+        { header: "Calibre", accessor: "calibre" },         // Agregado para detalle
+        { 
+            header: "Estado Lote", 
+            accessor: "estadoLote",
+            render: (row) => (
+                <span style={{ 
+                    color: row.estadoLote === 'Abierto' ? '#28a745' : '#dc3545', 
+                    fontWeight: 'bold' 
+                }}>
+                    {row.estadoLote}
+                </span>
+            )
+        },
+        { header: "Cámara", accessor: "ubicacionNombre" }
+    ];
+
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+
+    const filteredData = useMemo(() => {
+        if (!producciones) return [];
+        return producciones.filter(item => {
+            return Object.keys(filters).every(key => {
+                if (!filters[key]) return true;
+                const itemValue = String(item[key] || '').toLowerCase();
+                const filterValue = filters[key].toLowerCase();
+                return itemValue.includes(filterValue);
+            });
+        });
+    }, [producciones, filters]);
 
     return (
         <div className="main-container">
-            <div className="table-wrapper" style={{ maxWidth: '1000px' }}>
-                
+            <div className="table-wrapper">
                 <div className="top-table">
-                    <h1 className="title-table">Registro Masivo de Producción</h1>
-                </div>
-
-                {/* 1. SELECCIÓN DE LOTE */}
-                <div className="filter-section" style={{ alignItems: 'flex-start' }}>
-                    <div className="filter-group" style={{ width: '100%' }}>
-                        <label>Lote de Origen (Materia Prima)</label>
-                        <select 
-                            value={loteSeleccionado} 
-                            onChange={(e) => setLoteSeleccionado(e.target.value)}
-                            style={{ fontSize: '1.1rem', padding: '10px' }}
-                        >
-                            <option value="">-- Seleccione Lote --</option>
-                            {lotes.map(l => (
-                                <option key={l.id} value={l.id}>
-                                    {l.codigo} | {l.materiaPrimaNombre} ({l.proveedorNombre})
-                                </option>
-                            ))}
-                        </select>
+                    <h1 className="title-table">Historial de Producción</h1>
+                    <div className="action-buttons">
+                        <button onClick={() => setIsCreateOpen(true)} className="btn-new">
+                            Ingresar Producción
+                        </button>
                     </div>
                 </div>
 
-                {/* 2. PLANILLA DE INGRESO */}
-                {loteSeleccionado && (
-                    <div className="table-container-native" style={{ marginTop: '20px', overflowX: 'auto' }}>
-                        <table className="samar-table">
-                            <thead>
-                                <tr>
-                                    <th style={{width: '30%'}}>Producto</th>
-                                    <th style={{width: '20%'}}>Calibre</th>
-                                    <th style={{width: '25%'}}>Destino (Cámara)</th>
-                                    <th style={{width: '15%'}}>Peso (Kg)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {productosCatalogo.map((prod) => {
-                                    // Convertir calibres a array si es string
-                                    const calibres = typeof prod.calibres === 'string' 
-                                        ? prod.calibres.split(',') 
-                                        : (prod.calibres || []);
-
-                                    return (
-                                        <tr key={prod.id} style={{ backgroundColor: planilla[prod.id]?.peso ? '#f0f9ff' : 'white' }}>
-                                            <td style={{ fontWeight: 'bold', color: '#003366' }}>
-                                                {prod.nombre}
-                                            </td>
-                                            
-                                            <td>
-                                                {calibres.length > 0 ? (
-                                                    <select
-                                                        value={planilla[prod.id]?.calibre || ""}
-                                                        onChange={(e) => handleInputChange(prod.id, 'calibre', e.target.value)}
-                                                        style={{ width: '100%', padding: '5px' }}
-                                                    >
-                                                        <option value="">-</option>
-                                                        {calibres.map((c, i) => <option key={i} value={c.trim()}>{c.trim()}</option>)}
-                                                    </select>
-                                                ) : (
-                                                    <span style={{ color: '#999', fontSize: '0.8rem' }}>N/A</span>
-                                                )}
-                                            </td>
-
-                                            <td>
-                                                <select
-                                                    value={planilla[prod.id]?.ubicacion || ""}
-                                                    onChange={(e) => handleInputChange(prod.id, 'ubicacion', e.target.value)}
-                                                    style={{ width: '100%', padding: '5px' }}
-                                                >
-                                                    <option value="">Seleccionar...</option>
-                                                    {ubicaciones.map(u => (
-                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    step="0.1"
-                                                    placeholder="0.0"
-                                                    value={planilla[prod.id]?.peso || ""}
-                                                    onChange={(e) => handleInputChange(prod.id, 'peso', e.target.value)}
-                                                    style={{ width: '100%', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}
-                                                />
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-
-                        <div style={{ padding: '20px', textAlign: 'right' }}>
-                            <button 
-                                onClick={handleGuardarTodo} 
-                                className="btn-new" 
-                                style={{ padding: '15px 30px', fontSize: '1.1rem' }}
-                            >
-                                Guardar Producción Completa
-                            </button>
+                <div className="filter-section">
+                    {/* Fila 1: Origen */}
+                    <div className="filter-row-3">
+                        <div className="filter-group">
+                            <label>Lote</label>
+                            <input name="loteCodigo" placeholder="Ej: 1204..." value={filters.loteCodigo} onChange={handleFilterChange} />
+                        </div>
+                        <div className="filter-group">
+                            <label>Proveedor</label>
+                            <input name="proveedorNombre" placeholder="Nombre..." value={filters.proveedorNombre} onChange={handleFilterChange} />
+                        </div>
+                        <div className="filter-group">
+                            <label>Materia Prima</label>
+                            <input name="materiaPrimaNombre" placeholder="Ej: Jaiba" value={filters.materiaPrimaNombre} onChange={handleFilterChange} />
                         </div>
                     </div>
-                )}
+                    {/* Fila 2: Resultado */}
+                    <div className="filter-row-2">
+                        <div className="filter-group">
+                            <label>Producto Final</label>
+                            <input name="productoFinalNombre" placeholder="Ej: Carne Codo" value={filters.productoFinalNombre} onChange={handleFilterChange} />
+                        </div>
+                        <div className="filter-group">
+                            <label>Cámara</label>
+                            <input name="ubicacionNombre" placeholder="Ej: Cámara 1" value={filters.ubicacionNombre} onChange={handleFilterChange} />
+                        </div>
+                    </div>
+                </div>
+
+                <Table
+                    columns={columns}
+                    data={filteredData}
+                />
             </div>
+
+            <PopupProduccion 
+                show={isCreateOpen} 
+                setShow={setIsCreateOpen} 
+                onSuccess={fetchProducciones} 
+            />
         </div>
     );
 };

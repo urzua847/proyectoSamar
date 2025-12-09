@@ -89,6 +89,9 @@ async function createUbicaciones() {
 /* ==============================================
    5. PRODUCTOS (Definiciones y Calibres)
    ============================================== */
+/* ==============================================
+   5. PRODUCTOS (Ordenado: Primarios -> Elaborados)
+   ============================================== */
 async function createProductos() {
   const prodRepo = AppDataSource.getRepository(DefinicionProducto);
   const matRepo = AppDataSource.getRepository(MateriaPrima);
@@ -99,46 +102,66 @@ async function createProductos() {
   const jaiba = await matRepo.findOne({ where: { nombre: "Jaiba" } });
   if (!jaiba) return;
 
-await prodRepo.save([
+  await prodRepo.save([
+    // =====================================================
+    // 1. PRODUCTOS PRIMARIOS (Salen directo de la Jaiba)
+    //    Estos son los que suman al % de Rendimiento.
+    // =====================================================
+
+    // A. Del Cuerpo
     prodRepo.create({ 
         nombre: "Carne Blanca", 
         tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: ["Primera", "Segunda"] 
+        calibres: null // Es carne molida/desmenuzada, no tiene calibre
     }),
+
+    // B. De las Pinzas (Con Cáscara)
     prodRepo.create({ 
-        nombre: "Tres segmentos", 
+        nombre: "Tres Cementos", 
         tipo: "primario", 
         materiaPrima: jaiba, 
         calibres: ["Grande", "Mediano"] 
     }),
+
+    // C. Del Desconche (Sin Cáscara - Relleno)
     prodRepo.create({ 
-        nombre: "Carne Pinza Chica", 
+        nombre: "Carne Codo y Brazo", 
         tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: null 
-    }),
-    prodRepo.create({ 
-        nombre: "Pinza para Decorar", 
-        tipo: "primario", 
-        materiaPrima: jaiba, 
-        calibres: null 
+        calibres: null // Se usa para rellenar moldes o decorar
     }),
 
+    // D. Del Desconche (Sin Cáscara - Pinzas Enteras)
     prodRepo.create({ 
-        nombre: "Pote Carne Jaiba 1kg", 
-        tipo: "elaborado", 
+        nombre: "Pinza Coctel", 
+        tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: null 
+        calibres: ["Chica", "Grande"] 
     }),
-     prodRepo.create({ 
-        nombre: "Pote Carne Jaiba 500g", 
+    prodRepo.create({ 
+        nombre: "Pinza Yumbo", // La calidad más alta
+        tipo: "primario", 
+        materiaPrima: jaiba, 
+        calibres: ["Standard"] 
+    }),
+
+
+    // =====================================================
+    // 2. PRODUCTOS ELABORADOS (Mezclas y Envasados)
+    //    Estos NO suman al rendimiento (ya se contó la carne antes).
+    // =====================================================
+
+    // Moldes (Mezcla de Carne Blanca + Codo/Brazo)
+    prodRepo.create({ 
+        nombre: "Molde Jaiba", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: null 
+        // Usamos los 'calibres' para definir los formatos de venta
+        calibres: ["1 Kg", "500 grs", "250 grs"] 
     }),
   ]);
-  console.log("Productos definidos creados.");
+  console.log("=> Productos definidos creados (Estructura Correcta).");
 }
 
 /* ==============================================

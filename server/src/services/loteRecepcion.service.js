@@ -12,9 +12,6 @@ const proveedorRepository = AppDataSource.getRepository(Proveedor);
 const materiaPrimaRepository = AppDataSource.getRepository(MateriaPrima);
 const userRepository = AppDataSource.getRepository(User);
 
-/**
- * Servicio para crear un nuevo lote de recepción.
- */
 export async function createLoteService(data, operarioEmail) {
   try {
     const { proveedorId, materiaPrimaId, peso_bruto_kg, numero_bandejas, pesadas } = data;
@@ -28,24 +25,14 @@ export async function createLoteService(data, operarioEmail) {
     const operario = await userRepository.findOne({ where: { email: operarioEmail } });
     if (!operario) return [null, "Operario no encontrado"];
 
-    // LÓGICA DE CÓDIGO MMDD-XX
+    // Generar Código MMDD-XX
     const hoy = new Date();
-    const mes = String(hoy.getMonth() + 1).padStart(2, '0'); 
-    const dia = String(hoy.getDate()).padStart(2, '0');      
-    const codigoBase = `${mes}${dia}`; 
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    const codigoBase = `${mes}${dia}`;
 
-    const ultimoLote = await loteRepository.findOne({
-        where: { codigo: Like(`${codigoBase}%`) },
-        order: { id: "DESC" } 
-    });
-
-    let secuenciaNum = 1;
-    if (ultimoLote) {
-        const partes = ultimoLote.codigo.split('-');
-        if (partes.length > 1) secuenciaNum = parseInt(partes[1], 10) + 1;
-    }
-
-    const secuencia = String(secuenciaNum).padStart(2, '0');
+    const lotesHoy = await loteRepository.count({ where: { codigo: Like(`${codigoBase}%`) } });
+    const secuencia = String(lotesHoy + 1).padStart(2, '0');
     const codigoFinal = `${codigoBase}-${secuencia}`;
 
     const newLote = loteRepository.create({
@@ -56,7 +43,7 @@ export async function createLoteService(data, operarioEmail) {
       proveedor,
       materiaPrima,
       operario,
-      estado: true // <--- CORRECCIÓN 1: Forzamos que nazca ABIERTO
+      estado: true // Forzamos que nazca ABIERTO
     });
 
     await loteRepository.save(newLote);
@@ -69,8 +56,7 @@ export async function createLoteService(data, operarioEmail) {
 export async function getLotesActivosService() {
     try {
         const lotes = await loteRepository.find({
-            // where: { estado: true }, // Si quisieras filtrar solo activos
-            relations: ["proveedor", "materiaPrima", "productosTerminados"], 
+            relations: ["proveedor", "materiaPrima", "productosTerminados"],
             order: { createdAt: "DESC" }
         });
         if (!lotes) return [null, "No se encontraron lotes"];
@@ -93,9 +79,6 @@ export async function getLoteByIdService(id) {
     }
 }
 
-/**
- * Actualizar un lote existente (CORREGIDO)
- */
 export async function updateLoteService(id, data) {
     try {
         const lote = await loteRepository.findOne({ 
@@ -105,23 +88,26 @@ export async function updateLoteService(id, data) {
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        // --- PROTECCIÓN INTELIGENTE ---
+        // --- CORRECCIÓN 1: Protección Inteligente ---
         const tieneProduccion = lote.productosTerminados && lote.productosTerminados.length > 0;
 
         if (tieneProduccion) {
-            // Si tiene producción, verificamos QUÉ intenta cambiar.
-            // Si intenta cambiar datos físicos -> ERROR
+            // Verificamos si intenta cambiar datos físicos (PROHIBIDO si hay producción)
+            // Usamos 'undefined' para saber si el campo viene en la petición
             const intentaEditarFisico = 
-                data.proveedorId || data.materiaPrimaId || 
-                data.peso_bruto_kg || data.numero_bandejas || data.pesadas;
+                data.proveedorId !== undefined || 
+                data.materiaPrimaId !== undefined || 
+                data.peso_bruto_kg !== undefined || 
+                data.numero_bandejas !== undefined || 
+                data.pesadas !== undefined;
 
             if (intentaEditarFisico) {
-                return [null, "No se pueden editar los datos físicos (peso, proveedor) porque este lote ya tiene producción. Solo puedes cambiar su estado."];
+                return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción. Solo puedes cambiar su estado."];
             }
+            // Si solo viene data.estado, el código sigue y permite el cambio
         }
-        // ------------------------------
+        // --------------------------------------------
 
-        // Aplicar cambios permitidos
         if (data.proveedorId) {
             const prov = await proveedorRepository.findOne({ where: { id: data.proveedorId } });
             if (prov) lote.proveedor = prov;
@@ -134,12 +120,9 @@ export async function updateLoteService(id, data) {
         if (data.peso_bruto_kg !== undefined) lote.peso_bruto_kg = data.peso_bruto_kg;
         if (data.numero_bandejas !== undefined) lote.numero_bandejas = data.numero_bandejas;
         if (data.pesadas !== undefined) lote.detalle_pesadas = data.pesadas;
-
-        // --- CORRECCIÓN 2: Permitir cambio de estado siempre ---
         if (data.estado !== undefined) {
             lote.estado = data.estado;
         }
-        // -----------------------------------------------------
 
         const loteActualizado = await loteRepository.save(lote);
         return [loteActualizado, null];

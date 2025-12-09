@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react';
-import { createProduccion } from '../../services/produccion.service';
+import { createProduccion, getStockCamaras } from '../../services/produccion.service';
 import { getLotesActivos } from '../../services/recepcion.service';
 import { getProductos, getUbicaciones } from '../../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
 
 const useProduccion = () => {
     const [lotes, setLotes] = useState([]);
-    const [productosCatalogo, setProductosCatalogo] = useState([]); // Lista maestra de productos
+    const [productosCatalogo, setProductosCatalogo] = useState([]); 
     const [ubicaciones, setUbicaciones] = useState([]);
     const [loteSeleccionado, setLoteSeleccionado] = useState("");
     
-    // Estado de la planilla: { [idProducto]: { peso: "", ubicacion: "", calibre: "" } }
+    // Estado de la planilla y del Stock
     const [planilla, setPlanilla] = useState({});
+    const [stockCamaras, setStockCamaras] = useState([]); // <-- NUEVO ESTADO
+
+    const [loading, setLoading] = useState(true);
+
+    // Función auxiliar para cargar el stock (la usaremos al inicio y al guardar)
+    const fetchStock = async () => {
+        const data = await getStockCamaras();
+        setStockCamaras(data || []);
+    };
 
     useEffect(() => {
         async function loadData() {
@@ -22,20 +31,24 @@ const useProduccion = () => {
                     getUbicaciones()
                 ]);
                 
-                // Filtrar solo lotes ABIERTOS
-                const lotesAbiertos = (lotesData || []).filter(l => l.estado === true);
-                setLotes(lotesAbiertos);
-                
+                // Cargar catálogos
+                setLotes((lotesData || []).filter(l => l.estado === true));
                 setProductosCatalogo(prodData || []);
                 setUbicaciones(ubicData || []);
+                
+                // Cargar Stock Inicial
+                await fetchStock();
+
             } catch (error) {
                 console.error(error);
+                showErrorAlert('Error', 'Fallo al cargar datos iniciales.');
+            } finally {
+                setLoading(false);
             }
         }
         loadData();
     }, []);
 
-    // Maneja cambios en los inputs de la tabla
     const handleInputChange = (prodId, field, value) => {
         setPlanilla(prev => ({
             ...prev,
@@ -46,25 +59,23 @@ const useProduccion = () => {
         }));
     };
 
-    // Enviar Datos
     const handleGuardarTodo = async () => {
         if (!loteSeleccionado) {
-            showErrorAlert('Error', 'Seleccione un Lote de Origen.');
+            showErrorAlert('Atención', 'Seleccione un Lote de Origen.');
             return;
         }
 
-        // Filtramos solo los productos que tengan un peso ingresado > 0
         const itemsParaGuardar = Object.keys(planilla)
-            .filter(prodId => planilla[prodId]?.peso > 0 && planilla[prodId]?.ubicacion)
-            .map(prodId => ({
-                definicionProductoId: Number(prodId),
-                ubicacionId: Number(planilla[prodId].ubicacion),
-                peso_neto_kg: Number(planilla[prodId].peso),
-                calibre: planilla[prodId].calibre || null
+            .filter(id => planilla[id]?.peso > 0 && planilla[id]?.ubicacion)
+            .map(id => ({
+                definicionProductoId: Number(id),
+                ubicacionId: Number(planilla[id].ubicacion),
+                peso_neto_kg: Number(planilla[id].peso),
+                calibre: planilla[id].calibre || null
             }));
 
         if (itemsParaGuardar.length === 0) {
-            showErrorAlert('Atención', 'Ingrese peso y ubicación para al menos un producto.');
+            showErrorAlert('Atención', 'Ingrese al menos un peso y ubicación.');
             return;
         }
 
@@ -78,8 +89,11 @@ const useProduccion = () => {
 
             if (response.status === 'Success') {
                 showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos.`);
-                setPlanilla({}); // Limpiar planilla
-                setLoteSeleccionado(""); // Limpiar lote
+                setPlanilla({}); 
+                // setLoteSeleccionado(""); // Opcional: Mantener el lote seleccionado es más cómodo
+                
+                // Actualizar la tabla de stock inmediatamente
+                await fetchStock(); 
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo guardar.');
             }
@@ -89,14 +103,11 @@ const useProduccion = () => {
     };
 
     return {
-        lotes,
-        productosCatalogo,
-        ubicaciones,
-        loteSeleccionado,
-        setLoteSeleccionado,
-        planilla,
-        handleInputChange,
-        handleGuardarTodo
+        lotes, productosCatalogo, ubicaciones,
+        loteSeleccionado, setLoteSeleccionado,
+        planilla, handleInputChange, handleGuardarTodo,
+        stockCamaras, // Exportamos el stock
+        loading
     };
 };
 
