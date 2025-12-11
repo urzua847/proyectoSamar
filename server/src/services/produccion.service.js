@@ -56,26 +56,7 @@ export async function createProduccionService(data) {
   }
 }
 
-export async function getProducciones() {
-    try {
-        const response = await axios.get('/produccion');
-        const data = response.data.data.map(prod => ({
-            id: prod.id,
-            loteCodigo: prod.loteDeOrigen?.codigo,
-            fechaRecepcion: formatTempo(prod.loteDeOrigen?.fecha_recepcion, "DD-MM-YYYY"),
-            proveedorNombre: prod.loteDeOrigen?.proveedor?.nombre,
-            materiaPrimaNombre: prod.loteDeOrigen?.materiaPrima?.nombre,
-            productoFinalNombre: prod.definicion?.nombre,
-            estadoLote: prod.loteDeOrigen?.estado ? 'Abierto' : 'Cerrado',
-            ubicacionNombre: prod.ubicacion?.nombre,
-            peso_neto_kg: prod.peso_neto_kg,
-            calibre: prod.calibre || '-'
-        }));
-        return data;
-    } catch (error) {
-        return [];
-    }
-}
+
 
 export async function getStockCamarasService() {
   try {
@@ -85,33 +66,87 @@ export async function getStockCamarasService() {
       .leftJoin("prod.definicion", "def")
       .select("ubi.nombre", "ubicacionNombre")
       .addSelect("def.nombre", "productoNombre")
+      .addSelect("def.id", "definicionProductoId")
+      .addSelect("prod.calibre", "calibre")
       .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
       .where("prod.estado = :estado", { estado: "En Stock" })
       .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
       .groupBy("ubi.nombre")
       .addGroupBy("def.nombre")
+      .addGroupBy("def.id")
+      .addGroupBy("prod.calibre")
       .orderBy("ubi.nombre", "ASC")
       .getRawMany();
 
-    return [stock, null];
+    const formattedStock = stock.map(item => ({
+        ubicacionNombre: item.ubicacionNombre || item.ubicacionnombre,
+        productoNombre: item.productoNombre || item.productonombre,
+        definicionProductoId: item.definicionProductoId || item.definicionproductoid,
+        calibre: item.calibre,
+        totalKilos: item.totalKilos || item.totalkilos
+    }));
+
+    return [formattedStock, null];
   } catch (error) {
-    console.error("Error en getStockCamarasService:", error); // <--- ESTO TE MOSTRARÁ EL ERROR REAL
+    console.error("Error en getStockCamarasService:", error); 
+    throw new Error(error.message);
+  }
+}
+
+export async function getStockContenedoresService() {
+  try {
+    const stock = await produccionRepository
+      .createQueryBuilder("prod")
+      .leftJoin("prod.ubicacion", "ubi")
+      .leftJoin("prod.definicion", "def")
+      .leftJoin("prod.loteDeOrigen", "lote")
+      .select("ubi.nombre", "ubicacionNombre")
+      .addSelect("ubi.id", "contenedorId")
+      .addSelect("def.nombre", "productoNombre")
+      .addSelect("def.id", "definicionProductoId")
+      .addSelect("prod.calibre", "calibre")
+      .addSelect("lote.codigo", "loteCodigo")
+      .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
+      .where("prod.estado = :estado", { estado: "En Stock" })
+      .andWhere("ubi.tipo = :tipo", { tipo: "contenedor" })
+      .groupBy("ubi.nombre")
+      .addGroupBy("ubi.id")
+      .addGroupBy("def.nombre")
+      .addGroupBy("def.id")
+      .addGroupBy("prod.calibre")
+      .addGroupBy("lote.codigo")
+      .orderBy("ubi.nombre", "ASC")
+      .getRawMany();
+
+    const formattedStock = stock.map(item => ({
+        ubicacionNombre: item.ubicacionNombre || item.ubicacionnombre,
+        contenedorId: item.contenedorId || item.contenedorid,
+        productoNombre: item.productoNombre || item.productonombre,
+        definicionProductoId: item.definicionProductoId || item.definicionproductoid,
+        calibre: item.calibre,
+        loteCodigo: item.loteCodigo || item.lotecodigo,
+        totalKilos: item.totalKilos || item.totalkilos
+    }));
+
+    return [formattedStock, null];
+  } catch (error) {
+    console.error("Error en getStockContenedoresService:", error);
     throw new Error(error.message);
   }
 }
 
 export async function getProduccionesService() {
   try {
-    const producciones = await produccionRepository.find({
-      relations: [
-        "loteDeOrigen",
-        "loteDeOrigen.proveedor",
-        "loteDeOrigen.materiaPrima",
-        "definicion",
-        "ubicacion"
-      ],
-      order: { fecha_produccion: "DESC" }
-    });
+    const producciones = await produccionRepository.createQueryBuilder("prod")
+        .leftJoinAndSelect("prod.loteDeOrigen", "lote")
+        .leftJoinAndSelect("lote.proveedor", "proveedor")
+        .leftJoinAndSelect("lote.materiaPrima", "materiaPrima")
+        .leftJoinAndSelect("prod.definicion", "definicion")
+        .leftJoinAndSelect("prod.ubicacion", "ubicacion")
+        .where("ubicacion.tipo = :tipo", { tipo: "camara" })
+        .orderBy("prod.fecha_produccion", "DESC")
+        .getMany();
+        
     return [producciones, null];
   } catch (error) {
     throw new Error(error.message);

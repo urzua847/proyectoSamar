@@ -9,8 +9,9 @@ import Error404 from './pages/Error404';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/styles.css';
 import Users from './pages/User';
-import Recepcion from './pages/Recepcion'; 
+import Recepcion from './pages/Recepcion';
 import Produccion from './pages/Produccion';
+import Ventas from './pages/Ventas';
 
 const router = createBrowserRouter([
   {
@@ -47,6 +48,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
             <Produccion />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/ventas',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <Ventas />
           </ProtectedRoute>
         )
       }

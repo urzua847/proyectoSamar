@@ -6,17 +6,16 @@ import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
 
 const useProduccion = () => {
     const [lotes, setLotes] = useState([]);
-    const [productosCatalogo, setProductosCatalogo] = useState([]); 
+    const [productosCatalogo, setProductosCatalogo] = useState([]);
     const [ubicaciones, setUbicaciones] = useState([]);
     const [loteSeleccionado, setLoteSeleccionado] = useState("");
-    
+
     // Estado de la planilla y del Stock
     const [planilla, setPlanilla] = useState({});
-    const [stockCamaras, setStockCamaras] = useState([]); // <-- NUEVO ESTADO
+    const [stockCamaras, setStockCamaras] = useState([]);
 
     const [loading, setLoading] = useState(true);
 
-    // Función auxiliar para cargar el stock (la usaremos al inicio y al guardar)
     const fetchStock = async () => {
         const data = await getStockCamaras();
         setStockCamaras(data || []);
@@ -30,13 +29,12 @@ const useProduccion = () => {
                     getProductos(),
                     getUbicaciones()
                 ]);
-                
-                // Cargar catálogos
+
                 setLotes((lotesData || []).filter(l => l.estado === true));
                 setProductosCatalogo(prodData || []);
-                setUbicaciones(ubicData || []);
-                
-                // Cargar Stock Inicial
+                // Filter only for 'camara'
+                setUbicaciones((ubicData || []).filter(u => u.tipo === 'camara'));
+
                 await fetchStock();
 
             } catch (error) {
@@ -89,11 +87,9 @@ const useProduccion = () => {
 
             if (response.status === 'Success') {
                 showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos.`);
-                setPlanilla({}); 
-                // setLoteSeleccionado(""); // Opcional: Mantener el lote seleccionado es más cómodo
-                
-                // Actualizar la tabla de stock inmediatamente
-                await fetchStock(); 
+                setPlanilla({});
+
+                await fetchStock();
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo guardar.');
             }
@@ -106,7 +102,7 @@ const useProduccion = () => {
         lotes, productosCatalogo, ubicaciones,
         loteSeleccionado, setLoteSeleccionado,
         planilla, handleInputChange, handleGuardarTodo,
-        stockCamaras, // Exportamos el stock
+        stockCamaras,
         loading
     };
 };

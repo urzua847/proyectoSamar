@@ -43,7 +43,7 @@ export async function createLoteService(data, operarioEmail) {
       proveedor,
       materiaPrima,
       operario,
-      estado: true // Forzamos que nazca ABIERTO
+      estado: true
     });
 
     await loteRepository.save(newLote);
@@ -88,12 +88,9 @@ export async function updateLoteService(id, data) {
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        // --- CORRECCIÓN 1: Protección Inteligente ---
         const tieneProduccion = lote.productosTerminados && lote.productosTerminados.length > 0;
 
         if (tieneProduccion) {
-            // Verificamos si intenta cambiar datos físicos (PROHIBIDO si hay producción)
-            // Usamos 'undefined' para saber si el campo viene en la petición
             const intentaEditarFisico = 
                 data.proveedorId !== undefined || 
                 data.materiaPrimaId !== undefined || 
@@ -104,9 +101,7 @@ export async function updateLoteService(id, data) {
             if (intentaEditarFisico) {
                 return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción. Solo puedes cambiar su estado."];
             }
-            // Si solo viene data.estado, el código sigue y permite el cambio
         }
-        // --------------------------------------------
 
         if (data.proveedorId) {
             const prov = await proveedorRepository.findOne({ where: { id: data.proveedorId } });

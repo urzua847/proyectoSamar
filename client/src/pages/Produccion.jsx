@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import Table from '../components/Table';
 import useGetProducciones from '../hooks/produccion/useGetProducciones';
 import PopupProduccion from '../components/PopupProduccion';
-import '../styles/users.css'; 
+import PopupTraslado from '../components/produccion/PopupTraslado';
+import '../styles/users.css';
 
 const Produccion = () => {
     const { producciones, fetchProducciones } = useGetProducciones();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isTrasladoOpen, setIsTrasladoOpen] = useState(false);
 
-    // --- FILTROS (3 Arriba, 2 Abajo) ---
     const [filters, setFilters] = useState({
         loteCodigo: '',
         proveedorNombre: '',
@@ -24,15 +25,15 @@ const Produccion = () => {
         { header: "Proveedor", accessor: "proveedorNombre" },
         { header: "Producto (MP)", accessor: "materiaPrimaNombre" },
         { header: "Producto Final", accessor: "productoFinalNombre" },
-        { header: "Peso (Kg)", accessor: "peso_neto_kg" }, // Agregado para ver cuánto
-        { header: "Calibre", accessor: "calibre" },         // Agregado para detalle
-        { 
-            header: "Estado Lote", 
+        { header: "Peso (Kg)", accessor: "peso_neto_kg" },
+        { header: "Calibre", accessor: "calibre" },
+        {
+            header: "Estado Lote",
             accessor: "estadoLote",
             render: (row) => (
-                <span style={{ 
-                    color: row.estadoLote === 'Abierto' ? '#28a745' : '#dc3545', 
-                    fontWeight: 'bold' 
+                <span style={{
+                    color: row.estadoLote === 'Abierto' ? '#28a745' : '#dc3545',
+                    fontWeight: 'bold'
                 }}>
                     {row.estadoLote}
                 </span>
@@ -63,9 +64,12 @@ const Produccion = () => {
             <div className="table-wrapper">
                 <div className="top-table">
                     <h1 className="title-table">Historial de Producción</h1>
-                    <div className="action-buttons">
+                    <div className="action-buttons" style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={() => setIsCreateOpen(true)} className="btn-new">
                             Ingresar Producción
+                        </button>
+                        <button onClick={() => setIsTrasladoOpen(true)} className="btn-new" style={{ backgroundColor: '#ffc107', color: '#000' }}>
+                            Traslado a Contenedor
                         </button>
                     </div>
                 </div>
@@ -105,10 +109,15 @@ const Produccion = () => {
                 />
             </div>
 
-            <PopupProduccion 
-                show={isCreateOpen} 
-                setShow={setIsCreateOpen} 
-                onSuccess={fetchProducciones} 
+            <PopupProduccion
+                show={isCreateOpen}
+                setShow={setIsCreateOpen}
+                onSuccess={fetchProducciones}
+            />
+            <PopupTraslado
+                isOpen={isTrasladoOpen}
+                onClose={() => setIsTrasladoOpen(false)}
+                onTrasladoSuccess={fetchProducciones}
             />
         </div>
     );

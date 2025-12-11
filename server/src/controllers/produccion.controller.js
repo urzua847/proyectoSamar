@@ -1,6 +1,6 @@
 "use strict";
 
-import { createProduccionService,  getProduccionesService, getStockCamarasService } from "../services/produccion.service.js";
+import { createProduccionService,  getProduccionesService, getStockCamarasService, getStockContenedoresService } from "../services/produccion.service.js";
 import { createProduccionValidation } from "../validations/produccion.validation.js";
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
@@ -34,6 +34,16 @@ export async function getStockCamaras(req, res) {
     const [stock, error] = await getStockCamarasService();
     if (error) return handleErrorClient(res, 404, error);
     handleSuccess(res, 200, "Stock de cámaras obtenido", stock);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function getStockContenedores(req, res) {
+  try {
+    const [stock, error] = await getStockContenedoresService();
+    if (error) return handleErrorClient(res, 404, error);
+    handleSuccess(res, 200, "Stock de contenedores obtenido", stock);
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }

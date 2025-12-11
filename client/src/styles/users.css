@@ -2,11 +2,14 @@
 .main-container {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centra todo horizontalmente */
-    padding-top: 100px;  /* Espacio para el Navbar */
+    align-items: center;
+    /* Centra todo horizontalmente */
+    padding-top: 100px;
+    /* Espacio para el Navbar */
     width: 100%;
     min-height: 100vh;
-    background-color: #f4f6f8; /* Fondo suave */
+    background-color: #f4f6f8;
+    /* Fondo suave */
 }
 
 /* El envoltorio que limita el ancho */
@@ -19,7 +22,8 @@
 /* --- ENCABEZADO (Título y Botones) --- */
 .top-table {
     display: flex;
-    justify-content: space-between; /* Título a la izq, Botones a la der */
+    justify-content: space-between;
+    /* Título a la izq, Botones a la der */
     align-items: center;
     margin-bottom: 20px;
     width: 100%;
@@ -39,29 +43,58 @@
 }
 
 /* --- ESTILOS DE BOTONES --- */
-.action-buttons button, 
-.filter-actions button { /* Soporte para ambas clases por si acaso */
+.action-buttons button,
+.filter-actions button {
+    /* Soporte para ambas clases por si acaso */
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 20px;
     border: none;
     color: white;
     cursor: pointer;
     font-weight: 500;
     font-size: 0.9rem;
     transition: opacity 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.action-buttons button:hover { opacity: 0.9; }
+.action-buttons button:hover {
+    opacity: 0.9;
+}
+
 .action-buttons button:disabled {
     background-color: #ccc !important;
     border-color: #ccc !important;
     cursor: not-allowed;
 }
 
-.btn-new { background-color: #28a745; } /* Verde */
-.btn-edit { background-color: #003366; } /* Azul */
-.btn-delete { background-color: #dc3545; } /* Rojo */
-.delete-user-button { background-color: #dc3545; color: white; padding: 8px 16px; border-radius: 5px; border: none; cursor: pointer; } /* Compatibilidad */
+.btn-new {
+    background-color: #28a745;
+    border-radius: 20px;
+}
+
+/* Verde */
+.btn-edit {
+    background-color: #003366;
+    border-radius: 20px;
+}
+
+/* Azul */
+.btn-delete {
+    background-color: #dc3545;
+    border-radius: 20px;
+}
+
+/* Rojo */
+.delete-user-button {
+    background-color: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+}
+
+/* Compatibilidad */
 
 
 /* --- SECCIÓN DE FILTROS (El diseño 3 arriba / 2 abajo) --- */
@@ -69,7 +102,7 @@
     background-color: white;
     padding: 25px;
     border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     margin-bottom: 25px;
     display: flex;
     flex-direction: column;
@@ -83,15 +116,16 @@
     display: flex;
     width: 100%;
     gap: 20px;
-    justify-content: space-between; 
+    justify-content: space-between;
 }
 
 /* Fila inferior (2 elementos centrados) */
 .filter-row-2 {
     display: flex;
-    width: 66%; /* Más angosto para centrar */
+    width: 66%;
+    /* Más angosto para centrar */
     gap: 20px;
-    justify-content: center; 
+    justify-content: center;
 }
 
 .filter-group {
@@ -108,7 +142,7 @@
     margin-left: 2px;
 }
 
-.filter-group input, 
+.filter-group input,
 .filter-group select {
     padding: 10px 12px;
     border: 1px solid #ccc;
@@ -119,7 +153,7 @@
     box-sizing: border-box;
 }
 
-.filter-group input:focus, 
+.filter-group input:focus,
 .filter-group select:focus {
     outline: none;
     border-color: #003366;

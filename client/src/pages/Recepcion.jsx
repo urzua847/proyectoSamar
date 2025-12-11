@@ -11,15 +11,15 @@ import '../styles/users.css';
 const Recepcion = () => {
     const { lotes, fetchLotes, setLotes } = useGetRecepciones();
     const { handleCreateLote } = useRecepcion();
-    
-    const { 
-        dataLote, setDataLote, 
-        isPopupOpen, setIsPopupOpen, 
-        handleEditClick, handleUpdate, handleDelete 
+
+    const {
+        dataLote, setDataLote,
+        isPopupOpen, setIsPopupOpen,
+        handleEditClick, handleUpdate, handleDelete
     } = useEditRecepcion(setLotes, fetchLotes);
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    
+
     // Estado de Filtros
     const [filters, setFilters] = useState({
         codigo: '',
@@ -37,16 +37,16 @@ const Recepcion = () => {
 
         const nuevoEstado = !dataLote.estado;
         const accion = nuevoEstado ? "Reabrir" : "Cerrar";
-        
+
         if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${dataLote.codigo}?`)) return;
 
         try {
             const response = await updateLote(dataLote.id, { estado: nuevoEstado });
-            
+
             if (response.status === 'Success') {
                 showSuccessAlert('¡Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
-                fetchLotes(); 
-                setDataLote(null); 
+                fetchLotes();
+                setDataLote(null);
             } else {
                 showErrorAlert('Error', response.message || "No se pudo cambiar el estado.");
             }
@@ -57,17 +57,17 @@ const Recepcion = () => {
     };
 
     const columns = [
-        { header: "Código", accessor: "codigo" },
+        { header: "Lote", accessor: "codigo" },
         { header: "Fecha", accessor: "fechaFormateada" },
         { header: "Proveedor", accessor: "proveedorNombre" },
         { header: "Producto", accessor: "materiaPrimaNombre" },
         { header: "Peso Total", accessor: "peso_bruto_kg" },
         { header: "Bandejas", accessor: "numero_bandejas" },
-        { 
-            header: "Estado", 
+        {
+            header: "Estado",
             accessor: "estadoTexto",
             render: (row) => (
-                <span style={{ 
+                <span style={{
                     color: row.estado ? '#155724' : '#721c24',
                     backgroundColor: row.estado ? '#d4edda' : '#f8d7da',
                     padding: '4px 8px',
@@ -109,34 +109,34 @@ const Recepcion = () => {
     return (
         <div className='main-container'>
             <div className='table-wrapper'>
-                
+
                 <div className='top-table'>
                     <h1 className='title-table'>Recepción de Materia Prima</h1>
-                    
+
                     <div className='action-buttons'>
                         <button onClick={() => setIsCreateOpen(true)} className="btn-new">
                             + Nuevo Ingreso
                         </button>
-                        
+
                         <button onClick={handleEditClick} disabled={!dataLote} className="btn-edit">
                             Editar
                         </button>
 
                         {/* --- BOTÓN RECUPERADO --- */}
-                        <button 
-                            onClick={handleToggleEstado} 
+                        <button
+                            onClick={handleToggleEstado}
                             disabled={!dataLote}
-                            style={{ 
-                                backgroundColor: dataLote?.estado ? '#ffc107' : '#17a2b8', 
+                            style={{
+                                backgroundColor: dataLote?.estado ? '#ffc107' : '#17a2b8',
                                 color: dataLote?.estado ? '#000' : '#fff',
                                 borderColor: 'transparent'
                             }}
-                            className="btn-edit" // Reutilizamos clase base, sobreescribimos color arriba
+                            className="btn-edit"
                         >
                             {dataLote?.estado ? "Cerrar Lote" : "Reabrir Lote"}
                         </button>
                         {/* ------------------------ */}
-                        
+
                         {isAdmin && (
                             <button onClick={handleDelete} disabled={!dataLote} className="btn-delete">
                                 Eliminar
@@ -176,7 +176,7 @@ const Recepcion = () => {
                         </div>
                     </div>
                 </div>
-                
+
                 <Table
                     columns={columns}
                     data={filteredLotes}

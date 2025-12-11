@@ -118,7 +118,7 @@ async function createProductos() {
 
     // B. De las Pinzas (Con Cáscara)
     prodRepo.create({ 
-        nombre: "Tres Cementos", 
+        nombre: "Tres segmentos", 
         tipo: "primario", 
         materiaPrima: jaiba, 
         calibres: ["Grande", "Mediano"] 

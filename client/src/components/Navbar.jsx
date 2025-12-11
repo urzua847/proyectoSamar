@@ -8,8 +8,8 @@ const Navbar = () => {
     const userRole = user?.rol;
 
     const handleLogout = async (event) => {
-        event.preventDefault(); 
-        await logout(); 
+        event.preventDefault();
+        await logout();
         navigate('/auth', { replace: true });
     };
 
@@ -21,7 +21,7 @@ const Navbar = () => {
             <div className="nav-menu">
                 <ul>
                     <li><NavLink to="/home">Inicio</NavLink></li>
-                    
+
                     {userRole === 'administrador' && (
                         <li><NavLink to="/users">Usuarios</NavLink></li>
                     )}
@@ -33,8 +33,10 @@ const Navbar = () => {
                     {(userRole === 'administrador' || userRole === 'operario') && (
                         <li><NavLink to="/produccion">Producción</NavLink></li>
                     )}
-                    <li><NavLink to="/ventas">Ventas</NavLink></li>
-                    
+                    {(userRole === 'administrador' || userRole === 'operario') && (
+                        <li><NavLink to="/ventas">Ventas</NavLink></li>
+                    )}
+
 
 
                     <li><a href="/auth" onClick={handleLogout}>Cerrar sesión</a></li>
