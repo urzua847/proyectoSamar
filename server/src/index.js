@@ -6,8 +6,6 @@ import indexRoutes from "./routes/index.routes.js";
 import session from "express-session";
 import passport from "passport";
 import express, { json, urlencoded } from "express";
-import path from "path";
-import { fileURLToPath } from "url";
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
@@ -62,18 +60,6 @@ async function setupServer() {
     passportJwtSetup();
 
     app.use("/api", indexRoutes);
-
-    // Servir archivos estáticos del frontend
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    // Ajusta la ruta según tu estructura: server/src/index.js -> ../../client/dist
-    const buildPath = path.join(__dirname, "../../client/dist");
-    
-    app.use(express.static(buildPath));
-
-    app.get(/(.*)/, (req, res) => {
-      res.sendFile(path.join(buildPath, "index.html"));
-    });
 
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en ${HOST}:${PORT}/api`);

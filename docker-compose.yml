@@ -2,7 +2,7 @@ services:
   # 1. Base de datos
   db:
     image: postgres:15-alpine
-    container_name: mi_postgres_db
+    container_name: db
     restart: always
     environment:
       POSTGRES_USER: ${DB_USERNAME}
@@ -16,7 +16,7 @@ services:
     # 2. Backend (API)
   server:
     build: ./server
-    container_name: mi_backend
+    container_name: backend
     restart: always
     # No exponemos puertos del backend directamente a internet, Nginx lo hará.
     environment:
@@ -33,7 +33,7 @@ services:
   # 3. Frontend (Nginx + React)
   client:
     build: ./client
-    container_name: mi_frontend
+    container_name: frontend
     restart: always
     ports:
       # Aquí mapeamos el puerto del servidor (80) al puerto de Nginx (80)
