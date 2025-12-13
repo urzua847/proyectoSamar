@@ -2,54 +2,44 @@ services:
   # 1. Base de datos
   db:
     image: postgres:15-alpine
-    container_name: db
+    container_name: mi_postgres_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "127412"
-      POSTGRES_DB: samar_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_DB: ${DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # NOTA: En producción, NO exponemos ports: "5432:5432" por seguridad.
+    # Solo el backend podrá ver la base de datos internamente.
 
-  # 2. Backend (Server)
+    # 2. Backend (API)
   server:
     build: ./server
-    container_name: backend
+    container_name: mi_backend
     restart: always
-    ports:
-      - "5000:5000"
+    # No exponemos puertos del backend directamente a internet, Nginx lo hará.
     environment:
-      # Variable especial para que Docker use "db" en vez de "localhost"
       - DOCKER_DB_HOST=db
-      # Variables estándar
-      - DB_USERNAME=postgres
-      - PASSWORD=127412
-      - DATABASE=samar_db
-      - PORT=5000
-      - ACCESS_TOKEN_SECRET=SFGSGDAF5165SDG51V
-      - cookieKey=DGH2DSg4TH4VDbD12SFB
+      - DB_USERNAME=${DB_USERNAME}
+      - PASSWORD=${PASSWORD}
+      - DATABASE=${DATABASE}
+      - PORT=${BACKEND_PORT:-5000}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - cookieKey=${cookieKey}
     depends_on:
       - db
-    volumes:
-      - ./server:/app
-      - /app/node_modules
 
-  # 3. Frontend (Client)
+  # 3. Frontend (Nginx + React)
   client:
     build: ./client
-    container_name: frontend
+    container_name: mi_frontend
+    restart: always
     ports:
-      - "5173:5173"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
+      # Aquí mapeamos el puerto del servidor (80) al puerto de Nginx (80)
+      - "${PORT}:80"
     depends_on:
       - server
-    volumes:
-      - ./client:/app
-      - /app/node_modules
 
-# ESTO ES LO QUE DABA ERROR: "volumes" debe estar pegado a la izquierda, igual que "services"
 volumes:
   postgres_data:
