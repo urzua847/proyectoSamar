@@ -4,11 +4,13 @@ import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import LoteRecepcion from "../entity/loteRecepcion.entity.js";
 import DefinicionProducto from "../entity/definicionProducto.entity.js";
 import Ubicacion from "../entity/ubicacion.entity.js";
+import Desconche from "../entity/desconche.entity.js";
 
 const produccionRepository = AppDataSource.getRepository(ProductoTerminado);
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
 const productoDefRepository = AppDataSource.getRepository(DefinicionProducto);
 const ubicacionRepository = AppDataSource.getRepository(Ubicacion);
+const desconcheRepository = AppDataSource.getRepository(Desconche);
 
 export async function createProduccionService(data) {
   try {
@@ -17,6 +19,36 @@ export async function createProduccionService(data) {
     const loteOrigen = await loteRepository.findOne({ where: { id: loteRecepcionId } });
     if (!loteOrigen) return [null, "El Lote de Recepción no existe."];
     if (loteOrigen.estado === false) return [null, "El Lote está CERRADO."];
+
+    // --- VALIDATION: Check Weights ---
+    const desconche = await desconcheRepository.findOne({ where: { lote: { id: loteRecepcionId } } });
+    
+    // Calculate Total Yield Available (from Desconche)
+    let maxYield = 0;
+    if (desconche) {
+        maxYield = Number(desconche.peso_carne_blanca) + Number(desconche.peso_pinzas);
+    } else {
+        // If no desconche, fallback to Lote Gross Weight (or block it?)
+        // For flexibility, let's use Lote weight, but usually Desconche is required.
+        // Let's assume Desconche IS required for "Envasado" of "Carne".
+        // If user is just moving standard raw material, maybe Desconche is not needed.
+        // Let's assume strictly:
+        // if (!desconche) return [null, "No existe planilla de Desconche para este Lote."];
+        // But to be safe and avoiding blocking work, let's use lote.peso_bruto_kg as fallback bounds.
+        maxYield = Number(loteOrigen.peso_bruto_kg);
+    }
+
+    // Calculate currently produced total
+    const currentProducedSum = await produccionRepository.sum("peso_neto_kg", { loteDeOrigen: { id: loteRecepcionId } });
+    const currentTotal = Number(currentProducedSum || 0);
+
+    // Calculate new items total
+    const newTotal = items.reduce((acc, item) => acc + Number(item.peso_neto_kg), 0);
+
+    if (currentTotal + newTotal > maxYield) {
+        return [null, `Error: Se excede el límite de producción. Disponible: ${(maxYield - currentTotal).toFixed(2)} kg. Intentas guardar: ${newTotal.toFixed(2)} kg.`];
+    }
+    // -----------------------------
 
     const nuevosRegistros = [];
 
@@ -56,6 +88,30 @@ export async function createProduccionService(data) {
   }
 }
 
+export async function deleteProduccionService(id) {
+    try {
+        const prod = await produccionRepository.findOne({ where: { id } });
+        if (!prod) return [null, "Producto no encontrado"];
+
+        await produccionRepository.remove(prod);
+        return [true, null];
+    } catch (error) {
+        console.error("Error deleteProduccionService:", error);
+        return [null, error.message];
+    }
+}
+
+export async function deleteManyProduccionService(ids) {
+    try {
+        if (!ids || ids.length === 0) return [null, "No hay IDs para eliminar"];
+        
+        await produccionRepository.delete(ids);
+        return [true, null];
+    } catch (error) {
+        console.error("Error deleteManyProduccionService:", error);
+        return [null, error.message];
+    }
+}
 
 
 export async function getStockCamarasService() {
@@ -69,6 +125,7 @@ export async function getStockCamarasService() {
       .addSelect("def.id", "definicionProductoId")
       .addSelect("prod.calibre", "calibre")
       .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
+      .addSelect("COUNT(prod.id)", "totalCantidad")
       .where("prod.estado = :estado", { estado: "En Stock" })
       .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
       .groupBy("ubi.nombre")
@@ -83,7 +140,8 @@ export async function getStockCamarasService() {
         productoNombre: item.productoNombre || item.productonombre,
         definicionProductoId: item.definicionProductoId || item.definicionproductoid,
         calibre: item.calibre,
-        totalKilos: item.totalKilos || item.totalkilos
+        totalKilos: item.totalKilos || item.totalkilos,
+        totalCantidad: Number(item.totalCantidad || item.totalcantidad)
     }));
 
     return [formattedStock, null];
@@ -107,6 +165,7 @@ export async function getStockContenedoresService() {
       .addSelect("prod.calibre", "calibre")
       .addSelect("lote.codigo", "loteCodigo")
       .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
+      .addSelect("COUNT(prod.id)", "totalCantidad")
       .where("prod.estado = :estado", { estado: "En Stock" })
       .andWhere("ubi.tipo = :tipo", { tipo: "contenedor" })
       .groupBy("ubi.nombre")
@@ -125,7 +184,8 @@ export async function getStockContenedoresService() {
         definicionProductoId: item.definicionProductoId || item.definicionproductoid,
         calibre: item.calibre,
         loteCodigo: item.loteCodigo || item.lotecodigo,
-        totalKilos: item.totalKilos || item.totalkilos
+        totalKilos: item.totalKilos || item.totalkilos,
+        totalCantidad: Number(item.totalCantidad || item.totalcantidad)
     }));
 
     return [formattedStock, null];

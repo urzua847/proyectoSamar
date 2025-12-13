@@ -63,7 +63,10 @@ const Ventas = () => {
 
     const handleAddToCart = (item, quantity) => {
         if (!quantity || quantity <= 0) return alert("Ingrese una cantidad válida");
-        if (quantity > item.totalKilos) return alert("No hay suficiente stock disponible");
+
+        // Validation: Units vs Units
+        const maxLimit = item.totalCantidad || item.totalKilos; // Fallback if totalCantidad missing (shouldn't be)
+        if (quantity > maxLimit) return alert("No hay suficiente stock disponible");
 
         const existingItemIndex = cart.findIndex(c => c.definicionProductoId === item.definicionProductoId && c.contenedorId === item.contenedorId && c.calibre === item.calibre && c.loteCodigo === item.loteCodigo);
 
@@ -102,7 +105,7 @@ const Ventas = () => {
             await axios.post('/ventas', payload);
             alert("Venta registrada exitosamente");
             setCart([]);
-            setIsDespachoOpen(false); // Close popup
+            setIsDespachoOpen(false);
             fetchStock();
         } catch (error) {
             console.error("Error creating venta", error);
@@ -152,10 +155,9 @@ const Ventas = () => {
         <div className="main-container">
             <div className="table-wrapper">
                 <div className="top-table">
-                    <h1 className="title-table">Ventas y Despacho</h1>
+                    <h1 className="title-table" style={{ fontSize: '2.5rem', color: '#333' }}>Ventas y Despacho</h1>
 
                     <div className="action-buttons">
-
                         <button
                             className="btn-new"
                             style={{
@@ -191,7 +193,7 @@ const Ventas = () => {
                                         <th>Lote</th>
                                         <th>Producto</th>
                                         <th>Calibre</th>
-                                        <th style={{ textAlign: 'right' }}>Disp. (Kg)</th>
+                                        <th style={{ textAlign: 'right' }}>Cantidad</th>
                                         <th>Contenedor</th>
                                         <th>Acción</th>
                                     </tr>
@@ -210,6 +212,7 @@ const Ventas = () => {
                 ) : (
                     /* Vista de Historial */
                     <div style={{ marginTop: '20px' }}>
+                        <h2 style={{ color: '#003366', marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Historial de Ventas</h2>
                         <Table
                             columns={historyColumns}
                             data={salesHistory}
@@ -282,13 +285,28 @@ const Ventas = () => {
 };
 
 // Subcomponente para fila de stock con input
+// Subcomponente para fila de stock con input
 const StockRow = ({ item, onAdd }) => {
     const [qty, setQty] = useState('');
+
+    const maxQty = item.totalCantidad || 999;
 
     const handleAdd = () => {
         if (!qty) return;
         onAdd(item, qty);
         setQty('');
+    };
+
+    const handleChange = (e) => {
+        const val = e.target.value;
+        if (val === '') {
+            setQty('');
+            return;
+        }
+        const num = Number(val);
+        if (num >= 0 && num <= maxQty) {
+            setQty(num);
+        }
     };
 
     return (
@@ -302,9 +320,11 @@ const StockRow = ({ item, onAdd }) => {
                 <input
                     type="number"
                     style={{ width: '80px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                    placeholder="kg"
+                    placeholder="Cant."
                     value={qty}
-                    onChange={e => setQty(e.target.value)}
+                    onChange={handleChange}
+                    min="0"
+                    max={maxQty}
                 />
                 <button
                     onClick={handleAdd}

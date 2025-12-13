@@ -23,7 +23,7 @@ const Navbar = () => {
                     <li><NavLink to="/home">Inicio</NavLink></li>
 
                     {userRole === 'administrador' && (
-                        <li><NavLink to="/users">Usuarios</NavLink></li>
+                        <li><NavLink to="/users">Panel de control</NavLink></li>
                     )}
 
                     {(userRole === 'administrador' || userRole === 'operario') && (

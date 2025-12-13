@@ -42,6 +42,12 @@
     gap: 10px;
 }
 
+.filter-actions {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
 /* --- ESTILOS DE BOTONES --- */
 .action-buttons button,
 .filter-actions button {

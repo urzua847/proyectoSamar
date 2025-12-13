@@ -3,9 +3,8 @@ import '../styles/popup.css';
 const PopupDetalleVenta = ({ isOpen, onClose, venta }) => {
     if (!isOpen || !venta) return null;
 
-    const items = venta.details || []; // Assuming 'details' contains the items array
+    const items = venta.details || [];
 
-    // Calculate totals just in case
     const totalKilos = items.reduce((acc, curr) => acc + Number(curr.peso_neto_kg || 0), 0).toFixed(2);
     const totalItems = items.length;
 

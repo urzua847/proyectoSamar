@@ -63,7 +63,7 @@ const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) 
                                     <th>Producto</th>
                                     <th>Calibre</th>
                                     <th>Lote</th>
-                                    <th style={{ textAlign: 'right' }}>Cant. (Kg)</th>
+                                    <th style={{ textAlign: 'right' }}>Cant.</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -94,7 +94,7 @@ const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) 
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
-                        <button type="submit" className="btn-new" disabled={cart.length === 0}>
+                        <button type="submit" className="btn-new" disabled={cart.length === 0} style={{ color: 'white' }}>
                             Confirmar Pedido
                         </button>
                     </div>

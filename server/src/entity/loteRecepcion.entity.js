@@ -23,10 +23,6 @@ const LoteRecepcionSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
-    detalle_pesadas:{
-      type: "simple-array",
-      nullable: true,
-    },
     numero_bandejas: {
       type: "int",
       nullable: false,
@@ -76,6 +72,12 @@ const LoteRecepcionSchema = new EntitySchema({
         type: "one-to-many",
         target: "ProductoTerminado",
         inverseSide: "loteDeOrigen",
+    },
+    desconche: {
+        type: "one-to-one",
+        target: "Desconche",
+        inverseSide: "lote",
+        nullable: true,
     }
   },
 });

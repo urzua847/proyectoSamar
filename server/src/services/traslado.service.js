@@ -23,12 +23,12 @@ export async function trasladoStockService(data) {
 
         for (const item of items) {
             let kilosPorMover = parseFloat(item.cantidad);
-            const { definicionProductoId, calibre } = item;
+            const { definicionProductoId, calibre, loteId } = item;
 
             // 2. Buscar Stock FIFO en Cámaras
             // Busca productos del tipo y calibre especificado, que estén en 'camara' y 'En Stock'
             // Ordena por fecha_produccion ASC (FIFO)
-            const stockDisponible = await queryRunner.manager.getRepository(ProductoTerminado)
+            const queryBuild = queryRunner.manager.getRepository(ProductoTerminado)
                 .createQueryBuilder("prod")
                 .leftJoinAndSelect("prod.ubicacion", "ubi")
                 .leftJoinAndSelect("prod.loteDeOrigen", "lote")
@@ -37,8 +37,12 @@ export async function trasladoStockService(data) {
                 .andWhere("prod.estado = :estado", { estado: "En Stock" })
                 .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
                 .andWhere(calibre ? "prod.calibre = :calibre" : "prod.calibre IS NULL", { calibre })
-                .orderBy("prod.fecha_produccion", "ASC")
-                .getMany();
+                
+            if (loteId) {
+                queryBuild.andWhere("lote.id = :loteId", { loteId });
+            }
+
+            const stockDisponible = await queryBuild.orderBy("prod.fecha_produccion", "ASC").getMany();
 
             // Calcular total disponible
             const totalDisponible = stockDisponible.reduce((acc, curr) => acc + Number(curr.peso_neto_kg), 0);

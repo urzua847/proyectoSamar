@@ -11,6 +11,8 @@ import produccionRoutes from "./produccion.routes.js";
 import trasladoRoutes from "./traslado.routes.js";
 import ventaRoutes from "./venta.routes.js";
 
+import desconcheRoutes from "./desconche.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -21,6 +23,7 @@ router.use("/productos", productoRoutes);
 router.use("/recepcion", loteRecepcionRoutes);
 router.use("/ubicaciones", ubicacionRoutes);
 router.use("/produccion", produccionRoutes);
+router.use("/desconche", desconcheRoutes);
 router.use("/traslado", trasladoRoutes);
 router.use("/ventas", ventaRoutes);
 

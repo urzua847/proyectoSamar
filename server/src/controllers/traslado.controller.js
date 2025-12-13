@@ -10,6 +10,7 @@ const trasladoSchema = Joi.object({
   items: Joi.array().items(
     Joi.object({
       definicionProductoId: Joi.number().required(),
+      loteId: Joi.number().optional().allow(null),
       cantidad: Joi.number().positive().required(),
       calibre: Joi.string().allow(null, '').optional()
     })
@@ -19,7 +20,10 @@ const trasladoSchema = Joi.object({
 export async function createTraslado(req, res) {
   try {
     const { error } = trasladoSchema.validate(req.body);
-    if (error) return handleErrorClient(res, 400, "Error de validación", error.message);
+    if (error) {
+        console.log("Validation Error:", error.message);
+        return handleErrorClient(res, 400, "Error de validación: " + error.message, error.message);
+    }
 
     const [movimientos, errorService] = await trasladoStockService(req.body);
     if (errorService) return handleErrorClient(res, 400, errorService);

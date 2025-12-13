@@ -6,12 +6,12 @@ import { useCallback, useState } from 'react';
 import '../styles/users.css';
 import useEditUser from '../hooks/users/useEditUser';
 import useDeleteUser from '../hooks/users/useDeleteUser';
-import useCreateUser from '../hooks/users/useCreateUser'; 
+import useCreateUser from '../hooks/users/useCreateUser';
 
 const Users = () => {
   const { users, fetchUsers, setUsers } = useUsers();
   const [filterRut, setFilterRut] = useState('');
-  
+
   // Estado para la selección de fila
   const [selectedUserRut, setSelectedUserRut] = useState(null);
 
@@ -28,23 +28,23 @@ const Users = () => {
   const { handleDelete } = useDeleteUser(fetchUsers, setDataUser);
 
   // Hook para Crear Usuario
-  const { 
-    handleClickCreate, 
-    handleCreate, 
-    isCreatePopupOpen, 
-    setIsCreatePopupOpen 
+  const {
+    handleClickCreate,
+    handleCreate,
+    isCreatePopupOpen,
+    setIsCreatePopupOpen
   } = useCreateUser(setUsers);
 
   // --- MANEJADORES ---
   const handleRowClick = (row) => {
-      // Si ya estaba seleccionado, lo deseleccionamos
-      if (selectedUserRut === row.rut) {
-          setSelectedUserRut(null);
-          setDataUser([]); // Limpiamos para los botones
-      } else {
-          setSelectedUserRut(row.rut);
-          setDataUser([row]); // Enviamos al hook de editar/borrar
-      }
+    // Si ya estaba seleccionado, lo deseleccionamos
+    if (selectedUserRut === row.rut) {
+      setSelectedUserRut(null);
+      setDataUser([]); // Limpiamos para los botones
+    } else {
+      setSelectedUserRut(row.rut);
+      setDataUser([row]); // Enviamos al hook de editar/borrar
+    }
   };
 
   const columns = [
@@ -56,54 +56,64 @@ const Users = () => {
   ];
 
   // Filtro simple
-  const filteredUsers = users.filter(user => 
-      user.rutFormateado.toLowerCase().includes(filterRut.toLowerCase())
+  const filteredUsers = users.filter(user =>
+    user.rutFormateado.toLowerCase().includes(filterRut.toLowerCase())
   );
 
   return (
     <div className='main-container'>
       <div className='table-wrapper'>
         <div className='top-table'>
-          <h1 className='title-table'>Usuarios</h1>
+          <div>
+            <h1 className='title-table'>Usuarios</h1>
+            <p className='subtitle-table' style={{ margin: '5px 0 0 0', color: '#666' }}>Aqui gestionaremos todo con el perfil de administrador</p>
+          </div>
           <div className='filter-actions'>
             <Search value={filterRut} onChange={(e) => setFilterRut(e.target.value)} placeholder={'Filtrar por RUT'} />
-            
+
             {/* --- BOTÓN CREAR --- */}
-            <button onClick={handleClickCreate} style={{backgroundColor: '#28a745', borderColor: '#28a745'}}>
-                + Nuevo Usuario
+            <button onClick={handleClickCreate} style={{ backgroundColor: '#28a745', borderColor: '#28a745' }}>
+              + Nuevo Usuario
             </button>
-            
+
             {/* Botones de acción (Editar/Eliminar) - Se habilitan al seleccionar */}
-            <button onClick={handleClickUpdate} disabled={!selectedUserRut}>Editar</button>
+            <button
+              onClick={handleClickUpdate}
+              disabled={!selectedUserRut}
+              className={selectedUserRut ? 'btn-edit' : ''}
+              style={selectedUserRut ? { color: 'white' } : {}}
+            >
+              Editar
+            </button>
             <button className='delete-user-button' disabled={!selectedUserRut} onClick={() => handleDelete(dataUser)}>Eliminar</button>
           </div>
         </div>
-        
+
         <Table
           columns={columns}
           data={filteredUsers}
           onRowClick={handleRowClick}
           selectedId={selectedUserRut}
         />
-        
+
       </div>
 
-      
+
       {/* Popup de Edición */}
-      <Popup 
-        show={isPopupOpen} 
-        setShow={setIsPopupOpen} 
-        data={dataUser} 
-        action={handleUpdate} 
+      <Popup
+        show={isPopupOpen}
+        setShow={setIsPopupOpen}
+        data={dataUser}
+        action={handleUpdate}
         title="Editar Usuario" // Título dinámico
       />
 
       {/* Popup de Creación */}
-      <Popup 
-        show={isCreatePopupOpen} 
-        setShow={setIsCreatePopupOpen} 
+      <Popup
+        show={isCreatePopupOpen}
+        setShow={setIsCreatePopupOpen}
         data={[]} // Data vacía para indicar modo creación
-        action={handleCreate} 
+        action={handleCreate}
         title="Crear Nuevo Usuario" // Título dinámico
       />
 

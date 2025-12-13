@@ -87,10 +87,7 @@ async function createUbicaciones() {
 }
 
 /* ==============================================
-   5. PRODUCTOS (Definiciones y Calibres)
-   ============================================== */
-/* ==============================================
-   5. PRODUCTOS (Ordenado: Primarios -> Elaborados)
+   5. PRODUCTOS (Flujo Real: Primarios vs Elaborados)
    ============================================== */
 async function createProductos() {
   const prodRepo = AppDataSource.getRepository(DefinicionProducto);
@@ -104,64 +101,70 @@ async function createProductos() {
 
   await prodRepo.save([
     // =====================================================
-    // 1. PRODUCTOS PRIMARIOS (Salen directo de la Jaiba)
-    //    Estos son los que suman al % de Rendimiento.
+    // 1. PRODUCTOS PRIMARIOS (TABLA 1 - DESCONCHE)
+    //    Solo lo básico para calcular rendimiento.
     // =====================================================
-
-    // A. Del Cuerpo
-    prodRepo.create({ 
+    { 
         nombre: "Carne Blanca", 
         tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: null // Es carne molida/desmenuzada, no tiene calibre
-    }),
-
-    // B. De las Pinzas (Con Cáscara)
-    prodRepo.create({ 
-        nombre: "Tres segmentos", 
+        calibres: null 
+    },
+    { 
+        nombre: "Pinzas", // Pinza entera cocida (antes de clasificar)
         tipo: "primario", 
         materiaPrima: jaiba, 
-        calibres: ["Grande", "Mediano"] 
-    }),
+        calibres: null 
+    },
 
-    // C. Del Desconche (Sin Cáscara - Relleno)
-    prodRepo.create({ 
-        nombre: "Carne Codo y Brazo", 
-        tipo: "primario", 
+    // =====================================================
+    // 2. PRODUCTOS ELABORADOS (TABLA 2 - A CÁMARA)
+    //    Clasificados y Envasados
+    // =====================================================
+
+    // A. Tres Segmentos (Directo a congelar)
+    { 
+        nombre: "Tres Segmentos", 
+        tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: null // Se usa para rellenar moldes o decorar
-    }),
+        calibres: ["250 grs", "500 grs", "1000 grs"] 
+    },
 
-    // D. Del Desconche (Sin Cáscara - Pinzas Enteras)
-    prodRepo.create({ 
+    // B. Pinza Coctel (Desconchada) - Combinamos Tamaño y Peso
+    { 
         nombre: "Pinza Coctel", 
-        tipo: "primario", 
+        tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: ["Chica", "Grande"] 
-    }),
-    prodRepo.create({ 
-        nombre: "Pinza Yumbo", // La calidad más alta
-        tipo: "primario", 
+        calibres: [
+            "Chica - 250 grs", 
+            "Chica - 500 grs", 
+            "Grande - 250 grs", 
+            "Grande - 500 grs"
+        ] 
+    },
+
+    // C. Pinza Jumbo (Alta Calidad) - Combinamos Tamaño y Peso
+    { 
+        nombre: "Pinza Jumbo", 
+        tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: ["Standard"] 
-    }),
+        calibres: [
+            "Chica - 250 grs", 
+            "Chica - 500 grs", 
+            "Grande - 250 grs", 
+            "Grande - 500 grs"
+        ] 
+    },
 
-
-    // =====================================================
-    // 2. PRODUCTOS ELABORADOS (Mezclas y Envasados)
-    //    Estos NO suman al rendimiento (ya se contó la carne antes).
-    // =====================================================
-
-    // Moldes (Mezcla de Carne Blanca + Codo/Brazo)
-    prodRepo.create({ 
+    // D. Molde Jaiba (Carne Blanca + Carne Codo para decoración)
+    { 
         nombre: "Molde Jaiba", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        // Usamos los 'calibres' para definir los formatos de venta
-        calibres: ["1 Kg", "500 grs", "250 grs"] 
-    }),
+        calibres: ["250 grs", "500 grs", "1000 grs"] 
+    }
   ]);
-  console.log("=> Productos definidos creados (Estructura Correcta).");
+  console.log("=> Catálogo actualizado: Flujo Jaiba Real.");
 }
 
 /* ==============================================
