@@ -1,83 +1,55 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-
+  # 1. Base de datos
   db:
     image: postgres:15-alpine
-    container_name: proyectosamar-db
-    restart: unless-stopped
-    
+    container_name: db
+    restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-127412}
-      POSTGRES_DB: ${DB_DATABASE:-samar_db}
-    
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "127412"
+      POSTGRES_DB: samar_db
     ports:
-      - "${DB_PORT:-5432}:5432"
-    
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  
-  # Aplicación Node.js
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    
-    container_name: proyectosamar-app
-    restart: unless-stopped
-    
-    depends_on:
-      db:
-        condition: service_healthy
-    
+
+  # 2. Backend (Server)
+  server:
+    build: ./server
+    container_name: backend
+    restart: always
     ports:
-      - "${APP_PORT:-1546}:5000"
-    
+      - "5000:5000"
     environment:
-      NODE_ENV: production
-      PORT: 5000
-      HOST: 0.0.0.0
-      
-      # Base de datos (conecta con el servicio 'db')
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-127412}
-      DB_DATABASE: ${DB_DATABASE:-samar_db}
-      
-      # Claves secretas 
-      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-SFGSGDAF5165SDG51V}
-      cookieKey: ${cookieKey:-DGH2DSg4TH4VDbD12SFB}
-    
-    # Alternativa: usar archivo .env (descomenta y crea .env en raíz)
-    # env_file:
-    #   - .env
-    
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    
-    networks:
-      - app-network
+      # Variable especial para que Docker use "db" en vez de "localhost"
+      - DOCKER_DB_HOST=db
+      # Variables estándar
+      - DB_USERNAME=postgres
+      - PASSWORD=127412
+      - DATABASE=samar_db
+      - PORT=5000
+      - ACCESS_TOKEN_SECRET=SFGSGDAF5165SDG51V
+      - cookieKey=DGH2DSg4TH4VDbD12SFB
+    depends_on:
+      - db
+    volumes:
+      - ./server:/app
+      - /app/node_modules
 
-# Volúmenes (persistencia de datos)
+  # 3. Frontend (Client)
+  client:
+    build: ./client
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
 
+# ESTO ES LO QUE DABA ERROR: "volumes" debe estar pegado a la izquierda, igual que "services"
 volumes:
   postgres_data:
-    driver: local
-
-# Redes
-networks:
-  app-network:
-    driver: bridge 
