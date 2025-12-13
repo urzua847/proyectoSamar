@@ -1,22 +1,38 @@
+# --- Seguridad ---
 .env
+.env.production
+.env.local
+
+# --- Dependencias ---
 node_modules/
-
-# Archivos de build y caché del frontend
-dist/
-.parcel-cache/
-*.local
-
-# Logs y reportes de errores
-logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Editor y directorios del sistema
+# --- Frontend (Builds y Caché) ---
+dist/
+build/
+.parcel-cache/
+*.local
+
+# --- Backend / Logs ---
+logs/
+*.log
+coverage/
+
+# --- Docker (Archivos temporales o overrides locales) ---
+docker-compose.override.yml
+.docker/
+
+# --- Sistema / IDE ---
+.DS_Store
 .vscode/
 .idea/
-.DS_Store
+Thumbs.db
 
-
-
+# --- Base de Datos (Seguridad extra) ---
+# Si alguna vez mapeas la BD a una carpeta local, esto evita subirla
+postgres_data/
+pgdata/
+data/

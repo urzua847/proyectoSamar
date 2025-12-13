@@ -1,83 +1,45 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-
+  # 1. Base de datos
   db:
     image: postgres:15-alpine
-    container_name: proyectosamar-db
-    restart: unless-stopped
-    
+    container_name: samar_db
+    restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-127412}
-      POSTGRES_DB: ${DB_DATABASE:-samar_db}
-    
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_DB: ${DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  
-  # Aplicación Node.js
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    
-    container_name: proyectosamar-app
-    restart: unless-stopped
-    
-    depends_on:
-      db:
-        condition: service_healthy
-    
-    ports:
-      - "${APP_PORT:-1546}:5000"
-    
-    environment:
-      NODE_ENV: production
-      PORT: 5000
-      HOST: 0.0.0.0
-      
-      # Base de datos (conecta con el servicio 'db')
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-127412}
-      DB_DATABASE: ${DB_DATABASE:-samar_db}
-      
-      # Claves secretas 
-      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-SFGSGDAF5165SDG51V}
-      cookieKey: ${cookieKey:-DGH2DSg4TH4VDbD12SFB}
-    
-    # Alternativa: usar archivo .env (descomenta y crea .env en raíz)
-    # env_file:
-    #   - .env
-    
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    
-    networks:
-      - app-network
+    # NOTA: En producción, NO exponemos ports: "5432:5432" por seguridad.
+    # Solo el backend podrá ver la base de datos internamente.
 
-# Volúmenes (persistencia de datos)
+    # 2. Backend (API)
+  server:
+    build: ./server
+    container_name: samar_backend
+    restart: always
+    # No exponemos puertos del backend directamente a internet, Nginx lo hará.
+    environment:
+      - DOCKER_DB_HOST=samar_db
+      - DB_USERNAME=${DB_USERNAME}
+      - PASSWORD=${PASSWORD}
+      - DATABASE=${DATABASE}
+      - PORT=${BACKEND_PORT:-5000}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - cookieKey=${cookieKey}
+    depends_on:
+      - db
+
+  # 3. Frontend (Nginx + React)
+  client:
+    build: ./client
+    container_name: samar_frontend
+    restart: always
+    ports:
+      # Aquí mapeamos el puerto del servidor (80) al puerto de Nginx (80)
+      - "${PORT}:5173"
+    depends_on:
+      - server
 
 volumes:
   postgres_data:
-    driver: local
-
-# Redes
-networks:
-  app-network:
-    driver: bridge 

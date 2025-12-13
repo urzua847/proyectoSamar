@@ -12,7 +12,7 @@ const envFilePath = path.resolve(_dirname, ".env");
 dotenv.config({ path: envFilePath });
 
 export const PORT = process.env.PORT;
-export const HOST = process.env.HOST;
+export const HOST = process.env.DOCKER_DB_HOST || process.env.HOST;
 export const DB_USERNAME = process.env.DB_USERNAME;
 export const PASSWORD = process.env.PASSWORD;
 export const DATABASE = process.env.DATABASE;
