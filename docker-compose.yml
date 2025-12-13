@@ -2,7 +2,7 @@ services:
   # 1. Base de datos
   db:
     image: postgres:15-alpine
-    container_name: db
+    container_name: samar_db
     restart: always
     environment:
       POSTGRES_USER: ${DB_USERNAME}
@@ -16,11 +16,11 @@ services:
     # 2. Backend (API)
   server:
     build: ./server
-    container_name: backend
+    container_name: samar_backend
     restart: always
     # No exponemos puertos del backend directamente a internet, Nginx lo hará.
     environment:
-      - DOCKER_DB_HOST=db
+      - DOCKER_DB_HOST=samar_db
       - DB_USERNAME=${DB_USERNAME}
       - PASSWORD=${PASSWORD}
       - DATABASE=${DATABASE}
@@ -33,11 +33,11 @@ services:
   # 3. Frontend (Nginx + React)
   client:
     build: ./client
-    container_name: frontend
+    container_name: samar_frontend
     restart: always
     ports:
       # Aquí mapeamos el puerto del servidor (80) al puerto de Nginx (80)
-      - "${PORT}:80"
+      - "${PORT}:5173"
     depends_on:
       - server
 
