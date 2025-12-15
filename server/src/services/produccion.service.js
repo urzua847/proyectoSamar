@@ -120,18 +120,25 @@ export async function getStockCamarasService() {
       .createQueryBuilder("prod")
       .leftJoin("prod.ubicacion", "ubi")
       .leftJoin("prod.definicion", "def")
+      .leftJoin("prod.loteDeOrigen", "lote")
+      .leftJoin("lote.materiaPrima", "mp")
       .select("ubi.nombre", "ubicacionNombre")
       .addSelect("def.nombre", "productoNombre")
       .addSelect("def.id", "definicionProductoId")
       .addSelect("prod.calibre", "calibre")
+      .addSelect("lote.codigo", "loteCodigo")
+      .addSelect("mp.nombre", "materiaPrimaNombre")
       .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
       .addSelect("COUNT(prod.id)", "totalCantidad")
+      .addSelect("array_agg(prod.id)", "ids")
       .where("prod.estado = :estado", { estado: "En Stock" })
       .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
       .groupBy("ubi.nombre")
       .addGroupBy("def.nombre")
       .addGroupBy("def.id")
       .addGroupBy("prod.calibre")
+      .addGroupBy("lote.codigo")
+      .addGroupBy("mp.nombre")
       .orderBy("ubi.nombre", "ASC")
       .getRawMany();
 
@@ -140,8 +147,11 @@ export async function getStockCamarasService() {
         productoNombre: item.productoNombre || item.productonombre,
         definicionProductoId: item.definicionProductoId || item.definicionproductoid,
         calibre: item.calibre,
+        loteCodigo: item.loteCodigo || item.lotecodigo,
+        materiaPrimaNombre: item.materiaPrimaNombre || item.materiaprimanombre,
         totalKilos: item.totalKilos || item.totalkilos,
-        totalCantidad: Number(item.totalCantidad || item.totalcantidad)
+        totalCantidad: Number(item.totalCantidad || item.totalcantidad),
+        ids: item.ids // Retornar IDs para eliminación masiva
     }));
 
     return [formattedStock, null];
@@ -164,8 +174,10 @@ export async function getStockContenedoresService() {
       .addSelect("def.id", "definicionProductoId")
       .addSelect("prod.calibre", "calibre")
       .addSelect("lote.codigo", "loteCodigo")
+      .addSelect("lote.id", "loteId")
       .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
       .addSelect("COUNT(prod.id)", "totalCantidad")
+      .addSelect("array_agg(prod.id)", "ids")
       .where("prod.estado = :estado", { estado: "En Stock" })
       .andWhere("ubi.tipo = :tipo", { tipo: "contenedor" })
       .groupBy("ubi.nombre")
@@ -174,6 +186,7 @@ export async function getStockContenedoresService() {
       .addGroupBy("def.id")
       .addGroupBy("prod.calibre")
       .addGroupBy("lote.codigo")
+      .addGroupBy("lote.id")
       .orderBy("ubi.nombre", "ASC")
       .getRawMany();
 
@@ -184,8 +197,10 @@ export async function getStockContenedoresService() {
         definicionProductoId: item.definicionProductoId || item.definicionproductoid,
         calibre: item.calibre,
         loteCodigo: item.loteCodigo || item.lotecodigo,
+        loteId: item.loteId || item.loteid,
         totalKilos: item.totalKilos || item.totalkilos,
-        totalCantidad: Number(item.totalCantidad || item.totalcantidad)
+        totalCantidad: Number(item.totalCantidad || item.totalcantidad),
+        ids: item.ids
     }));
 
     return [formattedStock, null];

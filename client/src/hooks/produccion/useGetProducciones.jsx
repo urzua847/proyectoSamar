@@ -59,6 +59,7 @@ const useGetProducciones = () => {
             const formatted = data.map(d => ({
                 id: d.id,
                 loteCodigo: d.lote?.codigo,
+                materiaPrimaNombre: d.lote?.materiaPrima?.nombre,
                 proveedorNombre: d.lote?.proveedor?.nombre,
                 peso_carne_blanca: d.peso_carne_blanca,
                 peso_pinzas: d.peso_pinzas,

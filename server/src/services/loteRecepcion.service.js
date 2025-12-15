@@ -5,12 +5,16 @@ import LoteRecepcion from "../entity/loteRecepcion.entity.js";
 import Proveedor from "../entity/proveedor.entity.js";
 import MateriaPrima from "../entity/materiaPrima.entity.js";
 import User from "../entity/user.entity.js";
+import Desconche from "../entity/desconche.entity.js";
+import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import { Like } from "typeorm";
 
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
 const proveedorRepository = AppDataSource.getRepository(Proveedor);
 const materiaPrimaRepository = AppDataSource.getRepository(MateriaPrima);
 const userRepository = AppDataSource.getRepository(User);
+const desconcheRepository = AppDataSource.getRepository(Desconche);
+const productoTerminadoRepository = AppDataSource.getRepository(ProductoTerminado);
 
 export async function createLoteService(data, operarioEmail) {
   try {
@@ -25,11 +29,11 @@ export async function createLoteService(data, operarioEmail) {
     const operario = await userRepository.findOne({ where: { email: operarioEmail } });
     if (!operario) return [null, "Operario no encontrado"];
 
-    // Generar Código MMDD-XX
+    // Generar Código MMYY-XX
     const hoy = new Date();
+    const anio = String(hoy.getFullYear()).slice(-2);
     const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoy.getDate()).padStart(2, '0');
-    const codigoBase = `${mes}${dia}`;
+    const codigoBase = `${mes}${anio}`;
 
     const lotesHoy = await loteRepository.count({ where: { codigo: Like(`${codigoBase}%`) } });
     const secuencia = String(lotesHoy + 1).padStart(2, '0');
@@ -56,7 +60,7 @@ export async function createLoteService(data, operarioEmail) {
 export async function getLotesActivosService() {
     try {
         const lotes = await loteRepository.find({
-            relations: ["proveedor", "materiaPrima", "productosTerminados"],
+            relations: ["proveedor", "materiaPrima", "productosTerminados", "desconche"],
             order: { createdAt: "DESC" }
         });
         if (!lotes) return [null, "No se encontraron lotes"];
@@ -70,7 +74,7 @@ export async function getLoteByIdService(id) {
     try {
         const lote = await loteRepository.findOne({
             where: { id },
-            relations: ["proveedor", "materiaPrima", "operario", "productosTerminados"]
+            relations: ["proveedor", "materiaPrima", "operario", "productosTerminados", "desconche"]
         });
         if (!lote) return [null, "Lote no encontrado"];
         return [lote, null];
@@ -83,12 +87,12 @@ export async function updateLoteService(id, data) {
     try {
         const lote = await loteRepository.findOne({ 
             where: { id },
-            relations: ["productosTerminados"] 
+            relations: ["productosTerminados", "desconche"] 
         });
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        const tieneProduccion = lote.productosTerminados && lote.productosTerminados.length > 0;
+        const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || !!lote.desconche;
 
         if (tieneProduccion) {
             const intentaEditarFisico = 
@@ -99,7 +103,7 @@ export async function updateLoteService(id, data) {
                 data.pesadas !== undefined;
 
             if (intentaEditarFisico) {
-                return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción. Solo puedes cambiar su estado."];
+                return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción (Desconche o Productos). Solo puedes cambiar su estado."];
             }
         }
 
@@ -126,17 +130,39 @@ export async function updateLoteService(id, data) {
     }
 }
 
-export async function deleteLoteService(id) {
+export async function deleteLoteService(id, userRole) {
     try {
         const lote = await loteRepository.findOne({ 
             where: { id },
-            relations: ["productosTerminados"] 
+            relations: ["productosTerminados", "desconche"] 
         });
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        if (lote.productosTerminados && lote.productosTerminados.length > 0) {
-            return [null, "No se puede eliminar este lote porque ya tiene producción asociada."];
+        const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || !!lote.desconche;
+
+        if (tieneProduccion) {
+            if (userRole !== 'administrador') {
+                 return [null, "No tienes permisos de Administrador para eliminar este lote con producción iniciada."];
+            }
+            
+            // ADMIN OVERRIDE
+            try {
+                // 1. Delete Products (if any)
+                if (lote.productosTerminados.length > 0) {
+                     await productoTerminadoRepository.remove(lote.productosTerminados);
+                }
+                // 2. Delete Desconche (if any)
+                if (lote.desconche) {
+                     await desconcheRepository.delete(lote.desconche.id);
+                }
+            } catch (innerError) {
+                // Check for Foreign Key violation (e.g., Sold products or in Cart?)
+                if (innerError.code === '23503') { // PostgreSQL FK violation code
+                    return [null, "No se puede eliminar toda la cadena porque hay productos que ya fueron VENDIDOS (están en Pedidos)."];
+                }
+                throw innerError;
+            }
         }
 
         await loteRepository.remove(lote);

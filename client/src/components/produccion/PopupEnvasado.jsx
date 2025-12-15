@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useProduccion from '../../hooks/produccion/useProduccion';
 import '../../styles/popup.css';
 import '../../styles/table.css';
@@ -18,10 +19,20 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     const catalogoSeguro = productosCatalogo || [];
     const productosElaborados = catalogoSeguro.filter(p => p.tipo === 'elaborado');
 
+    const [camaraGlobal, setCamaraGlobal] = useState('');
+
     const obtenerGramaje = (textoCalibre) => {
         if (!textoCalibre) return 0;
         const match = textoCalibre.match(/(\d+)\s*grs/i);
         return match ? parseInt(match[1]) : 0;
+    };
+
+    const handleCamaraGlobalChange = (val) => {
+        setCamaraGlobal(val);
+        // Actualizar la ubicación de todos los productos visibles
+        productosElaborados.forEach(prod => {
+            handleInputChange(prod.id, 'ubicacion', val);
+        });
     };
 
     if (!show) return null;
@@ -36,22 +47,42 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                     <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div>
                 ) : (
                     <>
-                        <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', borderLeft: '5px solid #003366' }}>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
-                                Seleccione Lote Origen
-                            </label>
-                            <select
-                                value={loteSeleccionado}
-                                onChange={(e) => setLoteSeleccionado(e.target.value)}
-                                style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
-                            >
-                                <option value="">-- Seleccione Lote --</option>
-                                {(lotes || []).map(l => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.codigo} | {l.materiaPrimaNombre} ({l.proveedorNombre})
-                                    </option>
-                                ))}
-                            </select>
+                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                            {/* Selector Lote */}
+                            <div style={{ flex: 1, padding: '15px', background: '#f8f9fa', borderRadius: '8px', borderLeft: '5px solid #003366' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
+                                    Lote Origen
+                                </label>
+                                <select
+                                    value={loteSeleccionado}
+                                    onChange={(e) => setLoteSeleccionado(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                >
+                                    <option value="">-- Seleccione Lote --</option>
+                                    {(lotes || []).map(l => (
+                                        <option key={l.id} value={l.id}>
+                                            {l.codigo} | {l.materiaPrimaNombre} ({l.proveedorNombre})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Selector Global de Cámara */}
+                            <div style={{ flex: 1, padding: '15px', background: '#e9ecef', borderRadius: '8px', borderLeft: '5px solid #6c757d' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
+                                    Cámara Global (Aplicar a todos)
+                                </label>
+                                <select
+                                    value={camaraGlobal}
+                                    onChange={(e) => handleCamaraGlobalChange(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                >
+                                    <option value="">-- Seleccionar Cámara --</option>
+                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                        <option key={u.id} value={u.id}>{u.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         {loteSeleccionado && (
@@ -106,7 +137,7 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                     <td>
                                                         <input
                                                             type="number"
-                                                            placeholder={esUnidad ? "Unid." : "Kg"}
+                                                            placeholder="Unid."
                                                             value={seleccion.cantidad_visual || ""}
                                                             onChange={(e) => handleChangeCantidad(e.target.value)}
                                                             disabled={!calibreSeleccionado}

@@ -11,7 +11,7 @@ import './styles/styles.css';
 import Users from './pages/User';
 import Recepcion from './pages/Recepcion';
 import Produccion from './pages/Produccion';
-import Ventas from './pages/Ventas';
+import Pedidos from './pages/Pedidos';
 
 const router = createBrowserRouter([
   {
@@ -52,10 +52,10 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: '/ventas',
+        path: '/pedidos',
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
-            <Ventas />
+            <Pedidos />
           </ProtectedRoute>
         )
       }

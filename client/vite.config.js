@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   plugins: [react()],
   server: {
+    allowedHosts: true,
+    host: true,
     proxy: {
       '/api': {
         target: 'http://server:5000',
