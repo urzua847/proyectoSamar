@@ -8,10 +8,9 @@ import productoRoutes from "./definicionProducto.routes.js";
 import loteRecepcionRoutes from "./loteRecepcion.routes.js";
 import ubicacionRoutes from "./ubicacion.routes.js";
 import produccionRoutes from "./produccion.routes.js";
-import trasladoRoutes from "./traslado.routes.js";
-import ventaRoutes from "./venta.routes.js";
-
 import desconcheRoutes from "./desconche.routes.js";
+import trasladoRoutes from "./traslado.routes.js";
+import pedidoRoutes from "./pedido.routes.js";
 
 const router = Router();
 
@@ -25,7 +24,6 @@ router.use("/ubicaciones", ubicacionRoutes);
 router.use("/produccion", produccionRoutes);
 router.use("/desconche", desconcheRoutes);
 router.use("/traslado", trasladoRoutes);
-router.use("/ventas", ventaRoutes);
-
+router.use("/pedidos", pedidoRoutes);
 
 export default router;

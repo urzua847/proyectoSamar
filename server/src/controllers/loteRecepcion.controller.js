@@ -85,7 +85,7 @@ export async function updateLote(req, res) {
 export async function deleteLote(req, res) {
     try {
         const { id } = req.params;
-        const [lote, error] = await deleteLoteService(id);
+        const [lote, error] = await deleteLoteService(id, req.user?.rol);
         if (error) return handleErrorClient(res, 400, error); // 400 si tiene hijos, 404 si no existe
 
         handleSuccess(res, 200, "Lote eliminado correctamente", lote);

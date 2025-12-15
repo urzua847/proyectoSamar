@@ -1,6 +1,6 @@
 "use strict";
 
-import { createDesconche, getDesconcheByLote, getAllDesconches } from "../services/desconche.service.js";
+import { createDesconche, getDesconcheByLote, getAllDesconches, deleteDesconche, updateDesconche } from "../services/desconche.service.js";
 
 export async function createDesconcheController(req, res) {
   try {
@@ -54,4 +54,28 @@ export async function getAllDesconchesController(req, res) {
     console.error("Error en getAllDesconchesController:", error);
     res.status(500).json({ status: "error", message: error.message });
   }
+}
+
+
+export async function deleteDesconcheController(req, res) {
+    try {
+        const { id } = req.params;
+        await deleteDesconche(id, req.user?.rol);
+        res.status(200).json({ status: "success", message: "Eliminado correctamente" });
+    } catch (error) {
+        console.error("Error deleteDesconcheController:", error);
+        res.status(500).json({ status: "error", message: error.message });
+    }
+}
+
+export async function updateDesconcheController(req, res) {
+    try {
+        const { id } = req.params;
+        const data = req.body;
+        const updated = await updateDesconche(id, data);
+        res.status(200).json({ status: "success", message: "Actualizado correctamente", data: updated });
+    } catch (error) {
+         console.error("Error updateDesconcheController:", error);
+         res.status(500).json({ status: "error", message: error.message });
+    }
 }

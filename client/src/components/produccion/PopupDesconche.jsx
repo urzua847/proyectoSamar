@@ -1,14 +1,35 @@
+import { useEffect } from 'react';
 import useProduccion from '../../hooks/produccion/useProduccion';
 import '../../styles/popup.css';
 import '../../styles/table.css';
 
-export default function PopupDesconche({ show, setShow, onSuccess }) {
+export default function PopupDesconche({ show, setShow, onSuccess, initialData = null }) {
     const {
         lotes, productosCatalogo,
         loteSeleccionado, setLoteSeleccionado,
         desconche, handleDesconcheChange, guardarRendimiento,
-        loading
+        actualizarDesconche, // Need to add this to hook or import service
+        loading,
+        setDesconche // Exposed from hook for filling data
     } = useProduccion();
+
+    // Reset or Fill data on open
+    useEffect(() => {
+        if (show) {
+            if (initialData) {
+                setLoteSeleccionado(initialData.loteId || (initialData.lote ? initialData.lote.id : ""));
+                setDesconche({
+                    "Carne Blanca": initialData.peso_carne_blanca,
+                    "Pinzas": initialData.peso_pinzas,
+                    "obs_Carne Blanca": (initialData.observacion || "").split(" | ")[0] || "",
+                    "obs_Pinzas": (initialData.observacion || "").split(" | ")[1] || ""
+                });
+            } else {
+                setLoteSeleccionado("");
+                setDesconche({});
+            }
+        }
+    }, [show, initialData, setLoteSeleccionado, setDesconche]);
 
     const cerrarPopup = () => {
         setShow(false);
@@ -18,13 +39,24 @@ export default function PopupDesconche({ show, setShow, onSuccess }) {
     const catalogoSeguro = productosCatalogo || [];
     const productosPrimarios = catalogoSeguro.filter(p => p.tipo === 'primario');
 
+    const handleGuardar = async () => {
+        if (initialData) {
+            await actualizarDesconche(initialData.id);
+        } else {
+            await guardarRendimiento();
+        }
+        cerrarPopup();
+    };
+
     if (!show) return null;
 
     return (
         <div className="bg">
             <div className="popup" style={{ width: '800px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto' }}>
                 <button className='close' onClick={() => setShow(false)}>X</button>
-                <h2 style={{ color: '#003366', marginBottom: '20px' }}>Nueva Planilla de Desconche</h2>
+                <h2 style={{ color: '#003366', marginBottom: '20px' }}>
+                    {initialData ? 'Editar Planilla Desconche' : 'Nueva Planilla de Desconche'}
+                </h2>
 
                 {loading ? (
                     <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div>
@@ -37,7 +69,8 @@ export default function PopupDesconche({ show, setShow, onSuccess }) {
                             <select
                                 value={loteSeleccionado}
                                 onChange={(e) => setLoteSeleccionado(e.target.value)}
-                                style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                disabled={!!initialData} // Lock batch if editing
+                                style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: initialData ? '#e9ecef' : '#fff' }}
                             >
                                 <option value="">-- Seleccione Lote --</option>
                                 {(lotes || []).map(l => (
@@ -48,7 +81,7 @@ export default function PopupDesconche({ show, setShow, onSuccess }) {
                             </select>
                         </div>
 
-                        {loteSeleccionado && (
+                        {(loteSeleccionado || initialData) && (
                             <div style={{ background: '#fff', padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
                                 <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
                                     Ingrese los kilos netos obtenidos (Carne Blanca / Pinzas).
@@ -58,7 +91,7 @@ export default function PopupDesconche({ show, setShow, onSuccess }) {
                                         <tr>
                                             <th>Producto (Primario)</th>
                                             <th style={{ width: '150px' }}>Kilos Obtenidos</th>
-                                            <th>Observación</th> {/* Agregado Observación */}
+                                            <th>Observación</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -87,14 +120,11 @@ export default function PopupDesconche({ show, setShow, onSuccess }) {
                                 </table>
                                 <div style={{ textAlign: 'right', marginTop: '20px' }}>
                                     <button
-                                        onClick={async () => {
-                                            await guardarRendimiento();
-                                            cerrarPopup();
-                                        }}
+                                        onClick={handleGuardar}
                                         className="btn-new"
                                         style={{ background: '#003366', color: 'white', padding: '10px 30px' }}
                                     >
-                                        Guardar Desconche
+                                        {initialData ? 'Actualizar Desconche' : 'Guardar Desconche'}
                                     </button>
                                 </div>
                             </div>

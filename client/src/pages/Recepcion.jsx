@@ -58,13 +58,13 @@ const Recepcion = () => {
 
     const columns = [
         { header: "Lote", accessor: "codigo" },
-        { header: "Fecha", accessor: "fechaFormateada" },
+        { header: "Recepción", accessor: "fechaFormateada" },
         { header: "Proveedor", accessor: "proveedorNombre" },
-        { header: "Producto", accessor: "materiaPrimaNombre" },
+        { header: "Especie", accessor: "materiaPrimaNombre" },
         { header: "Peso Total", accessor: "peso_bruto_kg" },
         { header: "Bandejas", accessor: "numero_bandejas" },
         {
-            header: "Estado",
+            header: "Estado Lote",
             accessor: "estadoTexto",
             render: (row) => (
                 <span style={{
@@ -149,7 +149,7 @@ const Recepcion = () => {
                     <div className="filter-row-3">
                         <div className="filter-group">
                             <label>Código</label>
-                            <input name="codigo" placeholder="Ej: 1121-01" value={filters.codigo} onChange={handleFilterChange} />
+                            <input name="codigo" placeholder="Ej: 1225-01" value={filters.codigo} onChange={handleFilterChange} />
                         </div>
                         <div className="filter-group">
                             <label>Proveedor</label>

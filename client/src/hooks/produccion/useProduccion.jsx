@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createProduccion, getStockCamaras } from '../../services/produccion.service';
-import { createDesconche, getDesconcheByLote } from '../../services/desconche.service';
+import { createDesconche, getDesconcheByLote, updateDesconche } from '../../services/desconche.service';
 import { getLotesActivos } from '../../services/recepcion.service';
 import { getProductos, getUbicaciones } from '../../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
@@ -106,6 +106,26 @@ const useProduccion = () => {
             showErrorAlert('Error', error.response?.data?.message || 'Error al guardar desconche');
         }
     };
+    const actualizarDesconche = async (id) => {
+        try {
+            const obs1 = desconche["obs_Carne Blanca"] || "";
+            const obs2 = desconche["obs_Pinzas"] || "";
+            const observaciones = [obs1, obs2].filter(Boolean).join(" | ");
+
+            const payload = {
+                peso_carne_blanca: Number(desconche["Carne Blanca"] || 0),
+                peso_pinzas: Number(desconche["Pinzas"] || 0),
+                observacion: observaciones
+            };
+
+            await updateDesconche(id, payload);
+            showSuccessAlert('Éxito', 'Desconche actualizado correctamente');
+        } catch (error) {
+            console.error(error);
+            showErrorAlert('Error', 'Error al actualizar desconche');
+        }
+    };
+
 
 
     // ------ Lógica Envasado (Etapa 2) ------
@@ -184,19 +204,21 @@ const useProduccion = () => {
                 showErrorAlert('Error', response?.message || 'No se pudo guardar.');
             }
         } catch (error) {
-            showErrorAlert('Error', 'Fallo inesperado.');
+            console.error(error);
+            const msg = error.response?.data?.message || error.message || 'Fallo inesperado.';
+            showErrorAlert('Error', msg);
         }
     };
 
     return {
         lotes, productosCatalogo, ubicaciones,
         loteSeleccionado, setLoteSeleccionado,
-        desconche, handleDesconcheChange, guardarRendimiento,
+        desconche, handleDesconcheChange, guardarRendimiento, actualizarDesconche, setDesconche,
         planilla, handleInputChange, handleGuardarEnvasado,
         stockCamaras,
         fetchStock,
         loading
     };
-};
-
+}
 export default useProduccion;
+

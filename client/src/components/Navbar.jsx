@@ -34,7 +34,7 @@ const Navbar = () => {
                         <li><NavLink to="/produccion">Producción</NavLink></li>
                     )}
                     {(userRole === 'administrador' || userRole === 'operario') && (
-                        <li><NavLink to="/ventas">Ventas</NavLink></li>
+                        <li><NavLink to="/pedidos">Pedidos</NavLink></li>
                     )}
 
 

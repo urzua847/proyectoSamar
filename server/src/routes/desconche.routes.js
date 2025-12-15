@@ -1,7 +1,7 @@
 "use strict";
 
 import { Router } from "express";
-import { createDesconcheController, getDesconcheController, getAllDesconchesController } from "../controllers/desconche.controller.js";
+import { createDesconcheController, getDesconcheController, getAllDesconchesController, deleteDesconcheController, updateDesconcheController } from "../controllers/desconche.controller.js";
 
 const router = Router();
 
@@ -9,5 +9,7 @@ const router = Router();
 router.get("/", getAllDesconchesController);
 router.post("/:loteId", createDesconcheController);
 router.get("/:loteId", getDesconcheController);
+router.delete("/:id", deleteDesconcheController);
+router.put("/:id", updateDesconcheController);
 
 export default router;

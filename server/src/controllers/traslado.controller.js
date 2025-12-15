@@ -14,7 +14,8 @@ const trasladoSchema = Joi.object({
       cantidad: Joi.number().positive().required(),
       calibre: Joi.string().allow(null, '').optional()
     })
-  ).min(1).required()
+  ).min(1).required(),
+  peso_caja: Joi.number().positive().optional()
 });
 
 export async function createTraslado(req, res) {

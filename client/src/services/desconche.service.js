@@ -32,3 +32,13 @@ export const getAllDesconches = async () => {
         return { data: [] };
     }
 };
+
+export const deleteDesconche = async (id) => {
+    const response = await axios.delete(`/desconche/${id}`);
+    return response.data;
+};
+
+export const updateDesconche = async (id, data) => {
+    const response = await axios.put(`/desconche/${id}`, data);
+    return response.data;
+};

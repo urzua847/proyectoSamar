@@ -13,21 +13,19 @@ export async function trasladoStockService(data) {
     await queryRunner.startTransaction();
 
     try {
-        const { items, destinoId } = data; // items: [{ definicionProductoId, cantidad, calibre }]
+        const { items, destinoId, peso_caja } = data; // items: [{ definicionProductoId, cantidad, calibre }], peso_caja (optional)
 
         // 1. Validar Destino
         const destino = await ubicacionRepository.findOne({ where: { id: destinoId, tipo: "contenedor" } });
         if (!destino) throw new Error("Ubicación de destino inválida o no es un contenedor.");
 
         const movimientos = [];
+        const boxWeight = peso_caja ? parseFloat(peso_caja) : null;
 
         for (const item of items) {
             let kilosPorMover = parseFloat(item.cantidad);
             const { definicionProductoId, calibre, loteId } = item;
-
-            // 2. Buscar Stock FIFO en Cámaras
-            // Busca productos del tipo y calibre especificado, que estén en 'camara' y 'En Stock'
-            // Ordena por fecha_produccion ASC (FIFO)
+            
             const queryBuild = queryRunner.manager.getRepository(ProductoTerminado)
                 .createQueryBuilder("prod")
                 .leftJoinAndSelect("prod.ubicacion", "ubi")
@@ -36,56 +34,114 @@ export async function trasladoStockService(data) {
                 .where("prod.definicion = :defId", { defId: definicionProductoId })
                 .andWhere("prod.estado = :estado", { estado: "En Stock" })
                 .andWhere("ubi.tipo = :tipo", { tipo: "camara" })
-                .andWhere(calibre ? "prod.calibre = :calibre" : "prod.calibre IS NULL", { calibre })
+                .andWhere(calibre ? "prod.calibre = :calibre" : "prod.calibre IS NULL", { calibre });
                 
             if (loteId) {
                 queryBuild.andWhere("lote.id = :loteId", { loteId });
             }
 
             const stockDisponible = await queryBuild.orderBy("prod.fecha_produccion", "ASC").getMany();
-
-            // Calcular total disponible
+            
             const totalDisponible = stockDisponible.reduce((acc, curr) => acc + Number(curr.peso_neto_kg), 0);
-
             if (totalDisponible < kilosPorMover) {
-                throw new Error(`Stock insuficiente para el producto ID ${definicionProductoId} (Calibre ${calibre || 'N/A'}). Solicitado: ${kilosPorMover}, Disponible: ${totalDisponible}`);
+                throw new Error(`Stock insuficiente para el producto ID ${definicionProductoId}. Solicitado: ${kilosPorMover}, Disponible: ${totalDisponible}`);
             }
 
-            // 3. Iterar y mover/dividir
-            for (const loteObj of stockDisponible) {
-                if (kilosPorMover <= 0) break;
+            const stockPorLote = {};
+            stockDisponible.forEach(item => {
+                const lId = item.loteDeOrigen?.id || 'sin_lote';
+                if (!stockPorLote[lId]) stockPorLote[lId] = [];
+                stockPorLote[lId].push(item);
+            });
 
-                const pesoLote = parseFloat(loteObj.peso_neto_kg);
+            for (const loteKey in stockPorLote) {
+                if (kilosPorMover < 0.01) break;
 
-                if (pesoLote <= kilosPorMover) {
-                    // Caso A: Consumimos todo el registro
-                    loteObj.ubicacion = destino;
-                    await queryRunner.manager.save("ProductoTerminado", loteObj);
-                    
-                    kilosPorMover -= pesoLote;
-                    movimientos.push({ id: loteObj.id, accion: "movido_total", kilos: pesoLote });
+                const itemsDelLote = stockPorLote[loteKey];
+                const totalPesoLote = itemsDelLote.reduce((acc, i) => acc + Number(i.peso_neto_kg), 0);                
+                let targetConsumption = 0;
+
+                if (boxWeight) {
+                   const needGlobal = kilosPorMover; 
+                   const canGive = totalPesoLote;                   
+                   const limit = Math.min(needGlobal, canGive);
+                   const numCajas = Math.floor(limit / boxWeight);
+                   
+                   if (numCajas === 0) {
+                       continue;
+                   }
+
+                   targetConsumption = numCajas * boxWeight;
+                   
+                   // GENERAR LAS CAJAS AHORA (Virtualmente ya tenemos el peso reservado)
+                    // Usamos la info del primer item para metadata (fecha, definicion, etc)
+                    const refItem = itemsDelLote[0];
+                    for (let i = 0; i < numCajas; i++) {
+                        const nuevaCaja = queryRunner.manager.create(ProductoTerminado, {
+                            calibre: refItem.calibre,
+                            loteDeOrigen: refItem.loteDeOrigen,
+                            definicion: refItem.definicion,
+                            fecha_produccion: refItem.fecha_produccion,
+                            peso_neto_kg: boxWeight,
+                            ubicacion: destino,
+                            estado: "En Stock"
+                        });
+                        await queryRunner.manager.save(ProductoTerminado, nuevaCaja);
+                    }
 
                 } else {
-                    // Caso B: Split. El registro tiene más de lo que necesitamos.
-                    // 1. Modificar el original para que se quede con el Remanente en CÁMARA
-                    const remanente = pesoLote - kilosPorMover;
-                    loteObj.peso_neto_kg = remanente;
-                    await queryRunner.manager.save("ProductoTerminado", loteObj);
+                    // Modo Move (Sin Packing)
+                    targetConsumption = Math.min(totalPesoLote, kilosPorMover);
+                }
 
-                    // 2. Crear nuevo registro con la parte movida en CONTENEDOR
-                    // Clonamos el objeto pero con nuevo ID, peso y ubicación
-                    const nuevoLote = queryRunner.manager.create(ProductoTerminado, {
-                        ...loteObj,
-                        id: undefined, // Nuevo ID
-                        peso_neto_kg: kilosPorMover,
-                        ubicacion: destino,
-                        fecha_produccion: loteObj.fecha_produccion // Mantiene antigüedad
-                    });
-                    
-                    await queryRunner.manager.save("ProductoTerminado", nuevoLote);
+                if (targetConsumption > 0) {
+                    // CONSUMIR REGISTROS ANTIGUOS
+                    // Vamos restando targetConsumption de los itemsDelLote uno a uno
+                    let remainingToConsume = targetConsumption;
 
-                    movimientos.push({ idOriginal: loteObj.id, idNuevo: nuevoLote.id, accion: "split", kilos: kilosPorMover });
-                    kilosPorMover = 0;
+                    for (const item of itemsDelLote) {
+                        if (remainingToConsume <= 0.001) break;
+
+                        const pesoItem = Number(item.peso_neto_kg);
+                        
+                        if (pesoItem <= remainingToConsume) {
+                             // Consumir todo el item
+                             const discount = pesoItem;
+                             remainingToConsume -= discount;                             
+                             if (boxWeight) {
+                                 await queryRunner.manager.delete(ProductoTerminado, item.id);
+                             } else {
+                                 item.ubicacion = destino;
+                                 await queryRunner.manager.save(ProductoTerminado, item);
+                                 movimientos.push({ id: item.id, accion: "movido_total", kilos: discount });
+                             }
+
+                        } else {
+                            // Consumir Parcial (Split)
+                            const discount = remainingToConsume;
+                            remainingToConsume = 0;
+                            
+                            item.peso_neto_kg = pesoItem - discount;
+                            await queryRunner.manager.save(ProductoTerminado, item);
+
+                            if (!boxWeight) {
+                                // En modo normal, el pedazo movido se crea en destino
+                                const movedPart = queryRunner.manager.create(ProductoTerminado, {
+                                    calibre: item.calibre,
+                                    loteDeOrigen: item.loteDeOrigen,
+                                    definicion: item.definicion,
+                                    fecha_produccion: item.fecha_produccion,
+                                    peso_neto_kg: discount,
+                                    ubicacion: destino,
+                                    estado: "En Stock"
+                                });
+                                await queryRunner.manager.save(ProductoTerminado, movedPart);
+                                movimientos.push({ idOriginal: item.id, idNuevo: movedPart.id, accion: "split", kilos: discount });
+                            }
+                            // En modo Packing, el pedazo "consumido" ya se usó para fabricar la caja arriba.
+                        }
+                    }
+                    kilosPorMover -= targetConsumption;
                 }
             }
         }

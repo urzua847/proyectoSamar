@@ -4,7 +4,8 @@ import useGetProducciones from '../hooks/produccion/useGetProducciones';
 import PopupDesconche from '../components/produccion/PopupDesconche';
 import PopupEnvasado from '../components/produccion/PopupEnvasado';
 import PopupTraslado from '../components/produccion/PopupTraslado';
-import { getStockCamaras, deleteProduccion, deleteManyProduccion } from '../services/produccion.service';
+import { deleteProduccion, deleteManyProduccion } from '../services/produccion.service';
+import { deleteDesconche } from '../services/desconche.service';
 import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 import '../styles/users.css';
 
@@ -12,39 +13,70 @@ const Produccion = () => {
     const { producciones, desconches, fetchAll } = useGetProducciones();
 
     const [isDesconcheOpen, setIsDesconcheOpen] = useState(false);
+    const [editingDesconche, setEditingDesconche] = useState(null); // State for editing
+
     const [isEnvasadoOpen, setIsEnvasadoOpen] = useState(false);
     const [isTrasladoOpen, setIsTrasladoOpen] = useState(false);
 
     const [activeTab, setActiveTab] = useState('desconche');
+    const [selectedRow, setSelectedRow] = useState(null);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setSelectedRow(null);
+    };
 
     const actualizarTodo = async () => {
         await fetchAll();
     };
 
-    const handleDelete = async (row) => {
+    const handleDelete = async () => {
+        if (!selectedRow) return;
         const result = await deleteDataAlert();
         if (result.isConfirmed) {
             let response;
-            if (row.ids && row.ids.length > 0) {
-                response = await deleteManyProduccion(row.ids);
+            if (selectedRow.ids && selectedRow.ids.length > 0) {
+                response = await deleteManyProduccion(selectedRow.ids);
             } else {
-                response = await deleteProduccion(row.id);
+                response = await deleteProduccion(selectedRow.id);
             }
 
             if (response.status === 'Success') {
                 showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
                 actualizarTodo();
+                setSelectedRow(null);
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo eliminar.');
             }
         }
     };
 
+    const handleDeleteDesconche = async () => {
+        if (!selectedRow) return;
+        const result = await deleteDataAlert();
+        if (result.isConfirmed) {
+            try {
+                await deleteDesconche(selectedRow.id);
+                showSuccessAlert('Eliminado', 'Desconche eliminado correctamente.');
+                actualizarTodo();
+                setSelectedRow(null);
+            } catch (error) {
+                showErrorAlert('Error', error.response?.data?.message || 'No se pudo eliminar.');
+            }
+        }
+    };
+
+    const handleEditDesconche = () => {
+        if (!selectedRow) return;
+        setEditingDesconche(selectedRow);
+        setIsDesconcheOpen(true);
+    };
+
     useEffect(() => {
         actualizarTodo();
     }, []);
 
-
+    // Filter states...
     const [filtersDesconche, setFiltersDesconche] = useState({
         loteCodigo: '',
         fecha: '',
@@ -53,11 +85,12 @@ const Produccion = () => {
 
     const [filtersStock, setFiltersStock] = useState({
         loteCodigo: '',
-        horaIngreso: '',
+        orderHora: 'desc',
         producto: '',
         calibre: '',
         ubicacion: ''
     });
+
     const handleFilterDesconcheChange = (e) => {
         const { name, value } = e.target;
         setFiltersDesconche(prev => ({ ...prev, [name]: value }));
@@ -68,9 +101,10 @@ const Produccion = () => {
         setFiltersStock(prev => ({ ...prev, [name]: value }));
     };
 
+    // Columns
     const columnsDesconche = [
         { header: "Lote", accessor: "loteCodigo" },
-        { header: "Fecha", accessor: "fecha" },
+        { header: "Especie", accessor: "materiaPrimaNombre" },
         { header: "Carne Blanca (Kg)", accessor: "peso_carne_blanca" },
         { header: "Pinzas (Kg)", accessor: "peso_pinzas" },
         {
@@ -78,6 +112,7 @@ const Produccion = () => {
             render: (row) => row.peso_total ? Number(row.peso_total).toFixed(2) : (Number(row.peso_carne_blanca || 0) + Number(row.peso_pinzas || 0)).toFixed(2)
         },
         { header: "Observación", accessor: "observacion" },
+        { header: "Fecha", accessor: "fecha" }
     ];
 
     const [isTransferMode, setIsTransferMode] = useState(false);
@@ -91,7 +126,6 @@ const Produccion = () => {
     const handleTransferChange = (row, qty) => {
         const val = parseInt(qty);
         if (isNaN(val) || val < 0) return;
-
         if (val > row.cantidad) return;
 
         setTransferSelection(prev => {
@@ -99,10 +133,7 @@ const Produccion = () => {
             if (val === 0) {
                 delete copy[row.id];
             } else {
-                copy[row.id] = {
-                    qty: val,
-                    row: row // Keep ref to row data for Popup
-                };
+                copy[row.id] = { qty: val, row: row };
             }
             return copy;
         });
@@ -117,10 +148,12 @@ const Produccion = () => {
 
     const columnsProduccion = [
         { header: "Lote", accessor: "loteCodigo" },
+        { header: "Especie", accessor: "materiaPrimaNombre" },
         { header: "Producto", accessor: "productoFinalNombre" },
         { header: "Calibre", accessor: "calibre" },
         { header: "Cantidad", accessor: "cantidad" },
         { header: "Kilos Totales", accessor: "peso_neto_kg" },
+        { header: "Cámara", accessor: "ubicacionNombre" },
         { header: "Hora Ingreso", accessor: "horaIngreso" },
         ...(isTransferMode ? [{
             header: "Traslado (Cant.)",
@@ -142,27 +175,10 @@ const Produccion = () => {
                     />
                 </div>
             )
-        }] : [{
-            header: "Acción",
-            width: "100px",
-            render: (row) => (
-                <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
-                    style={{
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '5px 10px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Eliminar
-                </button>
-            )
-        }])
+        }] : [])
     ];
 
+    // Filter Logic...
     const filteredDesconches = useMemo(() => {
         if (!desconches) return [];
         return desconches.filter(item => {
@@ -173,46 +189,123 @@ const Produccion = () => {
         });
     }, [desconches, filtersDesconche]);
 
+    const { uniqueLotes, uniqueProductos, uniqueUbicaciones } = useMemo(() => {
+        if (!producciones) return { uniqueLotes: [], uniqueProductos: [], uniqueUbicaciones: [] };
+        const lotes = [...new Set(producciones.map(p => p.loteCodigo).filter(Boolean))].sort();
+        const productos = [...new Set(producciones.map(p => p.productoFinalNombre).filter(Boolean))].sort();
+        const ubicaciones = [...new Set(producciones.map(p => p.ubicacionNombre).filter(Boolean))].sort();
+        return { uniqueLotes: lotes, uniqueProductos: productos, uniqueUbicaciones: ubicaciones };
+    }, [producciones]);
+
     const filteredProducciones = useMemo(() => {
         if (!producciones) return [];
-        return producciones.filter(item => {
+        let filtered = producciones.filter(item => {
             const matchLote = (item.loteCodigo || '').toLowerCase().includes(filtersStock.loteCodigo.toLowerCase());
-            const matchHora = (item.horaIngreso || '').toLowerCase().includes(filtersStock.horaIngreso.toLowerCase());
             const matchProducto = (item.productoFinalNombre || '').toLowerCase().includes(filtersStock.producto.toLowerCase());
             const matchCalibre = (item.calibre || '').toLowerCase().includes(filtersStock.calibre.toLowerCase());
             const matchUbicacion = (item.ubicacionNombre || '').toLowerCase().includes(filtersStock.ubicacion.toLowerCase());
-
-            return matchLote && matchHora && matchProducto && matchCalibre && matchUbicacion;
+            return matchLote && matchProducto && matchCalibre && matchUbicacion;
         });
+
+        filtered.sort((a, b) => {
+            if (filtersStock.orderHora === 'asc') return a.id - b.id;
+            else return b.id - a.id;
+        });
+        return filtered;
     }, [producciones, filtersStock]);
 
     return (
         <div className="main-container">
             <div className="table-wrapper">
-                <div className="top-table">
-                    <h1 className="title-table">Gestión de Producción</h1>
+                <div className="top-table" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <h1 className="title-table" style={{ margin: 0 }}>Gestión de Producción</h1>
 
-                    {/* TABS BUTTONS */}
-                    <div className="action-buttons">
+                        {/* ACTION BUTTONS (TOP RIGHT) */}
+                        <div className="action-buttons" style={{ display: 'flex', gap: '10px' }}>
+                            {activeTab === 'desconche' ? (
+                                <>
+                                    <button
+                                        onClick={() => { setEditingDesconche(null); setIsDesconcheOpen(true); }}
+                                        className="btn-new"
+                                        style={{ backgroundColor: '#28a745' }}
+                                    >
+                                        + Nuevo Proceso
+                                    </button>
+                                    <button
+                                        disabled={!selectedRow}
+                                        onClick={handleEditDesconche}
+                                        className='btn-edit'
+                                        style={{ opacity: selectedRow ? 1 : 0.5 }}
+                                    >
+                                        Editar
+                                    </button>
+                                    <button
+                                        disabled={!selectedRow}
+                                        onClick={handleDeleteDesconche}
+                                        className="btn-delete"
+                                        style={{ opacity: selectedRow ? 1 : 0.5 }}
+                                    >
+                                        Eliminar
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => setIsEnvasadoOpen(true)} className="btn-new" style={{ backgroundColor: '#28a745' }}>
+                                        + Ingresar Productos
+                                    </button>
+                                    <button
+                                        onClick={handleDelete}
+                                        disabled={!selectedRow}
+                                        className="btn-delete"
+                                        style={{ opacity: selectedRow ? 1 : 0.5 }}
+                                    >
+                                        Eliminar
+                                    </button>
+                                    {isTransferMode ? (
+                                        <>
+                                            <button onClick={handleTransferModeToggle} className="btn-edit" style={{ backgroundColor: '#6c757d' }}>
+                                                Cancelar
+                                            </button>
+                                            <button onClick={handleOpenTransferPopup} className="btn-new" style={{ backgroundColor: '#ffc107', color: '#000', borderColor: '#e0a800' }}>
+                                                Confirmar Traslado
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={handleTransferModeToggle} className="btn-new" style={{ backgroundColor: '#ffc107', color: '#000', borderColor: '#e0a800' }}>
+                                            Traslado Contenedor
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* TABS (BELOW TITLE) */}
+                    <div className="action-buttons" style={{ alignSelf: 'flex-start' }}>
                         <button
                             className="btn-new"
                             style={{
-                                backgroundColor: activeTab === 'desconche' ? '#003366' : '#e0e0e0', // Azul si activo
+                                backgroundColor: activeTab === 'desconche' ? '#003366' : '#e0e0e0',
                                 color: activeTab === 'desconche' ? '#fff' : '#333',
-                                border: 'none'
+                                border: 'none',
+                                borderRadius: '4px 0 0 4px',
+                                marginRight: '0'
                             }}
-                            onClick={() => setActiveTab('desconche')}
+                            onClick={() => handleTabChange('desconche')}
                         >
                             Kilos Producidos
                         </button>
                         <button
                             className="btn-new"
                             style={{
-                                backgroundColor: activeTab === 'stock' ? '#003366' : '#e0e0e0', // Azul si activo
+                                backgroundColor: activeTab === 'stock' ? '#003366' : '#e0e0e0',
                                 color: activeTab === 'stock' ? '#fff' : '#333',
-                                border: 'none'
+                                border: 'none',
+                                borderRadius: '0 4px 4px 0',
+                                marginLeft: '-1px' // Overlap border if any
                             }}
-                            onClick={() => setActiveTab('stock')}
+                            onClick={() => handleTabChange('stock')}
                         >
                             Stock Cámaras
                         </button>
@@ -222,90 +315,89 @@ const Produccion = () => {
                 {/* --- TAB CONTENT: DESCONCHE --- */}
                 {activeTab === 'desconche' && (
                     <>
-                        <div className="top-table" style={{ marginTop: '20px' }}>
-                            <h2 style={{ fontSize: '1.1rem', color: '#003366', margin: 0 }}>Historial Kilos Producidos</h2>
-                            <div className="action-buttons">
-                                <button onClick={() => setIsDesconcheOpen(true)} className="btn-new" style={{ backgroundColor: '#28a745' }}>
-                                    + Nuevo Proceso
-                                </button>
-                            </div>
+                        <h3 style={{ color: '#003366', marginTop: '15px', marginBottom: '10px' }}>Materia Prima obtenida post cocción</h3>
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                            <input name="loteCodigo" placeholder="Lote..." value={filtersDesconche.loteCodigo} onChange={handleFilterDesconcheChange} className="search-input" />
+                            <input name="fecha" placeholder="Fecha..." value={filtersDesconche.fecha} onChange={handleFilterDesconcheChange} className="search-input" />
+                            <input name="observacion" placeholder="Observación..." value={filtersDesconche.observacion} onChange={handleFilterDesconcheChange} className="search-input" style={{ flex: 1 }} />
                         </div>
 
-                        <div className="filter-section">
-                            <div className="filter-row-3">
-                                <div className="filter-group">
-                                    <label>Lote</label>
-                                    <input name="loteCodigo" placeholder="Ej: 1204..." value={filtersDesconche.loteCodigo} onChange={handleFilterDesconcheChange} />
-                                </div>
-                                <div className="filter-group">
-                                    <label>Fecha</label>
-                                    <input name="fecha" placeholder="dd-mm..." value={filtersDesconche.fecha} onChange={handleFilterDesconcheChange} />
-                                </div>
-                                <div className="filter-group">
-                                    <label>Observación</label>
-                                    <input name="observacion" placeholder="..." value={filtersDesconche.observacion} onChange={handleFilterDesconcheChange} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <Table columns={columnsDesconche} data={filteredDesconches} />
+                        <Table
+                            columns={columnsDesconche}
+                            data={filteredDesconches}
+                            onRowClick={(row) => setSelectedRow(row)}
+                            selectedId={selectedRow?.id}
+                        />
                     </>
                 )}
 
                 {/* --- TAB CONTENT: STOCK CÁMARAS --- */}
                 {activeTab === 'stock' && (
                     <>
-                        <div className="top-table" style={{ marginTop: '20px' }}>
-                            <h2 style={{ fontSize: '1.1rem', color: '#003366', margin: 0 }}>Historial Stock Cámaras</h2>
-                            <div className="action-buttons" style={{ display: 'flex', gap: '10px' }}>
-                                <button onClick={() => setIsEnvasadoOpen(true)} className="btn-new" style={{ backgroundColor: '#28a745' }}>
-                                    + Ingresar Productos
-                                </button>
-                                {isTransferMode ? (
-                                    <>
-                                        <button onClick={handleTransferModeToggle} className="btn-edit" style={{ backgroundColor: '#6c757d', marginRight: '10px' }}>
-                                            Cancelar
-                                        </button>
-                                        <button onClick={handleOpenTransferPopup} className="btn-new" style={{ backgroundColor: '#ffc107', color: '#000', borderColor: '#e0a800' }}>
-                                            Confirmar Traslado
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button onClick={handleTransferModeToggle} className="btn-new" style={{ backgroundColor: '#ffc107', color: '#000', borderColor: '#e0a800' }}>
-                                        Traslado Contenedor
-                                    </button>
-                                )}
-                            </div>
+                        <h3 style={{ color: '#003366', marginTop: '15px', marginBottom: '10px' }}>Inventario en Cámaras</h3>
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                            <input
+                                list="lotes-list"
+                                name="loteCodigo"
+                                placeholder="Lote..."
+                                value={filtersStock.loteCodigo}
+                                onChange={handleFilterStockChange}
+                                className="search-input"
+                            />
+                            <datalist id="lotes-list">
+                                {uniqueLotes.map(l => <option key={l} value={l} />)}
+                            </datalist>
+
+                            <input
+                                list="productos-list"
+                                name="producto"
+                                placeholder="Producto..."
+                                value={filtersStock.producto}
+                                onChange={handleFilterStockChange}
+                                className="search-input"
+                            />
+                            <datalist id="productos-list">
+                                {uniqueProductos.map(p => <option key={p} value={p} />)}
+                            </datalist>
+
+                            <input
+                                name="calibre"
+                                placeholder="Calibre..."
+                                value={filtersStock.calibre}
+                                onChange={handleFilterStockChange}
+                                className="search-input"
+                            />
+
+                            <input
+                                list="ubicaciones-list"
+                                name="ubicacion"
+                                placeholder="Cámara..."
+                                value={filtersStock.ubicacion}
+                                onChange={handleFilterStockChange}
+                                className="search-input"
+                            />
+                            <datalist id="ubicaciones-list">
+                                {uniqueUbicaciones.map(u => <option key={u} value={u} />)}
+                            </datalist>
+
+                            <select
+                                name="orderHora"
+                                value={filtersStock.orderHora}
+                                onChange={handleFilterStockChange}
+                                className="search-input"
+                                style={{ width: 'auto' }}
+                            >
+                                <option value="desc">Más Recientes</option>
+                                <option value="asc">Más Antiguos</option>
+                            </select>
                         </div>
 
-                        <div className="filter-section">
-                            <div className="filter-row-3">
-                                <div className="filter-group">
-                                    <label>Lote</label>
-                                    <input name="loteCodigo" placeholder="Ej: 1204..." value={filtersStock.loteCodigo} onChange={handleFilterStockChange} />
-                                </div>
-                                <div className="filter-group">
-                                    <label>Hora Ingreso</label>
-                                    <input name="horaIngreso" placeholder="HH:mm..." value={filtersStock.horaIngreso} onChange={handleFilterStockChange} />
-                                </div>
-                                <div className="filter-group">
-                                    <label>Cámara</label>
-                                    <input name="ubicacion" placeholder="Cámara..." value={filtersStock.ubicacion} onChange={handleFilterStockChange} />
-                                </div>
-                            </div>
-                            <div className="filter-row-2">
-                                <div className="filter-group">
-                                    <label>Producto</label>
-                                    <input name="producto" placeholder="Pinza..." value={filtersStock.producto} onChange={handleFilterStockChange} />
-                                </div>
-                                <div className="filter-group">
-                                    <label>Calibre</label>
-                                    <input name="calibre" placeholder="250 grs..." value={filtersStock.calibre} onChange={handleFilterStockChange} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <Table columns={columnsProduccion} data={filteredProducciones} />
+                        <Table
+                            columns={columnsProduccion}
+                            data={filteredProducciones}
+                            onRowClick={(row) => setSelectedRow(row)}
+                            selectedId={selectedRow?.id}
+                        />
                     </>
                 )}
             </div>
@@ -314,7 +406,11 @@ const Produccion = () => {
             <PopupDesconche
                 show={isDesconcheOpen}
                 setShow={setIsDesconcheOpen}
-                onSuccess={actualizarTodo}
+                initialData={editingDesconche}
+                onSuccess={() => {
+                    actualizarTodo();
+                    setIsDesconcheOpen(false);
+                }}
             />
             <PopupEnvasado
                 show={isEnvasadoOpen}

@@ -9,6 +9,10 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const [selectedContenedor, setSelectedContenedor] = useState('');
     const [movements, setMovements] = useState({});
 
+    // Packing State
+    const [isPacking, setIsPacking] = useState(false);
+    const [boxWeight, setBoxWeight] = useState("");
+
     useEffect(() => {
         if (isOpen) {
             fetchContenedores();
@@ -35,6 +39,12 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         } catch (error) {
             console.error("Error fetching stock camara", error);
         }
+    };
+
+    const handleContenedorChange = (e) => {
+        setSelectedContenedor(e.target.value);
+        setIsPacking(false);
+        setBoxWeight("");
     };
 
     const handleInputChange = (key, value) => {
@@ -98,6 +108,11 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 items: itemsToMove
             };
 
+            // Add peso_caja to payload if packing is active
+            if (isPacking && Number(boxWeight) > 0) {
+                payload.peso_caja = Number(boxWeight);
+            }
+
             await axios.post('/traslado', payload);
             alert("Traslado realizado con éxito");
             onTrasladoSuccess();
@@ -113,13 +128,20 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const isSelectionMode = initialSelection && initialSelection.length > 0;
     const displayData = isSelectionMode ? initialSelection : stockCamara;
 
+    // Determine if packing options should be shown (always for a selected container in this component)
+    const showPackingOption = selectedContenedor !== '';
+
     return (
         <div className="bg">
             <div className="popup" style={{ width: '900px', maxWidth: '98%' }}>
                 <button className='close' onClick={onClose}>X</button>
-                <h2 style={{ color: '#003366', marginBottom: '20px' }}>
-                    {isSelectionMode ? 'Confirmar Traslado' : 'Traslado a Contenedor'}
+                <h2 style={{ color: '#003366', marginBottom: '10px' }}>
+                    {isSelectionMode ? 'Confirmar Empaque y Traslado' : 'Mover Stock a Contenedor'}
                 </h2>
+                <div style={{ marginBottom: '15px', background: '#e3f2fd', padding: '10px', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9rem' }}>
+                    ℹ️ <strong>Modulo de Empaque:</strong> Seleccione productos de Cámara y muévalos a un Contenedor.
+                    El sistema convertirá los Kilos seleccionados en el destino. Indique cantidad de <strong>Bultos/Cajas</strong> si corresponde.
+                </div>
 
                 <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
@@ -127,7 +149,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     </label>
                     <select
                         value={selectedContenedor}
-                        onChange={(e) => setSelectedContenedor(e.target.value)}
+                        onChange={handleContenedorChange}
                         style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
                     >
                         <option value="">-- Seleccionar --</option>
@@ -136,6 +158,39 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                         ))}
                     </select>
                 </div>
+
+                {/* Packing Options */}
+                {showPackingOption && (
+                    <div style={{ marginBottom: '20px', padding: '15px', background: '#e8f5e9', borderRadius: '8px', border: '1px solid #c8e6c9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e7d32' }}>
+                                <input
+                                    type="checkbox"
+                                    style={{ width: '18px', height: '18px' }}
+                                    checked={isPacking}
+                                    onChange={e => setIsPacking(e.target.checked)}
+                                />
+                                <span>Activar Empaque Automático</span>
+                            </label>
+
+                            {isPacking && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <label style={{ fontWeight: 'bold', color: '#424242' }}>Kilos por Caja:</label>
+                                    <input
+                                        type="number"
+                                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100px', textAlign: 'right' }}
+                                        placeholder="Ej: 10"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={boxWeight}
+                                        onChange={e => setBoxWeight(e.target.value)}
+                                    />
+                                    <span style={{ fontSize: '0.85rem', color: '#616161' }}>(El sistema dividirá los kilos movidos en cajas de este peso)</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className="table-container-native" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     <table className="samar-table">
@@ -205,8 +260,8 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 </div>
 
                 <div style={{ padding: '20px', textAlign: 'right', gap: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} className="btn-edit" style={{ backgroundColor: '#6c757d' }}>Cancelar</button>
-                    <button onClick={handleSubmit} className="btn-new" style={{ padding: '10px 25px' }}>Confirmar Traslado</button>
+                    <button onClick={onClose} className="btn-edit" style={{ backgroundColor: '#6c757d', color: 'white' }}>Cancelar</button>
+                    <button onClick={handleSubmit} className="btn-new" style={{ padding: '10px 25px', color: 'white' }}>Confirmar Traslado</button>
                 </div>
             </div>
         </div>

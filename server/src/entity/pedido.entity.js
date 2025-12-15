@@ -2,34 +2,34 @@
 
 import { EntitySchema } from "typeorm";
 
-const VentaSchema = new EntitySchema({
-  name: "Venta",
-  tableName: "ventas",
+const PedidoSchema = new EntitySchema({
+  name: "Pedido",
+  tableName: "pedidos",
   columns: {
     id: {
       type: "int",
       primary: true,
       generated: true,
     },
-    fecha: {
-      type: "timestamp with time zone",
-      default: () => "CURRENT_TIMESTAMP",
-    },
     cliente: {
       type: "varchar",
       length: 255,
       nullable: false,
     },
-    n_guia_despacho: {
+    fecha: {
+      type: "timestamp with time zone",
+      default: () => "CURRENT_TIMESTAMP",
+    },
+    numero_guia: {
       type: "varchar",
       length: 100,
       nullable: true,
     },
-    tipo_venta: {
+    estado: {
       type: "enum",
-      enum: ["Nacional", "Exportación"],
-      default: "Nacional",
-      nullable: true,
+      enum: ["Borrador", "Despachado"],
+      default: "Despachado",
+      nullable: false,
     },
     createdAt: {
       type: "timestamp with time zone",
@@ -37,12 +37,13 @@ const VentaSchema = new EntitySchema({
     },
   },
   relations: {
-    productos: {
+    detalles: {
       type: "one-to-many",
-      target: "ProductoTerminado",
-      inverseSide: "venta",
+      target: "DetallePedido",
+      inverseSide: "pedido",
+      cascade: true,
     },
   },
 });
 
-export default VentaSchema;
+export default PedidoSchema;
