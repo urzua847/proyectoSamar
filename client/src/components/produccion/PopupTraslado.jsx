@@ -85,7 +85,10 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     );
 
                     let weightToMove = 0;
-                    if (stockItem) {
+                    if (isPacking && Number(boxWeight) > 0) {
+                        // Logic Request: Input is "Target Boxes", so Total Weight = Boxes * BoxWeight
+                        weightToMove = Number(qty) * Number(boxWeight);
+                    } else if (stockItem) {
                         const totalWeight = Number(stockItem.totalKilos);
                         const totalCount = Number(stockItem.totalCantidad);
                         const unitWeight = totalCount > 0 ? totalWeight / totalCount : 0;
@@ -207,7 +210,9 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                 ) : (
                                     <>
                                         <th style={{ textAlign: 'right' }}>Disponible (Unid)</th>
-                                        <th style={{ width: '150px' }}>Mover (Unid)</th>
+                                        <th style={{ width: '150px' }}>
+                                            {isPacking ? 'Cant. Cajas Destino' : 'Mover (Unid)'}
+                                        </th>
                                     </>
                                 )}
                             </tr>
