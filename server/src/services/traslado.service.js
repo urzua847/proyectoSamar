@@ -67,9 +67,8 @@ export async function trasladoStockService(data) {
                    const limit = Math.min(needGlobal, canGive);
                    const numCajas = Math.floor(limit / boxWeight);
                    
-                   if (numCajas === 0) {
-                       continue;
-                   }
+                   // Removed continue check to allow remainder handling
+
 
                    targetConsumption = numCajas * boxWeight;
                    
@@ -87,6 +86,24 @@ export async function trasladoStockService(data) {
                             estado: "En Stock"
                         });
                         await queryRunner.manager.save(ProductoTerminado, nuevaCaja);
+                    }
+
+                    // Handle Remainder (Partial Box)
+                    const remainder = limit - (numCajas * boxWeight);
+                    if (remainder > 0.001) { // Tolerance for float math
+                         const cajaRestante = queryRunner.manager.create(ProductoTerminado, {
+                             calibre: refItem.calibre,
+                             loteDeOrigen: refItem.loteDeOrigen,
+                             definicion: refItem.definicion,
+                             fecha_produccion: refItem.fecha_produccion,
+                             peso_neto_kg: remainder,
+                             ubicacion: destino,
+                             estado: "En Stock"
+                         });
+                         await queryRunner.manager.save(ProductoTerminado, cajaRestante);
+                         
+                         // Update target consumption to include the remainder
+                         targetConsumption += remainder;
                     }
 
                 } else {
