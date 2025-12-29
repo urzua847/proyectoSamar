@@ -23,6 +23,11 @@ const DefinicionProductoSchema = new EntitySchema({
       default: "elaborado",
       nullable: false,
     },
+    origen: {
+      type: "varchar",  
+      length: 50,
+      nullable: true
+    },
     calibres: {
       type: "simple-array",
       nullable: true

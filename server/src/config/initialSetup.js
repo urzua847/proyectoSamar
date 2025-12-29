@@ -1,7 +1,9 @@
 "use strict";
 
 import User from "../entity/user.entity.js";
+import Entidad from "../entity/entidad.entity.js";
 import Proveedor from "../entity/proveedor.entity.js";
+import Cliente from "../entity/cliente.entity.js";
 import MateriaPrima from "../entity/materiaPrima.entity.js";
 import Ubicacion from "../entity/ubicacion.entity.js";
 import DefinicionProducto from "../entity/definicionProducto.entity.js";
@@ -40,32 +42,50 @@ async function createUsers() {
    ============================================== */
 async function createMateriasPrimas() {
   const repo = AppDataSource.getRepository(MateriaPrima);
-  const count = await repo.count();
-  if (count > 0) return;
+  
+  const mps = [
+      { nombre: "Jaiba" },
+      { nombre: "Pulpo" },
+      { nombre: "Almeja" }
+  ];
 
-  await repo.save([
-    repo.create({ nombre: "Jaiba" }),
-    repo.create({ nombre: "Pulpo" }),
-    repo.create({ nombre: "Almeja" }),
-  ]);
+  for (const mpData of mps) {
+      const exists = await repo.findOne({ where: { nombre: mpData.nombre } });
+      if (!exists) {
+          await repo.save(repo.create(mpData));
+      }
+  }
   console.log("Materias Primas creadas.");
 }
 
 /* ==============================================
-   3. PROVEEDORES (Datos reales de la pizarra)
+   3. ENTIDADES (Clientes y Proveedores - Tabla Única)
    ============================================== */
-async function createProveedores() {
-  const repo = AppDataSource.getRepository(Proveedor);
-  const count = await repo.count();
-  if (count > 0) return;
+async function createProveedores() { 
+  const repo = AppDataSource.getRepository(Entidad); 
+  const repoProv = AppDataSource.getRepository(Proveedor); 
+  const repoCli = AppDataSource.getRepository(Cliente); 
 
-  await repo.save([
-    repo.create({ nombre: "Pedro Vidal", rut: "12345678-9" }),
-    repo.create({ nombre: "Don Isau", rut: "98765432-1" }),
-    repo.create({ nombre: "Julio Gallardo", rut: "11223344-5" }),
-    repo.create({ nombre: "Comercial Samar", rut: "55667788-9" }),
+  const count = await repo.count();
+  if (count > 0) return; 
+
+  console.log("Entidades Iniciales creadas.");
+
+  // PROVEEDORES
+  await repoProv.save([
+    repoProv.create({ nombre: "Pedro Vidal", rut: "12345678-9", tipo: "proveedor" }),
+    repoProv.create({ nombre: "Don Isau", rut: "98765432-1", tipo: "proveedor" }),
+    repoProv.create({ nombre: "Julio Gallardo", rut: "11223344-5", tipo: "proveedor" }),
+    repoProv.create({ nombre: "Comercial Samar", rut: "55667788-9", tipo: "proveedor" }),
   ]);
-  console.log("Proveedores creados.");
+
+  // CLIENTES
+  await repoCli.save([
+      repoCli.create({ nombre: "Sodexo", rut: "111-1", tipo: "cliente" }),
+      repoCli.create({ nombre: "Restaurante El Puerto", rut: "222-2", tipo: "cliente" })
+  ]);
+
+  console.log("Entidades (Proveedores y Clientes) creadas.");
 }
 
 /* ==============================================
@@ -93,17 +113,14 @@ async function createProductos() {
   const prodRepo = AppDataSource.getRepository(DefinicionProducto);
   const matRepo = AppDataSource.getRepository(MateriaPrima);
   
-  const count = await prodRepo.count();
-  if (count > 0) return;
-
   const jaiba = await matRepo.findOne({ where: { nombre: "Jaiba" } });
-  if (!jaiba) return;
+  if (!jaiba) {
+     console.error("Error Seeding: Materia Prima 'Jaiba' not found. Skipping Products.");
+     return;
+  }
 
-  await prodRepo.save([
-    // =====================================================
-    // 1. PRODUCTOS PRIMARIOS (TABLA 1 - DESCONCHE)
-    //    Solo lo básico para calcular rendimiento.
-    // =====================================================
+  const productosDef = [
+    // 1. PRODUCTOS PRIMARIOS
     { 
         nombre: "Carne Blanca", 
         tipo: "primario", 
@@ -111,23 +128,19 @@ async function createProductos() {
         calibres: null 
     },
     { 
-        nombre: "Pinzas", // Pinza entera cocida (antes de clasificar)
+        nombre: "Pinza",
         tipo: "primario", 
         materiaPrima: jaiba, 
         calibres: null 
     },
-
-    // =====================================================
-    // 2. PRODUCTOS ELABORADOS (TABLA 2 - A CÁMARA)
-    //    Clasificados y Envasados
-    // =====================================================
 
     // A. Tres Segmentos (Directo a congelar)
     { 
         nombre: "Tres Segmentos", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: ["250 grs", "500 grs", "1000 grs"] 
+        calibres: ["250 grs", "500 grs", "1000 grs"],
+        origen: "Pinza" 
     },
 
     // B. Pinza Coctel (Desconchada) - Combinamos Tamaño y Peso
@@ -135,12 +148,8 @@ async function createProductos() {
         nombre: "Pinza Coctel", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: [
-            "Chica - 250 grs", 
-            "Chica - 500 grs", 
-            "Grande - 250 grs", 
-            "Grande - 500 grs"
-        ] 
+        calibres: ["Chica - 250 grs", "Chica - 500 grs", "Grande - 250 grs", "Grande - 500 grs"],
+        origen: "Pinza" 
     },
 
     // C. Pinza Jumbo (Alta Calidad) - Combinamos Tamaño y Peso
@@ -148,12 +157,8 @@ async function createProductos() {
         nombre: "Pinza Jumbo", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: [
-            "Chica - 250 grs", 
-            "Chica - 500 grs", 
-            "Grande - 250 grs", 
-            "Grande - 500 grs"
-        ] 
+        calibres: ["Chica - 250 grs", "Chica - 500 grs", "Grande - 250 grs", "Grande - 500 grs"],
+        origen: "Pinza"
     },
 
     // D. Molde Jaiba (Carne Blanca + Carne Codo para decoración)
@@ -161,10 +166,25 @@ async function createProductos() {
         nombre: "Molde Jaiba", 
         tipo: "elaborado", 
         materiaPrima: jaiba, 
-        calibres: ["250 grs", "500 grs", "1000 grs"] 
+        calibres: ["250 grs", "500 grs", "1000 grs"],
+        origen: "Carne Blanca"
     }
-  ]);
-  console.log("=> Catálogo actualizado: Flujo Jaiba Real.");
+  ];
+
+  for (const prodData of productosDef) {
+      const existing = await prodRepo.findOne({ where: { nombre: prodData.nombre } });
+      if (existing) {
+          existing.materiaPrima = jaiba;
+          existing.tipo = prodData.tipo;
+          existing.origen = prodData.origen || existing.origen;
+          existing.calibres = prodData.calibres || existing.calibres;
+          await prodRepo.save(existing);
+      } else {
+          await prodRepo.save(prodRepo.create(prodData));
+      }
+  }
+
+  console.log("Catálogo creado.");
 }
 
 /* ==============================================

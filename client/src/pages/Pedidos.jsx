@@ -1,14 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import axios from '../services/root.service.js';
 import Table from '../components/Table';
 import { format as formatTempo } from "@formkit/tempo";
 import '../styles/users.css';
 import '../styles/table.css';
 import '../styles/popup.css';
+import { deleteManyProduccion } from '../services/envasado.service';
+import { getClientes } from '../services/catalogos.service';
+import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+
+
 
 const Pedidos = () => {
     // Estado Principal
-    const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'history'
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState('stock');
     const [availableStock, setAvailableStock] = useState([]);
     const [cart, setCart] = useState([]);
     const [orderHistory, setOrderHistory] = useState([]);
@@ -22,6 +29,9 @@ const Pedidos = () => {
         ubicacion: ''
     });
 
+    // Clientes List
+    const [clientesList, setClientesList] = useState([]);
+
     // Formulario Cabecera
     const [header, setHeader] = useState({
         cliente: '',
@@ -31,24 +41,106 @@ const Pedidos = () => {
     useEffect(() => {
         if (activeTab === 'stock') {
             fetchContenedorStock();
+            if (clientesList.length === 0) {
+                getClientes().then(data => setClientesList(data || []));
+            }
         } else {
             fetchHistory();
         }
     }, [activeTab]);
 
+    const [selectedIds, setSelectedIds] = useState([]);
+
     const fetchContenedorStock = async () => {
         try {
-
-            const response = await axios.get('/produccion/stock/contenedores');
+            const response = await axios.get('/envasado/stock/contenedores');
             const data = response.data.data || [];
 
+            const formatted = data
+                .filter(item => Number(item.totalKilos) > 0)
+                .map((item, index) => ({
+                    ...item,
+                    id: `${item.loteCodigo}-${item.definicionProductoId}-${item.calibre || 'null'}-${index}`
+                }));
 
-            // Filtro local > 0 kilos
-            setAvailableStock(data.filter(item => Number(item.totalKilos) > 0));
+            setAvailableStock(formatted);
         } catch (error) {
             console.error("Error fetching stock contenedores", error);
         }
     };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+
+        const rows = availableStock.filter(item => selectedIds.includes(item.id));
+        const allIdsToDelete = rows.flatMap(r => r.ids || []);
+
+        if (allIdsToDelete.length === 0) return;
+
+        const result = await deleteDataAlert();
+        if (result.isConfirmed) {
+            const response = await deleteManyProduccion(allIdsToDelete);
+            if (response.status === 'Success') {
+                showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
+                fetchContenedorStock();
+                setSelectedIds([]);
+            } else {
+                showErrorAlert('Error', response.message || 'No se pudo eliminar.');
+            }
+        }
+    };
+
+    const handleDeleteRow = async (row) => {
+        const idsToDelete = row.ids || [row.id];
+
+        const result = await deleteDataAlert();
+        if (result.isConfirmed) {
+            const response = await deleteManyProduccion(idsToDelete);
+            if (response.status === 'Success') {
+                showSuccessAlert('Eliminado', 'Registro eliminado correctamente.');
+                fetchContenedorStock();
+            } else {
+                showErrorAlert('Error', response.message || 'No se pudo eliminar el registro.');
+            }
+        }
+    };
+
+    const columnsStock = [
+        { header: "Lote", accessor: "loteCodigo" },
+        { header: "Producto", accessor: "productoNombre" },
+        { header: "Calibre", accessor: "calibre" },
+        { header: "Cajas Disp.", accessor: "totalCantidad", width: "100px", render: r => <div style={{ textAlign: 'center', fontWeight: 'bold' }}>{r.totalCantidad}</div> },
+        { header: "Kg/Caja", render: r => <div style={{ textAlign: 'center' }}>{(Number(r.totalKilos) / (Number(r.totalCantidad) || 1)).toFixed(2)}</div> },
+        { header: "Kilos Totales", accessor: "totalKilos", width: "120px", render: r => <div style={{ textAlign: 'right' }}>{r.totalKilos}</div> },
+        { header: "Ubicación", accessor: "ubicacionNombre" },
+        {
+            header: "Acción",
+            width: "140px",
+            render: (row) => (
+                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                    <StockActionCell item={row} onAdd={(qty) => handleAddToCart(row, qty)} />
+                    {user?.rol === 'administrador' && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteRow(row);
+                            }}
+                            className="btn-delete"
+                            title="Eliminar"
+                            style={{
+                                padding: '0', borderRadius: '50%', width: '30px', height: '30px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                backgroundColor: '#dc3545', border: 'none', color: 'white', fontSize: '1rem',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🗑
+                        </button>
+                    )}
+                </div>
+            )
+        }
+    ];
 
     const fetchHistory = async () => {
         try {
@@ -65,7 +157,6 @@ const Pedidos = () => {
                 guia: v.numero_guia || '-',
                 estado: v.estado,
                 totalItems: v.detalles?.length || 0,
-                // Sumar kilos de detalles
                 totalKilos: v.detalles?.reduce((acc, curr) => acc + Number(curr.kilos_totales), 0).toFixed(2),
                 details: v.detalles
             }));
@@ -90,21 +181,17 @@ const Pedidos = () => {
     const handleAddToCart = (item, qtyBultos) => {
 
 
-        // Calcular kilos reales (Peso Promedio por Caja)
         const pesoTotal = Number(item.totalKilos) || 0;
         const cajasTotal = Number(item.totalCantidad) || 1;
         const pesoPorCaja = pesoTotal / cajasTotal;
         const kilosEstimados = (qtyBultos * pesoPorCaja).toFixed(2);
 
-        // Validar Stock (aprox por kilos o bultos si tenemos el dato)
-        // item.totalCantidad = bultos disponibles?
         if (item.totalCantidad && qtyBultos > item.totalCantidad) {
             return alert(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
         }
 
-        // Agregar
         setCart(prev => [...prev, {
-            ...item, // contiene definicionProductoId, loteCodigo, etc
+            ...item,
             cantidadBultos: parseInt(qtyBultos),
             subtotalKilos: kilosEstimados,
             uniqueId: Date.now()
@@ -124,11 +211,14 @@ const Pedidos = () => {
             const payload = {
                 ...header,
                 fecha: new Date(),
-                items: cart.map(c => ({
-                    productoId: c.id || (c.ids && c.ids[0]), // Legacy/Fallback
-                    productoIds: c.ids || (c.id ? [c.id] : []), // New: List of IDs
-                    cantidad_bultos: c.cantidadBultos
-                }))
+                items: cart.map(c => {
+                    const isComposite = String(c.id).includes('-');
+                    return {
+                        productoId: !isComposite ? c.id : undefined,
+                        productoIds: c.ids || [],
+                        cantidad_bultos: c.cantidadBultos
+                    };
+                })
             };
 
             await axios.post('/pedidos', payload);
@@ -136,7 +226,7 @@ const Pedidos = () => {
             setCart([]);
             setHeader({ ...header, numero_guia: '', cliente: '' });
             fetchContenedorStock();
-            setIsCartOpen(false); // Close cart on success
+            setIsCartOpen(false);
         } catch (error) {
             console.error(error);
             alert("Error al registrar: " + (error.response?.data?.message || error.message));
@@ -161,7 +251,7 @@ const Pedidos = () => {
         { header: "Fecha", accessor: "fecha" },
         { header: "Cliente", accessor: "cliente" },
         { header: "Guía", accessor: "guia" },
-        { header: "Cajas", accessor: "totalItems" }, // Approximate if 1 item = 1 row? No, details count.
+        { header: "Cajas", accessor: "totalItems" },
         { header: "Kilos", accessor: "totalKilos" },
         { header: "Estado", accessor: "estado" }
     ];
@@ -170,67 +260,57 @@ const Pedidos = () => {
         <div className="main-container" style={{ position: 'relative' }}>
             <div className="table-wrapper">
                 <div className="top-table">
-                    <h1 className="title-table">Gestión de Pedidos</h1>
-                    <div className="action-buttons">
+
+                    <h1 className="title-table">Gestión de Contenedores</h1>
+                    <div className="action-buttons" style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            className="btn-new"
-                            style={{ background: activeTab === 'stock' ? '#003366' : '#ccc' }}
                             onClick={() => setActiveTab('stock')}
+                            className={activeTab === 'stock' ? 'btn-new' : ''}
+                            style={activeTab !== 'stock' ? { backgroundColor: '#ccc' } : {}}
                         >
-                            Nuevo Pedido (Contenedores)
+                            <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Nuevo Pedido
                         </button>
                         <button
-                            className="btn-new"
-                            style={{ background: activeTab === 'history' ? '#003366' : '#ccc' }}
                             onClick={() => setActiveTab('history')}
+                            className={activeTab === 'history' ? 'btn-edit' : ''}
+                            style={activeTab !== 'history' ? { backgroundColor: '#ccc' } : {}}
                         >
-                            Historial
+                            📋 Historial
                         </button>
                     </div>
+
+                    {activeTab === 'stock' && selectedIds.length > 0 && user?.rol === 'administrador' && (
+                        <button
+                            onClick={handleBulkDelete}
+                            className="btn-delete"
+                        >
+                            Eliminar ({selectedIds.length})
+                        </button>
+                    )}
                 </div>
 
                 {activeTab === 'stock' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: isCartOpen ? '1.2fr 0.8fr' : '1fr', gap: '20px', marginTop: '20px', transition: 'grid-template-columns 0.3s ease' }}>
 
-                        {/* LEFT: STOCK */}
                         <div className="panel" style={{ background: 'white', padding: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                             <h3 style={{ color: '#003366', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Inventario en Contenedores</h3>
 
-                            {/* Filtros */}
                             <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                                 <input placeholder="Lote..." value={filters.lote} onChange={e => setFilters({ ...filters, lote: e.target.value })} className="search-input" />
                                 <input placeholder="Producto..." value={filters.producto} onChange={e => setFilters({ ...filters, producto: e.target.value })} className="search-input" />
                             </div>
 
-                            <div className="table-container-native">
-                                <table className="samar-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Lote</th>
-                                            <th>Producto</th>
-                                            <th>Formato</th>
-                                            <th style={{ textAlign: 'center' }}>Cajas Disp.</th>
-                                            <th style={{ textAlign: 'center' }}>Kg/Caja</th>
-                                            <th style={{ textAlign: 'right' }}>Kilos Totales</th>
-                                            <th>Ubicación</th>
-                                            <th>Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredStock.map((item, i) => (
-                                            <StockRow
-                                                key={i}
-                                                item={item}
-                                                onAdd={(qty) => handleAddToCart(item, qty)}
-                                            />
-                                        ))}
-                                        {filteredStock.length === 0 && <tr><td colSpan="8" className="no-data">No hay stock en contenedores.</td></tr>}
-                                    </tbody>
-                                </table>
+                            <div style={{ marginTop: '10px' }}>
+                                <Table
+                                    columns={columnsStock}
+                                    data={filteredStock}
+                                    multiSelect={true}
+                                    selectedIds={selectedIds}
+                                    onSelectionChange={setSelectedIds}
+                                />
                             </div>
                         </div>
 
-                        {/* RIGHT: CART (Conditional Render) */}
                         {isCartOpen && (
                             <div className="panel" style={{ background: '#f9f9f9', padding: '15px', display: 'flex', flexDirection: 'column', height: 'fit-content', borderLeft: '4px solid #003366' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -269,7 +349,18 @@ const Pedidos = () => {
                                     </div>
 
                                     <form onSubmit={handleConfirmPedido} style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
-                                        <input required placeholder="Nombre Cliente" value={header.cliente} onChange={e => setHeader({ ...header, cliente: e.target.value })} style={{ padding: '8px' }} />
+                                        <select
+                                            required
+                                            value={header.cliente}
+                                            onChange={e => setHeader({ ...header, cliente: e.target.value })}
+                                            className="form-control"
+                                            style={{ padding: '8px', fontSize: '1rem' }}
+                                        >
+                                            <option value="">-- Seleccionar Cliente --</option>
+                                            {clientesList.map(c => (
+                                                <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                                            ))}
+                                        </select>
                                         <input required placeholder="N° Guía Despacho" value={header.numero_guia} onChange={e => setHeader({ ...header, numero_guia: e.target.value })} style={{ padding: '8px' }} />
 
                                         <button type="submit" disabled={cart.length === 0} className="btn-new" style={{ width: '100%', background: cart.length ? '#003366' : '#ccc', color: 'white' }}>
@@ -287,7 +378,6 @@ const Pedidos = () => {
                 )}
             </div>
 
-            {/* FLOATING CART TOGGLE BUTTON (If tab is stock) */}
             {activeTab === 'stock' && !isCartOpen && (
                 <button
                     onClick={() => setIsCartOpen(true)}
@@ -313,7 +403,6 @@ const Pedidos = () => {
                 </button>
             )}
 
-            {/* POPUP AGREGAR AL CARRITO */}
             {itemToAdd && (
                 <AddCartPopup
                     item={itemToAdd}
@@ -321,7 +410,7 @@ const Pedidos = () => {
                     onConfirm={(qty) => {
                         handleAddToCart(itemToAdd, qty);
                         setItemToAdd(null);
-                        setIsCartOpen(true); // Open cart automatically when adding
+                        setIsCartOpen(true);
                     }}
                 />
             )}
@@ -329,7 +418,7 @@ const Pedidos = () => {
     );
 };
 
-const StockRow = ({ item, onAdd }) => {
+const StockActionCell = ({ item, onAdd }) => {
     const [qty, setQty] = useState('');
 
     const handleAdd = () => {
@@ -339,57 +428,40 @@ const StockRow = ({ item, onAdd }) => {
         setQty('');
     };
 
-    // Calcular Kilos Por Caja (Promedio)
-    const count = Number(item.totalCantidad) || 1;
-    const weight = Number(item.totalKilos) || 0;
-    const avgWeight = (weight / count).toFixed(2);
-
     return (
-        <tr className="hover-row">
-            <td>{item.loteCodigo}</td>
-            <td>{item.productoNombre}</td>
-            <td>{item.calibre}</td>
-            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.totalCantidad}</td>
-            <td style={{ textAlign: 'center' }}>{avgWeight}</td>
-            <td style={{ textAlign: 'right' }}>{item.totalKilos}</td>
-            <td>{item.ubicacionNombre}</td>
-            <td style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                    <input
-                        type="number"
-                        min="1"
-                        value={qty}
-                        onChange={(e) => setQty(e.target.value)}
-                        placeholder="0"
-                        style={{ width: '60px', padding: '5px', textAlign: 'center' }}
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleAdd(); }}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#0056b3',
-                            fontSize: '1.5rem',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            padding: '0 5px',
-                            lineHeight: '1'
-                        }}
-                        title="Agregar"
-                    >
-                        +
-                    </button>
-                </div>
-            </td>
-        </tr>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+            <input
+                type="number"
+                min="1"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                placeholder="0"
+                style={{ width: '60px', padding: '5px', textAlign: 'center' }}
+                onClick={(e) => e.stopPropagation()}
+            />
+            <button
+                onClick={(e) => { e.stopPropagation(); handleAdd(); }}
+                style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#0056b3',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    padding: '0 5px',
+                    lineHeight: '1'
+                }}
+                title="Agregar"
+            >
+                +
+            </button>
+        </div>
     );
 };
 
 const AddCartPopup = ({ item, onClose, onConfirm }) => {
     const [qty, setQty] = useState('');
 
-    // Auto-focus logic or simplistic
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!qty || Number(qty) <= 0) return alert("Ingrese cantidad válida");

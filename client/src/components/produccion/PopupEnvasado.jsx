@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useProduccion from '../../hooks/produccion/useProduccion';
+import { getResumenProduccion } from '../../services/envasado.service';
+import { showErrorAlert } from '../../helpers/sweetAlert';
 import '../../styles/popup.css';
 import '../../styles/table.css';
 
@@ -7,19 +9,44 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     const {
         lotes, productosCatalogo, ubicaciones,
         loteSeleccionado, setLoteSeleccionado,
-        planilla, handleInputChange, handleGuardarEnvasado,
+        handleGuardarEnvasado,
         loading
     } = useProduccion();
 
+    const [expandedProductIds, setExpandedProductIds] = useState([]);
+    const [formData, setFormData] = useState({});
+    const [camaraGlobal, setCamaraGlobal] = useState('');
+    const [resumenYield, setResumenYield] = useState(null);
+
+    useEffect(() => {
+        if (loteSeleccionado) {
+            getResumenProduccion(loteSeleccionado).then(res => {
+                if (res.status === 'Success') {
+                    setResumenYield(res.data);
+                }
+            });
+        }
+    }, [loteSeleccionado]);
+
     const cerrarPopup = () => {
         setShow(false);
+        setFormData({});
+        setExpandedProductIds([]);
         if (onSuccess) onSuccess();
     };
 
-    const catalogoSeguro = productosCatalogo || [];
-    const productosElaborados = catalogoSeguro.filter(p => p.tipo === 'elaborado');
+    const activeLote = lotes.find(l => l.id == loteSeleccionado);
+    const filteredProducts = activeLote
+        ? productosCatalogo.filter(p => p.materiaPrima?.id === activeLote.materiaPrima?.id && p.tipo === 'elaborado')
+        : [];
 
-    const [camaraGlobal, setCamaraGlobal] = useState('');
+    const toggleExpand = (prodId) => {
+        setExpandedProductIds(prev =>
+            prev.includes(prodId)
+                ? prev.filter(id => id !== prodId)
+                : [...prev, prodId]
+        );
+    };
 
     const obtenerGramaje = (textoCalibre) => {
         if (!textoCalibre) return 0;
@@ -27,11 +54,140 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
         return match ? parseInt(match[1]) : 0;
     };
 
+    const handleInputChange = (prodId, calibre, field, value) => {
+        const key = `${prodId}-${calibre}`;
+
+        setFormData(prev => {
+            const currentEntry = prev[key] || { ubicacion: camaraGlobal };
+            const newData = { ...currentEntry, [field]: value };
+
+            if (field === 'cantidad') {
+                const gramaje = obtenerGramaje(calibre);
+                if (gramaje > 0) {
+                    const qty = parseInt(value) || 0;
+                    newData.pesoTotal = (qty * gramaje) / 1000;
+                }
+            }
+
+            setErrors(prevErrors => {
+                if (!prevErrors[key]) return prevErrors;
+                const newRowErrors = { ...prevErrors[key] };
+                if (field === 'cantidad' || field === 'pesoTotal') delete newRowErrors.cantidad;
+                if (field === 'ubicacion') delete newRowErrors.ubicacion;
+
+                if (Object.keys(newRowErrors).length === 0) {
+                    const { [key]: deleted, ...rest } = prevErrors;
+                    return rest;
+                }
+                return { ...prevErrors, [key]: newRowErrors };
+            });
+
+            return { ...prev, [key]: newData };
+        });
+    };
+
+    const [errors, setErrors] = useState({});
+
+    const handleConfirmar = async () => {
+        const itemsToSave = [];
+        const newErrors = {};
+
+        Object.keys(formData).forEach(key => {
+            const firstHyphen = key.indexOf('-');
+            const prodId = key.substring(0, firstHyphen);
+            const calibre = key.substring(firstHyphen + 1);
+
+            const entry = formData[key];
+
+            const hasQuantity = (entry.cantidad && parseInt(entry.cantidad) > 0) || (entry.pesoTotal && parseFloat(entry.pesoTotal) > 0);
+            const hasLocation = !!entry.ubicacion;
+
+            if (hasQuantity) {
+                if (!hasLocation) {
+                    newErrors[key] = { ...newErrors[key], ubicacion: true };
+                } else {
+                    const gramaje = obtenerGramaje(calibre);
+                    const cantidad = parseInt(entry.cantidad) || 0;
+
+                    if (gramaje > 0 && cantidad > 0) {
+                        for (let i = 0; i < cantidad; i++) {
+                            itemsToSave.push({
+                                definicionProductoId: Number(prodId),
+                                ubicacionId: Number(entry.ubicacion),
+                                peso_neto_kg: gramaje / 1000,
+                                calibre: calibre
+                            });
+                        }
+                    } else if (entry.pesoTotal > 0) {
+                        itemsToSave.push({
+                            definicionProductoId: Number(prodId),
+                            ubicacionId: Number(entry.ubicacion),
+                            peso_neto_kg: Number(entry.pesoTotal),
+                            calibre: calibre
+                        });
+                    }
+                }
+            }
+        });
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const prodIdsWithError = Object.keys(newErrors).map(k => k.split('-')[0]).map(Number);
+            setExpandedProductIds(prev => [...new Set([...prev, ...prodIdsWithError])]);
+            return;
+        }
+
+        setErrors({});
+
+        if (itemsToSave.length === 0) {
+            return;
+        }
+
+        let totalCarne = 0;
+        let totalPinzas = 0;
+
+        itemsToSave.forEach(item => {
+            const prodDef = productosCatalogo.find(p => p.id === item.definicionProductoId);
+            if (prodDef) {
+                if (prodDef.origen === 'carne_blanca') totalCarne += item.peso_neto_kg;
+                if (prodDef.origen === 'pinza') totalPinzas += item.peso_neto_kg;
+            }
+        });
+
+        if (resumenYield) {
+            const balanceCarne = Number(resumenYield.balance.carne || 0);
+            const balancePinzas = Number(resumenYield.balance.pinzas || 0);
+
+            if (totalCarne > balanceCarne) {
+                showErrorAlert(
+                    'Límite Excedido',
+                    `Carne Blanca: Intentas guardar ${totalCarne.toFixed(2)} kg, pero solo quedan ${balanceCarne.toFixed(2)} kg disponibles.`
+                );
+                return;
+            }
+            if (totalPinzas > balancePinzas) {
+                showErrorAlert(
+                    'Límite Excedido',
+                    `Pinzas: Intentas guardar ${totalPinzas.toFixed(2)} kg, pero solo quedan ${balancePinzas.toFixed(2)} kg disponibles.`
+                );
+                return;
+            }
+        }
+
+        const success = await handleGuardarEnvasado(itemsToSave);
+        if (success) {
+            cerrarPopup();
+        }
+    };
+
     const handleCamaraGlobalChange = (val) => {
         setCamaraGlobal(val);
-        // Actualizar la ubicación de todos los productos visibles
-        productosElaborados.forEach(prod => {
-            handleInputChange(prod.id, 'ubicacion', val);
+        setFormData(prev => {
+            const nextState = { ...prev };
+            Object.keys(nextState).forEach(k => {
+                nextState[k].ubicacion = val;
+            });
+            return nextState;
         });
     };
 
@@ -39,45 +195,36 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
 
     return (
         <div className="bg">
-            <div className="popup" style={{ width: '1100px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto' }}>
-                <button className='close' onClick={() => setShow(false)}>X</button>
+            <div className="popup" style={{ width: '1000px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto' }}>
+                <button className='close' onClick={cerrarPopup}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '20px' }}>Ingreso a Cámara (Envasado)</h2>
 
-                {loading ? (
-                    <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div>
-                ) : (
+                {loading ? <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div> : (
                     <>
                         <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                            {/* Selector Lote */}
-                            <div style={{ flex: 1, padding: '15px', background: '#f8f9fa', borderRadius: '8px', borderLeft: '5px solid #003366' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
-                                    Lote Origen
-                                </label>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontWeight: 'bold' }}>Lote Origen</label>
                                 <select
                                     value={loteSeleccionado}
                                     onChange={(e) => setLoteSeleccionado(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                    style={{ width: '100%', padding: '10px', marginTop: '5px' }}
                                 >
                                     <option value="">-- Seleccione Lote --</option>
                                     {(lotes || []).map(l => (
                                         <option key={l.id} value={l.id}>
-                                            {l.codigo} | {l.materiaPrimaNombre} ({l.proveedorNombre})
+                                            {l.codigo} | {l.materiaPrimaNombre}
                                         </option>
                                     ))}
                                 </select>
                             </div>
-
-                            {/* Selector Global de Cámara */}
-                            <div style={{ flex: 1, padding: '15px', background: '#e9ecef', borderRadius: '8px', borderLeft: '5px solid #6c757d' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
-                                    Cámara Global (Aplicar a todos)
-                                </label>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontWeight: 'bold' }}>Cámara Global</label>
                                 <select
                                     value={camaraGlobal}
                                     onChange={(e) => handleCamaraGlobalChange(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                    style={{ width: '100%', padding: '10px', marginTop: '5px' }}
                                 >
-                                    <option value="">-- Seleccionar Cámara --</option>
+                                    <option value="">-- Todas --</option>
                                     {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
                                         <option key={u.id} value={u.id}>{u.nombre}</option>
                                     ))}
@@ -86,100 +233,126 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                         </div>
 
                         {loteSeleccionado && (
-                            <div style={{ background: '#fff', padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
-                                <table className="samar-table">
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: '25%' }}>Producto</th>
-                                            <th style={{ width: '20%' }}>Formato</th>
-                                            <th style={{ width: '15%' }}>Cantidad</th>
-                                            <th style={{ width: '15%' }}>Total (Kg)</th>
-                                            <th style={{ width: '25%' }}>Cámara</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {productosElaborados.map(prod => {
-                                            const calibres = typeof prod.calibres === 'string' ? prod.calibres.split(',') : (prod.calibres || []);
-                                            const seleccion = planilla[prod.id] || {};
-                                            const calibreSeleccionado = seleccion.calibre || "";
-                                            const gramaje = obtenerGramaje(calibreSeleccionado);
-                                            const esUnidad = gramaje > 0;
+                            <div className="accordion-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {filteredProducts.map(prod => {
+                                    const calibres = Array.isArray(prod.calibres)
+                                        ? prod.calibres
+                                        : (typeof prod.calibres === 'string'
+                                            ? prod.calibres.split(',').map(c => c.trim()).filter(c => c !== '')
+                                            : []);
 
-                                            const handleChangeCantidad = (valor) => {
-                                                const cantidad = parseFloat(valor) || 0;
-                                                if (esUnidad) {
-                                                    const kilosCalculados = (cantidad * gramaje) / 1000;
-                                                    handleInputChange(prod.id, 'peso', kilosCalculados);
-                                                    handleInputChange(prod.id, 'cantidad_visual', valor);
-                                                } else {
-                                                    handleInputChange(prod.id, 'peso', cantidad);
-                                                    handleInputChange(prod.id, 'cantidad_visual', valor);
-                                                }
-                                            };
+                                    const isExpanded = expandedProductIds.includes(prod.id);
 
-                                            return (
-                                                <tr key={prod.id}>
-                                                    <td style={{ fontWeight: 'bold' }}>{prod.nombre}</td>
-                                                    <td>
-                                                        <select
-                                                            value={calibreSeleccionado}
-                                                            onChange={(e) => {
-                                                                handleInputChange(prod.id, 'calibre', e.target.value);
-                                                                handleInputChange(prod.id, 'peso', 0);
-                                                                handleInputChange(prod.id, 'cantidad_visual', "");
-                                                            }}
-                                                            style={{ width: '100%', padding: '5px' }}
-                                                        >
-                                                            <option value="">- Seleccionar -</option>
-                                                            {calibres.map((c, i) => <option key={i} value={c}>{c}</option>)}
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Unid."
-                                                            value={seleccion.cantidad_visual || ""}
-                                                            onChange={(e) => handleChangeCantidad(e.target.value)}
-                                                            disabled={!calibreSeleccionado}
-                                                            style={{ width: '100%', textAlign: 'center', border: esUnidad ? '2px solid #007bff' : '1px solid #ccc' }}
-                                                        />
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ background: '#f0f0f0', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}>
-                                                            {seleccion.peso ? Number(seleccion.peso).toFixed(2) : "0.00"} kg
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <select
-                                                            value={seleccion.ubicacion || ''}
-                                                            onChange={(e) => handleInputChange(prod.id, 'ubicacion', e.target.value)}
-                                                            style={{ width: '100%', padding: '5px' }}
-                                                        >
-                                                            <option value="">- Cámara -</option>
-                                                            {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
-                                                                <option key={u.id} value={u.id}>{u.nombre}</option>
-                                                            ))}
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                <div style={{ textAlign: 'right', marginTop: '15px' }}>
-                                    <button
-                                        onClick={async () => {
-                                            await handleGuardarEnvasado();
-                                            cerrarPopup();
-                                        }}
-                                        className="btn-new"
-                                        style={{ padding: '12px 30px', background: '#003366', color: 'white' }}
-                                    >
-                                        Confirmar Ingreso a Cámara
-                                    </button>
-                                </div>
+                                    return (
+                                        <div key={prod.id} style={{ border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
+                                            {/* Header / Button */}
+                                            <div
+                                                onClick={() => toggleExpand(prod.id)}
+                                                style={{
+                                                    padding: '15px',
+                                                    background: isExpanded ? '#003366' : '#f8f9fa',
+                                                    color: isExpanded ? '#fff' : '#333',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    fontWeight: 'bold'
+                                                }}
+                                            >
+                                                <span>{prod.nombre}</span>
+                                                <span>{isExpanded ? '▲' : '▼'}</span>
+                                            </div>
+
+                                            {/* Content (Calibres Table) */}
+                                            {isExpanded && (
+                                                <div style={{ padding: '15px', background: '#f0f4f8' }}>
+                                                    <table className="samar-table">
+                                                        <thead>
+                                                            <tr style={{ background: '#003366', color: 'white' }}>
+                                                                <th style={{ padding: '8px' }}>Calibre</th>
+                                                                <th style={{ width: '100px', padding: '8px' }}>Cant. (Envases)</th>
+                                                                <th style={{ padding: '8px' }}>Peso Total (Kg)</th>
+                                                                <th style={{ padding: '8px' }}>Ubicación</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {calibres.map((cal, idx) => {
+                                                                const key = `${prod.id}-${cal}`;
+                                                                const data = formData[key] || {};
+                                                                const rowErrors = errors[key] || {};
+                                                                const gramaje = obtenerGramaje(cal);
+
+                                                                return (
+                                                                    <tr key={idx}>
+                                                                        <td style={{ fontWeight: 'bold' }}>{cal}</td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                placeholder="0"
+                                                                                value={data.cantidad || ''}
+                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
+                                                                                style={{
+                                                                                    width: '100%',
+                                                                                    textAlign: 'center',
+                                                                                    border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                placeholder="0.00"
+                                                                                value={data.pesoTotal || ''}
+                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
+                                                                                disabled={gramaje > 0}
+                                                                                style={{
+                                                                                    width: '100%',
+                                                                                    textAlign: 'center',
+                                                                                    background: gramaje > 0 ? '#eee' : '#fff',
+                                                                                    border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <select
+                                                                                value={data.ubicacion || camaraGlobal}
+                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
+                                                                                style={{
+                                                                                    width: '100%',
+                                                                                    border: rowErrors.ubicacion ? '2px solid red' : '1px solid #ccc'
+                                                                                }}
+                                                                            >
+                                                                                <option value="">- Selec -</option>
+                                                                                {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                                                                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                            {calibres.length === 0 && (
+                                                                <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>Sin calibres definidos</td></tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {filteredProducts.length === 0 && (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                                        No hay productos definidos para esta Materia Prima.
+                                    </div>
+                                )}
                             </div>
                         )}
+
+                        <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                            <button className="btn-save" onClick={handleConfirmar}>
+                                Confirmar y Guardar Todos
+                            </button>
+                        </div>
                     </>
                 )}
             </div>

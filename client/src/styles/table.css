@@ -1,17 +1,19 @@
 /* client/src/styles/table.css */
 
 .table-container-native {
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
     overflow-x: auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     background-color: white;
-    border: 1px solid #ddd; /* Borde exterior sutil */
+    border: 1px solid #ddd;
 }
 
 .samar-table {
     width: 100%;
-    border-collapse: collapse; /* Importante para que las líneas se unan bien */
+    border-collapse: collapse;
     font-family: 'Montserrat', sans-serif;
 }
 
@@ -22,24 +24,22 @@
 }
 
 .samar-table th {
-    padding: 15px;
+    padding: 10px 12px;
     text-align: left;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    /* Línea vertical en la cabecera */
-    border-right: 1px solid rgba(255, 255, 255, 0.2); 
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* --- CUERPO --- */
 .samar-table td {
-    padding: 12px 15px;
+    padding: 8px 12px;
     color: #333;
-    font-size: 0.95rem;
-    /* Líneas de la cuadrícula */
-    border-bottom: 1px solid #eee; /* Línea horizontal */
-    border-right: 1px solid #eee;  /* Línea vertical (NUEVO) */
+    font-size: 0.9rem;
+    border-bottom: 1px solid #eee;
+    border-right: 1px solid #eee;
 }
 
 /* Quitar la línea derecha de la última columna para que se vea limpio */
@@ -62,7 +62,7 @@
 .samar-table tbody tr.selected-row {
     background-color: #d0e7ff;
     /* Borde izquierdo más grueso para destacar selección */
-    box-shadow: inset 4px 0 0 #003366; 
+    box-shadow: inset 4px 0 0 #003366;
 }
 
 .no-data {
@@ -76,7 +76,8 @@
 
 .filter-row th {
     padding: 5px 10px;
-    background-color: #002a52; /* Un tono un poco más oscuro que la cabecera */
+    background-color: #002a52;
+    /* Un tono un poco más oscuro que la cabecera */
     border-top: none;
 }
 

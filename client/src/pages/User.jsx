@@ -13,7 +13,7 @@ const Users = () => {
   const [filterRut, setFilterRut] = useState('');
 
   // Estado para la selección de fila
-  const [selectedUserRut, setSelectedUserRut] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // --- HOOKS ---
   const {
@@ -37,13 +37,12 @@ const Users = () => {
 
   // --- MANEJADORES ---
   const handleRowClick = (row) => {
-    // Si ya estaba seleccionado, lo deseleccionamos
-    if (selectedUserRut === row.rut) {
-      setSelectedUserRut(null);
-      setDataUser([]); // Limpiamos para los botones
+    if (selectedUserId === row.id) {
+      setSelectedUserId(null);
+      setDataUser([]);
     } else {
-      setSelectedUserRut(row.rut);
-      setDataUser([row]); // Enviamos al hook de editar/borrar
+      setSelectedUserId(row.id);
+      setDataUser([row]);
     }
   };
 
@@ -72,20 +71,19 @@ const Users = () => {
             <Search value={filterRut} onChange={(e) => setFilterRut(e.target.value)} placeholder={'Filtrar por RUT'} />
 
             {/* --- BOTÓN CREAR --- */}
-            <button onClick={handleClickCreate} style={{ backgroundColor: '#28a745', borderColor: '#28a745' }}>
+            <button onClick={handleClickCreate} className='btn-new'>
               + Nuevo Usuario
             </button>
 
             {/* Botones de acción (Editar/Eliminar) - Se habilitan al seleccionar */}
             <button
               onClick={handleClickUpdate}
-              disabled={!selectedUserRut}
-              className={selectedUserRut ? 'btn-edit' : ''}
-              style={selectedUserRut ? { color: 'white' } : {}}
+              disabled={!selectedUserId}
+              className='btn-edit'
             >
               Editar
             </button>
-            <button className='delete-user-button' disabled={!selectedUserRut} onClick={() => handleDelete(dataUser)}>Eliminar</button>
+            <button className='btn-delete' disabled={!selectedUserId} onClick={() => handleDelete(dataUser)}>Eliminar</button>
           </div>
         </div>
 
@@ -93,7 +91,7 @@ const Users = () => {
           columns={columns}
           data={filteredUsers}
           onRowClick={handleRowClick}
-          selectedId={selectedUserRut}
+          selectedId={selectedUserId}
         />
 
       </div>
@@ -105,16 +103,16 @@ const Users = () => {
         setShow={setIsPopupOpen}
         data={dataUser}
         action={handleUpdate}
-        title="Editar Usuario" // Título dinámico
+        title="Editar Usuario"
       />
 
       {/* Popup de Creación */}
       <Popup
         show={isCreatePopupOpen}
         setShow={setIsCreatePopupOpen}
-        data={[]} // Data vacía para indicar modo creación
+        data={[]}
         action={handleCreate}
-        title="Crear Nuevo Usuario" // Título dinámico
+        title="Crear Nuevo Usuario"
       />
 
     </div>

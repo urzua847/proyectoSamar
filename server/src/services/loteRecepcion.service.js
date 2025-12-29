@@ -5,16 +5,15 @@ import LoteRecepcion from "../entity/loteRecepcion.entity.js";
 import Proveedor from "../entity/proveedor.entity.js";
 import MateriaPrima from "../entity/materiaPrima.entity.js";
 import User from "../entity/user.entity.js";
-import Desconche from "../entity/desconche.entity.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import { Like } from "typeorm";
-
+import Produccion from "../entity/produccion.entity.js";
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
 const proveedorRepository = AppDataSource.getRepository(Proveedor);
 const materiaPrimaRepository = AppDataSource.getRepository(MateriaPrima);
 const userRepository = AppDataSource.getRepository(User);
-const desconcheRepository = AppDataSource.getRepository(Desconche);
 const productoTerminadoRepository = AppDataSource.getRepository(ProductoTerminado);
+const produccionRepository = AppDataSource.getRepository(Produccion);
 
 export async function createLoteService(data, operarioEmail) {
   try {
@@ -60,7 +59,7 @@ export async function createLoteService(data, operarioEmail) {
 export async function getLotesActivosService() {
     try {
         const lotes = await loteRepository.find({
-            relations: ["proveedor", "materiaPrima", "productosTerminados", "desconche"],
+            relations: ["proveedor", "materiaPrima", "productosTerminados"],
             order: { createdAt: "DESC" }
         });
         if (!lotes) return [null, "No se encontraron lotes"];
@@ -74,7 +73,7 @@ export async function getLoteByIdService(id) {
     try {
         const lote = await loteRepository.findOne({
             where: { id },
-            relations: ["proveedor", "materiaPrima", "operario", "productosTerminados", "desconche"]
+            relations: ["proveedor", "materiaPrima", "operario", "productosTerminados"]
         });
         if (!lote) return [null, "Lote no encontrado"];
         return [lote, null];
@@ -87,24 +86,22 @@ export async function updateLoteService(id, data) {
     try {
         const lote = await loteRepository.findOne({ 
             where: { id },
-            relations: ["productosTerminados", "desconche"] 
+            relations: ["productosTerminados"] 
         });
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || !!lote.desconche;
+        const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || lote.en_proceso_produccion;
 
-        if (tieneProduccion) {
-            const intentaEditarFisico = 
-                data.proveedorId !== undefined || 
-                data.materiaPrimaId !== undefined || 
-                data.peso_bruto_kg !== undefined || 
-                data.numero_bandejas !== undefined || 
-                data.pesadas !== undefined;
+        const intentaEditarFisico = 
+            data.proveedorId !== undefined || 
+            data.materiaPrimaId !== undefined || 
+            data.peso_bruto_kg !== undefined || 
+            data.numero_bandejas !== undefined || 
+            data.pesadas !== undefined;
 
-            if (intentaEditarFisico) {
-                return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción (Desconche o Productos). Solo puedes cambiar su estado."];
-            }
+        if (tieneProduccion && intentaEditarFisico) {
+            return [null, "No se pueden editar peso/proveedor porque este lote ya tiene producción iniciada. Solo puedes cambiar su estado o datos de rendimiento."];
         }
 
         if (data.proveedorId) {
@@ -119,9 +116,14 @@ export async function updateLoteService(id, data) {
         if (data.peso_bruto_kg !== undefined) lote.peso_bruto_kg = data.peso_bruto_kg;
         if (data.numero_bandejas !== undefined) lote.numero_bandejas = data.numero_bandejas;
         if (data.pesadas !== undefined) lote.detalle_pesadas = data.pesadas;
-        if (data.estado !== undefined) {
-            lote.estado = data.estado;
-        }
+        if (data.estado !== undefined) lote.estado = data.estado;
+
+        if (data.en_proceso_produccion !== undefined) lote.en_proceso_produccion = data.en_proceso_produccion;
+        if (data.peso_carne_blanca !== undefined) lote.peso_carne_blanca = data.peso_carne_blanca;
+        if (data.peso_pinzas !== undefined) lote.peso_pinzas = data.peso_pinzas;
+        if (data.peso_total_producido !== undefined) lote.peso_total_producido = data.peso_total_producido;
+        if (data.observacion_produccion !== undefined) lote.observacion_produccion = data.observacion_produccion;
+        if (data.fecha_inicio_produccion !== undefined) lote.fecha_inicio_produccion = data.fecha_inicio_produccion;
 
         const loteActualizado = await loteRepository.save(lote);
         return [loteActualizado, null];
@@ -130,35 +132,36 @@ export async function updateLoteService(id, data) {
     }
 }
 
-export async function deleteLoteService(id, userRole) {
+export async function deleteLoteService(id, userRole, force) {
     try {
         const lote = await loteRepository.findOne({ 
             where: { id },
-            relations: ["productosTerminados", "desconche"] 
+            relations: ["productosTerminados", "producciones"] 
         });
         
         if (!lote) return [null, "Lote no encontrado"];
 
-        const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || !!lote.desconche;
+        const hasProduccion = (lote.producciones && lote.producciones.length > 0) || (lote.productosTerminados && lote.productosTerminados.length > 0);
 
-        if (tieneProduccion) {
+        if (hasProduccion) {
             if (userRole !== 'administrador') {
                  return [null, "No tienes permisos de Administrador para eliminar este lote con producción iniciada."];
             }
+
+            if (!force) {
+                return [null, "El lote tiene producciones asociadas. Se requiere confirmación de Administrador para eliminar todo."];
+            }
             
-            // ADMIN OVERRIDE
             try {
-                // 1. Delete Products (if any)
-                if (lote.productosTerminados.length > 0) {
+                if (lote.producciones && lote.producciones.length > 0) {
+                    await produccionRepository.remove(lote.producciones);
+                }
+
+                if (lote.productosTerminados && lote.productosTerminados.length > 0) {
                      await productoTerminadoRepository.remove(lote.productosTerminados);
                 }
-                // 2. Delete Desconche (if any)
-                if (lote.desconche) {
-                     await desconcheRepository.delete(lote.desconche.id);
-                }
             } catch (innerError) {
-                // Check for Foreign Key violation (e.g., Sold products or in Cart?)
-                if (innerError.code === '23503') { // PostgreSQL FK violation code
+                if (innerError.code === '23503') { 
                     return [null, "No se puede eliminar toda la cadena porque hay productos que ya fueron VENDIDOS (están en Pedidos)."];
                 }
                 throw innerError;

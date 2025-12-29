@@ -4,6 +4,7 @@ import useGetRecepciones from '../hooks/recepcion/useGetRecepciones';
 import useEditRecepcion from '../hooks/recepcion/useEditRecepcion';
 import useRecepcion from '../hooks/recepcion/useRecepcion';
 import PopupRecepcion from '../components/PopupRecepcion';
+import PopupNuevaProduccion from '../components/produccion/PopupNuevaProduccion';
 import { updateLote } from '../services/recepcion.service';
 import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 import '../styles/users.css';
@@ -20,6 +21,10 @@ const Recepcion = () => {
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+    const [isInputKilosOpen, setIsInputKilosOpen] = useState(false);
+
+    const [selectedLote, setSelectedLote] = useState(null);
+
     // Estado de Filtros
     const [filters, setFilters] = useState({
         codigo: '',
@@ -32,27 +37,40 @@ const Recepcion = () => {
     const user = JSON.parse(sessionStorage.getItem('usuario'));
     const isAdmin = user?.rol === 'administrador';
 
-    const handleToggleEstado = async () => {
-        if (!dataLote) return;
+    const handleToggleEstado = async (lote) => {
+        if (!lote) return;
+        if (!isAdmin) return;
 
-        const nuevoEstado = !dataLote.estado;
+        const nuevoEstado = !lote.estado;
         const accion = nuevoEstado ? "Reabrir" : "Cerrar";
 
-        if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${dataLote.codigo}?`)) return;
+        if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${lote.codigo}?`)) return;
 
         try {
-            const response = await updateLote(dataLote.id, { estado: nuevoEstado });
+            const response = await updateLote(lote.id, { estado: nuevoEstado });
 
             if (response.status === 'Success') {
                 showSuccessAlert('¡Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
                 fetchLotes();
-                setDataLote(null);
             } else {
                 showErrorAlert('Error', response.message || "No se pudo cambiar el estado.");
             }
         } catch (error) {
             console.error(error);
             showErrorAlert('Error', "Ocurrió un error inesperado.");
+        }
+    };
+
+    const handleOpenEdit = (row) => {
+        setDataLote(row);
+        setIsPopupOpen(true);
+    };
+
+    const handleRowClick = (row) => {
+        if (selectedLote && selectedLote.id === row.id) {
+            setSelectedLote(null);
+        } else {
+            setSelectedLote(row);
         }
     };
 
@@ -63,6 +81,13 @@ const Recepcion = () => {
         { header: "Especie", accessor: "materiaPrimaNombre" },
         { header: "Peso Total", accessor: "peso_bruto_kg" },
         { header: "Bandejas", accessor: "numero_bandejas" },
+        { header: "Carne Blanca (Kg)", accessor: "peso_carne_blanca" },
+        { header: "Pinzas (Kg)", accessor: "peso_pinzas" },
+        {
+            header: "Kilos Totales",
+            render: (row) => row.peso_total_producido || (Number(row.peso_carne_blanca || 0) + Number(row.peso_pinzas || 0)).toFixed(2)
+        },
+        { header: "Observación", accessor: "observacion_produccion" },
         {
             header: "Estado Lote",
             accessor: "estadoTexto",
@@ -78,7 +103,59 @@ const Recepcion = () => {
                     {row.estadoTexto}
                 </span>
             )
-        }
+        },
+        ...(isAdmin ? [{
+            header: "Acciones",
+            render: (row) => (
+                <div style={{ display: 'flex', gap: '5px' }}>
+                    {/* EDIT */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
+                        className='btn-edit'
+                        title="Editar"
+                        style={{
+                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: '#003366', border: 'none', color: 'white', fontSize: '0.9rem'
+                        }}
+                    >
+                        ✎
+                    </button>
+
+                    {/* TOGGLE STATE */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
+                        title={row.estado ? "Cerrar Lote" : "Reabrir Lote"}
+                        style={{
+                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: row.estado ? '#ffc107' : '#17a2b8',
+                            border: 'none', color: row.estado ? '#000' : '#fff', fontSize: '0.9rem'
+                        }}
+                    >
+                        {row.estado ? "🔒" : "🔓"}
+                    </button>
+
+                    {/* DELETE */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDataLote(row);
+                            handleDelete();
+                        }}
+                        className='btn-delete'
+                        title="Eliminar"
+                        style={{
+                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: '#dc3545', border: 'none', color: 'white', fontSize: '1rem'
+                        }}
+                    >
+                        🗑
+                    </button>
+                </div>
+            )
+        }] : [])
     ];
 
     const handleFilterChange = (e) => {
@@ -113,82 +190,124 @@ const Recepcion = () => {
                 <div className='top-table'>
                     <h1 className='title-table'>Recepción de Materia Prima</h1>
 
-                    <div className='action-buttons'>
-                        <button onClick={() => setIsCreateOpen(true)} className="btn-new">
-                            + Nuevo Ingreso
-                        </button>
-
-                        <button onClick={handleEditClick} disabled={!dataLote} className="btn-edit">
-                            Editar
-                        </button>
-
-                        {/* --- BOTÓN RECUPERADO --- */}
+                    <div className='action-buttons' style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            onClick={handleToggleEstado}
-                            disabled={!dataLote}
+                            onClick={() => setIsCreateOpen(true)}
                             style={{
-                                backgroundColor: dataLote?.estado ? '#ffc107' : '#17a2b8',
-                                color: dataLote?.estado ? '#000' : '#fff',
-                                borderColor: 'transparent'
+                                backgroundColor: '#4caf50',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '1rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
                             }}
-                            className="btn-edit"
                         >
-                            {dataLote?.estado ? "Cerrar Lote" : "Reabrir Lote"}
+                            <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Nuevo Ingreso
                         </button>
-                        {/* ------------------------ */}
 
-                        {isAdmin && (
-                            <button onClick={handleDelete} disabled={!dataLote} className="btn-delete">
-                                Eliminar
-                            </button>
-                        )}
+                        {/* New Production Button */}
+                        <button
+                            onClick={() => {
+                                if (selectedLote) {
+                                    if (Number(selectedLote.peso_total_producido) > 0 || Number(selectedLote.peso_carne_blanca) > 0) {
+                                        showErrorAlert("Aviso", "Este lote ya tiene producción registrada.");
+                                        return;
+                                    }
+                                    setIsInputKilosOpen(true);
+                                }
+                                else showErrorAlert("Atención", "Selecciona un lote de la tabla primero.");
+                            }}
+                            className="btn-new"
+                            disabled={!selectedLote}
+                            style={{
+                                backgroundColor: selectedLote ? '#003366' : '#ccc',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '4px',
+                                cursor: selectedLote ? 'pointer' : 'not-allowed',
+                                fontWeight: 'bold',
+                                fontSize: '1rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                            }}
+                        >
+                            Nueva Producción
+                        </button>
                     </div>
                 </div>
 
-                <div className="filter-section">
-                    <div className="filter-row-3">
-                        <div className="filter-group">
-                            <label>Código</label>
-                            <input name="codigo" placeholder="Ej: 1225-01" value={filters.codigo} onChange={handleFilterChange} />
-                        </div>
-                        <div className="filter-group">
-                            <label>Proveedor</label>
-                            <input name="proveedorNombre" placeholder="Ej: Pedro..." value={filters.proveedorNombre} onChange={handleFilterChange} />
-                        </div>
-                        <div className="filter-group">
-                            <label>Producto</label>
-                            <input name="materiaPrimaNombre" placeholder="Ej: Jaiba..." value={filters.materiaPrimaNombre} onChange={handleFilterChange} />
-                        </div>
-                    </div>
-
-                    <div className="filter-row-2">
-                        <div className="filter-group">
-                            <label>Fecha</label>
-                            <input name="fechaFormateada" placeholder="Ej: 21-11-2025" value={filters.fechaFormateada} onChange={handleFilterChange} />
-                        </div>
-                        <div className="filter-group">
-                            <label>Estado</label>
-                            <select name="estadoTexto" value={filters.estadoTexto} onChange={handleFilterChange}>
-                                <option value="">Todos</option>
-                                <option value="Abierto">Abierto</option>
-                                <option value="Cerrado">Cerrado</option>
-                            </select>
-                        </div>
-                    </div>
+                <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    <input
+                        name="codigo"
+                        placeholder="Código..."
+                        value={filters.codigo}
+                        onChange={handleFilterChange}
+                        className="search-input"
+                    />
+                    <input
+                        name="proveedorNombre"
+                        placeholder="Proveedor..."
+                        value={filters.proveedorNombre}
+                        onChange={handleFilterChange}
+                        className="search-input"
+                    />
+                    <input
+                        name="materiaPrimaNombre"
+                        placeholder="Producto..."
+                        value={filters.materiaPrimaNombre}
+                        onChange={handleFilterChange}
+                        className="search-input"
+                    />
+                    <input
+                        name="fechaFormateada"
+                        placeholder="Fecha (dd-mm-yyyy)..."
+                        value={filters.fechaFormateada}
+                        onChange={handleFilterChange}
+                        className="search-input"
+                    />
+                    <select
+                        name="estadoTexto"
+                        value={filters.estadoTexto}
+                        onChange={handleFilterChange}
+                        className="search-input"
+                        style={{ width: 'auto' }}
+                    >
+                        <option value="">Todos</option>
+                        <option value="Abierto">Abierto</option>
+                        <option value="Cerrado">Cerrado</option>
+                    </select>
                 </div>
 
                 <Table
                     columns={columns}
                     data={filteredLotes}
-                    onRowClick={(row) => setDataLote(row)}
-                    selectedId={dataLote?.id}
+                    onRowClick={handleRowClick}
+                    selectedId={selectedLote?.id}
                 />
             </div>
 
             <PopupRecepcion show={isCreateOpen} setShow={setIsCreateOpen} action={handleCreateSubmit} />
             <PopupRecepcion show={isPopupOpen} setShow={setIsPopupOpen} dataToEdit={dataLote} action={handleUpdate} />
+
+            <PopupNuevaProduccion
+                show={isInputKilosOpen}
+                setShow={setIsInputKilosOpen}
+                selectedLote={selectedLote}
+                onSuccess={() => {
+                    fetchLotes();
+                    setSelectedLote(null);
+                }}
+            />
         </div>
     );
+
 };
 
 export default Recepcion;

@@ -13,7 +13,7 @@ export async function trasladoStockService(data) {
     await queryRunner.startTransaction();
 
     try {
-        const { items, destinoId, peso_caja } = data; // items: [{ definicionProductoId, cantidad, calibre }], peso_caja (optional)
+        const { items, destinoId, peso_caja } = data;
 
         // 1. Validar Destino
         const destino = await ubicacionRepository.findOne({ where: { id: destinoId, tipo: "contenedor" } });
@@ -62,19 +62,18 @@ export async function trasladoStockService(data) {
                 let targetConsumption = 0;
 
                 if (boxWeight) {
-                   const needGlobal = kilosPorMover; 
                    const canGive = totalPesoLote;                   
-                   const limit = Math.min(needGlobal, canGive);
+                   const limit = Math.min(kilosPorMover, canGive); 
+                   
                    const numCajas = Math.floor(limit / boxWeight);
                    
-                   // Removed continue check to allow remainder handling
-
+                   if (numCajas === 0) {
+                       continue; 
+                   }
 
                    targetConsumption = numCajas * boxWeight;
                    
-                   // GENERAR LAS CAJAS AHORA (Virtualmente ya tenemos el peso reservado)
-                    // Usamos la info del primer item para metadata (fecha, definicion, etc)
-                    const refItem = itemsDelLote[0];
+                   const refItem = itemsDelLote[0];
                     for (let i = 0; i < numCajas; i++) {
                         const nuevaCaja = queryRunner.manager.create(ProductoTerminado, {
                             calibre: refItem.calibre,
@@ -88,32 +87,11 @@ export async function trasladoStockService(data) {
                         await queryRunner.manager.save(ProductoTerminado, nuevaCaja);
                     }
 
-                    // Handle Remainder (Partial Box)
-                    const remainder = limit - (numCajas * boxWeight);
-                    if (remainder > 0.001) { // Tolerance for float math
-                         const cajaRestante = queryRunner.manager.create(ProductoTerminado, {
-                             calibre: refItem.calibre,
-                             loteDeOrigen: refItem.loteDeOrigen,
-                             definicion: refItem.definicion,
-                             fecha_produccion: refItem.fecha_produccion,
-                             peso_neto_kg: remainder,
-                             ubicacion: destino,
-                             estado: "En Stock"
-                         });
-                         await queryRunner.manager.save(ProductoTerminado, cajaRestante);
-                         
-                         // Update target consumption to include the remainder
-                         targetConsumption += remainder;
-                    }
-
                 } else {
-                    // Modo Move (Sin Packing)
                     targetConsumption = Math.min(totalPesoLote, kilosPorMover);
                 }
 
                 if (targetConsumption > 0) {
-                    // CONSUMIR REGISTROS ANTIGUOS
-                    // Vamos restando targetConsumption de los itemsDelLote uno a uno
                     let remainingToConsume = targetConsumption;
 
                     for (const item of itemsDelLote) {
@@ -122,7 +100,6 @@ export async function trasladoStockService(data) {
                         const pesoItem = Number(item.peso_neto_kg);
                         
                         if (pesoItem <= remainingToConsume) {
-                             // Consumir todo el item
                              const discount = pesoItem;
                              remainingToConsume -= discount;                             
                              if (boxWeight) {
@@ -134,7 +111,6 @@ export async function trasladoStockService(data) {
                              }
 
                         } else {
-                            // Consumir Parcial (Split)
                             const discount = remainingToConsume;
                             remainingToConsume = 0;
                             
@@ -142,7 +118,6 @@ export async function trasladoStockService(data) {
                             await queryRunner.manager.save(ProductoTerminado, item);
 
                             if (!boxWeight) {
-                                // En modo normal, el pedazo movido se crea en destino
                                 const movedPart = queryRunner.manager.create(ProductoTerminado, {
                                     calibre: item.calibre,
                                     loteDeOrigen: item.loteDeOrigen,
@@ -155,7 +130,6 @@ export async function trasladoStockService(data) {
                                 await queryRunner.manager.save(ProductoTerminado, movedPart);
                                 movimientos.push({ idOriginal: item.id, idNuevo: movedPart.id, accion: "split", kilos: discount });
                             }
-                            // En modo Packing, el pedazo "consumido" ya se usó para fabricar la caja arriba.
                         }
                     }
                     kilosPorMover -= targetConsumption;

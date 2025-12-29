@@ -2,9 +2,9 @@
 
 import { EntitySchema } from "typeorm";
 
-const DesconcheSchema = new EntitySchema({
-  name: "Desconche",
-  tableName: "desconches",
+const ProduccionSchema = new EntitySchema({
+  name: "Produccion",
+  tableName: "producciones",
   columns: {
     id: {
       type: "int",
@@ -16,43 +16,47 @@ const DesconcheSchema = new EntitySchema({
       precision: 10,
       scale: 2,
       nullable: false,
+      default: 0
     },
     peso_pinzas: {
       type: "decimal",
       precision: 10,
       scale: 2,
-      nullable: false,
+      nullable: false, 
+      default: 0
     },
     peso_total: {
       type: "decimal",
       precision: 10,
       scale: 2,
-      nullable: true, 
+      nullable: false,
     },
     observacion: {
       type: "text",
       nullable: true,
     },
-    porcentaje_rendimiento: {
-      type: "decimal",
-      precision: 5,
-      scale: 2,
-      nullable: true,
+    fecha_produccion: {
+      type: "timestamp with time zone",
+      default: () => "CURRENT_TIMESTAMP",
     },
     createdAt: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
     },
+    updatedAt: {
+      type: "timestamp with time zone",
+      default: () => "CURRENT_TIMESTAMP",
+      onUpdate: "CURRENT_TIMESTAMP",
+    },
   },
   relations: {
-    lote: {
-      type: "one-to-one",
+    loteRecepcion: {
+      type: "many-to-one",
       target: "LoteRecepcion",
-      joinColumn: true, 
+      inverseSide: "producciones",
       nullable: false,
-      inverseSide: "desconche",
     },
   },
 });
 
-export default DesconcheSchema;
+export default ProduccionSchema;

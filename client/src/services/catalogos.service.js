@@ -2,7 +2,7 @@ import axios from './root.service.js';
 
 export async function getProveedores() {
     try {
-        const response = await axios.get('/proveedores');
+        const response = await axios.get('/entidades?tipo=proveedor');
         return response.data.data;
     } catch (error) {
         console.error("Error obteniendo proveedores:", error);
@@ -41,3 +41,12 @@ export async function getUbicaciones() {
 }
 
 
+export async function getClientes() {
+    try {
+        const response = await axios.get('/entidades?tipo=cliente');
+        return response.data.data;
+    } catch (error) {
+        console.error("Error obteniendo clientes:", error);
+        return [];
+    }
+}

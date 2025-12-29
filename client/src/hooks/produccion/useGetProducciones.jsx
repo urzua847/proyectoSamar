@@ -1,33 +1,31 @@
 import { useState, useEffect } from 'react';
-import { getProducciones } from '../../services/produccion.service';
-import { getAllDesconches } from '../../services/desconche.service';
+import { getProducciones } from '../../services/envasado.service';
+import { getLotesActivos } from '../../services/recepcion.service';
 import { format as formatTempo } from "@formkit/tempo";
 
 const useGetProducciones = () => {
     const [producciones, setProducciones] = useState([]);
     const [desconches, setDesconches] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     const fetchProducciones = async () => {
         try {
             const data = await getProducciones();
             const formatted = (Array.isArray(data) ? data : []).map(p => ({
                 ...p,
-                // Assuming fecha_produccion is the relevant timestamp
                 horaIngreso: p.fecha_produccion ? formatTempo(p.fecha_produccion, "HH:mm DD-MM") : '-',
             }));
 
-            // Grouping Logic
             const groups = {};
             formatted.forEach(item => {
-                // Key: LoteID + Producto + Calibre + Hora
                 const key = `${item.loteId}-${item.productoFinalNombre}-${item.calibre}-${item.horaIngreso}`;
 
                 if (!groups[key]) {
                     groups[key] = {
                         ...item,
                         cantidad: 1,
-                        peso_neto_kg: Number(item.peso_neto_kg), // Sum accumulator
-                        ids: [item.id] // Array of IDs to delete
+                        peso_neto_kg: Number(item.peso_neto_kg),
+                        ids: [item.id]
                     };
                 } else {
                     groups[key].cantidad += 1;
@@ -36,12 +34,15 @@ const useGetProducciones = () => {
                 }
             });
 
-            // Convert back to array
             const groupedArray = Object.values(groups).map(g => ({
                 ...g,
-                peso_neto_kg: g.peso_neto_kg.toFixed(2), // Format final sum
-                cantidad: g.cantidad // New field
-            })).sort((a, b) => b.id - a.id); // Sort by ID desc (approx)
+                peso_neto_kg: g.peso_neto_kg.toFixed(2),
+                cantidad: g.cantidad
+            })).sort((a, b) => {
+                if (a.loteCodigo > b.loteCodigo) return -1;
+                if (a.loteCodigo < b.loteCodigo) return 1;
+                return b.id - a.id;
+            });
 
             setProducciones(groupedArray);
         } catch (error) {
@@ -52,20 +53,20 @@ const useGetProducciones = () => {
 
     const fetchDesconches = async () => {
         try {
-            const result = await getAllDesconches();
-            const data = Array.isArray(result?.data) ? result.data : [];
+            const result = await getLotesActivos();
 
-            // Format for table
-            const formatted = data.map(d => ({
+            const productionLotes = result.filter(l => l.en_proceso_produccion === true);
+
+            const formatted = productionLotes.map(d => ({
                 id: d.id,
-                loteCodigo: d.lote?.codigo,
-                materiaPrimaNombre: d.lote?.materiaPrima?.nombre,
-                proveedorNombre: d.lote?.proveedor?.nombre,
+                loteCodigo: d.codigo,
+                materiaPrimaNombre: d.materiaPrimaNombre,
+                proveedorNombre: d.proveedorNombre,
                 peso_carne_blanca: d.peso_carne_blanca,
                 peso_pinzas: d.peso_pinzas,
-                peso_total: d.peso_total, // New field from DB
+                peso_total: d.peso_total,
                 observacion: d.observacion,
-                fecha: d.createdAt ? formatTempo(d.createdAt, "DD-MM-YYYY HH:mm") : '-'
+                fecha: d.fecha_inicio_produccion ? formatTempo(d.fecha_inicio_produccion, "DD-MM-YYYY HH:mm") : '-'
             }));
 
             setDesconches(formatted);
@@ -76,14 +77,16 @@ const useGetProducciones = () => {
     };
 
     const fetchAll = async () => {
+        setLoading(true);
         await Promise.all([fetchProducciones(), fetchDesconches()]);
+        setLoading(false);
     };
 
     useEffect(() => {
         fetchAll();
     }, []);
 
-    return { producciones, desconches, fetchProducciones, fetchDesconches, fetchAll };
+    return { producciones, desconches, fetchProducciones, fetchDesconches, fetchAll, loading };
 };
 
 export default useGetProducciones;
