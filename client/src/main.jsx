@@ -12,6 +12,9 @@ import Users from './pages/User';
 import Recepcion from './pages/Recepcion';
 import Produccion from './pages/Produccion';
 import Pedidos from './pages/Pedidos';
+import MantenedorProductos from './pages/MantenedorProductos';
+import PanelControl from './pages/PanelControl';
+import MantenedorEntidades from './pages/MantenedorEntidades';
 
 const router = createBrowserRouter([
   {
@@ -44,7 +47,7 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: '/produccion',
+        path: '/camaras',
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
             <Produccion />
@@ -52,10 +55,36 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: '/pedidos',
+        path: '/contenedores',
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
             <Pedidos />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/panelDeControl',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador']}>
+            <PanelControl />
+          </ProtectedRoute>
+        )
+      },
+
+      {
+        path: '/mantenedor-productos',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador']}>
+            <MantenedorProductos />
+          </ProtectedRoute>
+
+        )
+      },
+      {
+        path: '/entidades',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador']}>
+            <MantenedorEntidades />
           </ProtectedRoute>
         )
       }

@@ -33,8 +33,41 @@ const LoteRecepcionSchema = new EntitySchema({
     },
     estado: {
       type: "boolean",
-      default: true, // true = abierto, false = cerrado
+      default: true, 
       nullable: false,
+    },
+    en_proceso_produccion: {
+        type: "boolean",
+        default: false,
+    },
+    peso_carne_blanca: {
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        default: 0
+    },
+    peso_pinzas: {
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        default: 0
+    },
+    peso_total_producido: {
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        default: 0
+    },
+    observacion_produccion: {
+        type: "text",
+        nullable: true,
+    },
+    fecha_inicio_produccion: {
+        type: "timestamp with time zone",
+        nullable: true,
     },
     fecha_recepcion: {
       type: "timestamp with time zone",
@@ -61,7 +94,7 @@ const LoteRecepcionSchema = new EntitySchema({
       type: "many-to-one",
       target: "MateriaPrima",
       inverseSide: "lotes",
-      nullable: false,
+      nullable: false, 
     },
     operario: {
       type: "many-to-one",
@@ -73,11 +106,10 @@ const LoteRecepcionSchema = new EntitySchema({
         target: "ProductoTerminado",
         inverseSide: "loteDeOrigen",
     },
-    desconche: {
-        type: "one-to-one",
-        target: "Desconche",
-        inverseSide: "lote",
-        nullable: true,
+    producciones: {
+        type: "one-to-many",
+        target: "Produccion",
+        inverseSide: "loteRecepcion",
     }
   },
 });

@@ -23,7 +23,7 @@ const Navbar = () => {
                     <li><NavLink to="/home">Inicio</NavLink></li>
 
                     {userRole === 'administrador' && (
-                        <li><NavLink to="/users">Panel de control</NavLink></li>
+                        <li><NavLink to="/panelDeControl">Panel de control</NavLink></li>
                     )}
 
                     {(userRole === 'administrador' || userRole === 'operario') && (
@@ -31,10 +31,10 @@ const Navbar = () => {
                     )}
 
                     {(userRole === 'administrador' || userRole === 'operario') && (
-                        <li><NavLink to="/produccion">Producción</NavLink></li>
+                        <li><NavLink to="/camaras">Camaras</NavLink></li>
                     )}
                     {(userRole === 'administrador' || userRole === 'operario') && (
-                        <li><NavLink to="/pedidos">Pedidos</NavLink></li>
+                        <li><NavLink to="/contenedores">Contenedores</NavLink></li>
                     )}
 
 

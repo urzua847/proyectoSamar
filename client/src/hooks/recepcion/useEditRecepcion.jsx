@@ -1,30 +1,31 @@
 import { useState } from 'react';
 import { updateLote, deleteLote } from '../../services/recepcion.service';
-import { showSuccessAlert, showErrorAlert, deleteDataAlert } from '../../helpers/sweetAlert';
+import { showSuccessAlert, showErrorAlert, deleteDataAlert, confirmDeleteWithDependencies } from '../../helpers/sweetAlert';
 
 const useEditRecepcion = (setLotes, fetchLotes) => {
-    const [dataLote, setDataLote] = useState(null); // Lote seleccionado
-    const [isPopupOpen, setIsPopupOpen] = useState(false); // Control del popup
+    const [dataLote, setDataLote] = useState(null);
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
 
-    // Abrir el popup solo si hay un lote seleccionado
     const handleEditClick = () => {
         if (dataLote) {
             setIsPopupOpen(true);
         }
     };
 
-    // Función para guardar los cambios (Update)
     const handleUpdate = async (dataForm) => {
         if (!dataLote?.id) return;
 
         try {
-            // Preparamos el objeto para enviar al backend
             const payload = {
                 proveedorId: Number(dataForm.proveedor),
                 materiaPrimaId: Number(dataForm.materiaPrima),
                 numero_bandejas: Number(dataForm.numero_bandejas),
                 peso_bruto_kg: Number(dataForm.peso_bruto_kg),
-                pesadas: dataForm.pesadas // Array de pesadas
+                pesadas: dataForm.pesadas,
+                peso_carne_blanca: Number(dataForm.peso_carne_blanca || 0),
+                peso_pinzas: Number(dataForm.peso_pinzas || 0),
+                peso_total_producido: Number(dataForm.peso_carne_blanca || 0) + Number(dataForm.peso_pinzas || 0),
+                observacion_produccion: dataForm.observacion_produccion
             };
 
             const response = await updateLote(dataLote.id, payload);
@@ -32,14 +33,10 @@ const useEditRecepcion = (setLotes, fetchLotes) => {
             if (response.status === 'Success') {
                 showSuccessAlert('Actualizado', 'Lote modificado correctamente');
                 setIsPopupOpen(false);
-                
-                // Opción A: Recargar todo desde el servidor (Más seguro)
-                await fetchLotes(); 
-                
-                // Opción B: Actualizar localmente (Más rápido visualmente)
-                // setLotes(prev => prev.map(l => l.id === response.data.id ? response.data : l));
 
-                setDataLote(null); // Deseleccionar
+                await fetchLotes();
+
+                setDataLote(null);
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo actualizar.');
             }
@@ -49,21 +46,36 @@ const useEditRecepcion = (setLotes, fetchLotes) => {
         }
     };
 
-    // Función para eliminar (Delete)
     const handleDelete = async () => {
         if (!dataLote) return;
 
         try {
             const result = await deleteDataAlert();
             if (result.isConfirmed) {
-                const response = await deleteLote(dataLote.id);
-                
+                const response = await deleteLote(dataLote.id, false);
+
                 if (response.status === 'Success') {
                     showSuccessAlert('Eliminado', 'Lote eliminado correctamente');
-                    await fetchLotes(); // Recargar la tabla
-                    setDataLote(null); // Limpiar selección
+                    await fetchLotes();
+                    setDataLote(null);
                 } else {
-                    showErrorAlert('Error', response.message || 'No se pudo eliminar.');
+                    const isDependencyError = response.message?.includes("confirmación de Administrador");
+
+                    if (isDependencyError) {
+                        const confirmResult = await confirmDeleteWithDependencies(response.message);
+                        if (confirmResult.isConfirmed) {
+                            const forceResponse = await deleteLote(dataLote.id, true);
+                            if (forceResponse.status === 'Success') {
+                                showSuccessAlert('Eliminado', 'Lote y sus dependencias eliminados correctamente');
+                                await fetchLotes();
+                                setDataLote(null);
+                            } else {
+                                showErrorAlert('Error', forceResponse.message || 'No se pudo eliminar forzosamente.');
+                            }
+                        }
+                    } else {
+                        showErrorAlert('Error', response.message || 'No se pudo eliminar.');
+                    }
                 }
             }
         } catch (error) {
@@ -72,14 +84,14 @@ const useEditRecepcion = (setLotes, fetchLotes) => {
         }
     };
 
-    return { 
-        dataLote, 
-        setDataLote, 
-        isPopupOpen, 
-        setIsPopupOpen, 
-        handleEditClick, 
-        handleUpdate, 
-        handleDelete 
+    return {
+        dataLote,
+        setDataLote,
+        isPopupOpen,
+        setIsPopupOpen,
+        handleEditClick,
+        handleUpdate,
+        handleDelete
     };
 };
 

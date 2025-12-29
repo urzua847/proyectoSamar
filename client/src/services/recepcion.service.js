@@ -19,9 +19,12 @@ export async function getLotesActivos() {
             proveedorNombre: lote.proveedor?.nombre,
             materiaPrimaNombre: lote.materiaPrima?.nombre,
             estadoTexto: lote.estado ? 'Abierto' : 'Cerrado',
-            // --- NUEVO CAMPO CALCULADO ---
-            tieneProduccion: lote.productosTerminados && lote.productosTerminados.length > 0
-            // -----------------------------
+            tieneProduccion: (lote.productosTerminados && lote.productosTerminados.length > 0) || lote.en_proceso_produccion,
+            peso_carne_blanca: lote.peso_carne_blanca,
+            peso_pinzas: lote.peso_pinzas,
+            peso_total: lote.peso_total_producido,
+            observacion: lote.observacion_produccion,
+            en_proceso_produccion: lote.en_proceso_produccion
         }));
         return data;
     } catch (error) {
@@ -38,9 +41,9 @@ export async function updateLote(id, data) {
     }
 }
 
-export async function deleteLote(id) {
+export async function deleteLote(id, force = false) {
     try {
-        const response = await axios.delete(`/recepcion/${id}`);
+        const response = await axios.delete(`/recepcion/${id}${force ? '?force=true' : ''}`);
         return response.data;
     } catch (error) {
         return error.response.data;

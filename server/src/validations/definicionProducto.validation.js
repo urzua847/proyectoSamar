@@ -25,6 +25,16 @@ export const createProductoValidation = Joi.object({
     .max(100)
     .optional() 
     .allow(null, ''),
+  tipo: Joi.string()
+    .valid("primario", "elaborado")
+    .default("elaborado")
+    .messages({
+      "any.only": "El tipo debe ser 'primario' o 'elaborado'.",
+    }),
+  origen: Joi.string()
+    .max(50)
+    .allow(null, '')
+    .optional(),
   calibres: Joi.string()
     .optional()
     .allow(null, '')

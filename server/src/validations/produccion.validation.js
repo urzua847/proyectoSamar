@@ -2,18 +2,11 @@
 
 import Joi from "joi";
 
-const itemProduccionSchema = Joi.object({
-  definicionProductoId: Joi.number().integer().positive().required(),
-  ubicacionId: Joi.number().integer().positive().required(),
-  peso_neto_kg: Joi.number().positive().required(),
-  calibre: Joi.string().max(100).optional().allow(null, ''),
-});
-
-export const createProduccionValidation = Joi.object({
+export const createProduccionYieldValidation = Joi.object({
   loteRecepcionId: Joi.number().integer().positive().required()
-    .messages({ "any.required": "El Lote de Origen es obligatorio." }),
+    .messages({ "any.required": "El ID del Lote es obligatorio." }),
   
-  // Aceptamos una lista de productos
-  items: Joi.array().items(itemProduccionSchema).min(1).required()
-    .messages({ "array.min": "Debes registrar al menos un producto." })
+  peso_carne_blanca: Joi.number().min(0).required(),
+  peso_pinzas: Joi.number().min(0).required(),
+  observacion: Joi.string().allow('', null).optional()
 }).unknown(false);

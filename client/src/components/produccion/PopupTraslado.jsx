@@ -9,7 +9,6 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const [selectedContenedor, setSelectedContenedor] = useState('');
     const [movements, setMovements] = useState({});
 
-    // Packing State
     const [isPacking, setIsPacking] = useState(false);
     const [boxWeight, setBoxWeight] = useState("");
 
@@ -34,7 +33,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
     const fetchStockCamara = async () => {
         try {
-            const response = await axios.get('/produccion/stock/camaras');
+            const response = await axios.get('/envasado/stock/camaras');
             setStockCamara(response.data.data);
         } catch (error) {
             console.error("Error fetching stock camara", error);
@@ -70,7 +69,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     definicionProductoId: item.definicionProductoId,
                     calibre: item.calibre === '-' ? null : item.calibre,
                     loteId: item.loteId,
-                    cantidad: Number(weightToMove.toFixed(2)) // Send weight, not count
+                    cantidad: Number(weightToMove.toFixed(2))
                 };
             });
         } else {
@@ -78,7 +77,6 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 .filter(([_, qty]) => qty > 0)
                 .map(([uniqueKey, qty]) => {
                     const [defId, calibre] = uniqueKey.split('__');
-                    // Find the item in stockCamara to get its weight/unit ratio
                     const stockItem = stockCamara.find(s =>
                         s.definicionProductoId == defId &&
                         (s.calibre === calibre || (s.calibre === null && calibre === 'null'))
@@ -86,7 +84,6 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
                     let weightToMove = 0;
                     if (isPacking && Number(boxWeight) > 0) {
-                        // Logic Request: Input is "Target Boxes", so Total Weight = Boxes * BoxWeight
                         weightToMove = Number(qty) * Number(boxWeight);
                     } else if (stockItem) {
                         const totalWeight = Number(stockItem.totalKilos);
@@ -98,7 +95,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     return {
                         definicionProductoId: Number(defId),
                         calibre: calibre === 'null' ? null : calibre,
-                        cantidad: Number(weightToMove.toFixed(2)) // Send converted weight
+                        cantidad: Number(weightToMove.toFixed(2))
                     };
                 });
         }
@@ -111,7 +108,6 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 items: itemsToMove
             };
 
-            // Add peso_caja to payload if packing is active
             if (isPacking && Number(boxWeight) > 0) {
                 payload.peso_caja = Number(boxWeight);
             }
@@ -131,7 +127,6 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const isSelectionMode = initialSelection && initialSelection.length > 0;
     const displayData = isSelectionMode ? initialSelection : stockCamara;
 
-    // Determine if packing options should be shown (always for a selected container in this component)
     const showPackingOption = selectedContenedor !== '';
 
     return (

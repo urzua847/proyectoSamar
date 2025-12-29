@@ -1,34 +1,21 @@
 "use strict";
 
 import { EntitySchema } from "typeorm";
+import { Entidad } from "./entidad.entity.js";
+export class Proveedor extends Entidad {
+    constructor() {
+        super();
+        this.tipo = "proveedor";
+    }
+}
 
 const ProveedorSchema = new EntitySchema({
   name: "Proveedor",
-  tableName: "proveedores",
-  columns: {
-    id: {
-      type: "int",
-      primary: true,
-      generated: true,
-    },
-    nombre: {
-      type: "varchar",
-      length: 255,
-      nullable: false,
-      unique: true,
-    },
-    createdAt: {
-      type: "timestamp with time zone",
-      default: () => "CURRENT_TIMESTAMP",
-      nullable: false,
-    },
-    updatedAt: {
-      type: "timestamp with time zone",
-      default: () => "CURRENT_TIMESTAMP",
-      onUpdate: "CURRENT_TIMESTAMP",
-      nullable: false,
-    },
-  },
+  target: Proveedor,
+  type: "entity-child",
+  discriminatorValue: "proveedor",
+  
+  columns: { },
 
   relations: {
     lotes: {

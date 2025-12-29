@@ -20,7 +20,6 @@ import {
 export async function createLote(req, res) {
   try {
     const { body } = req;
-    // req.user.email viene del token JWT (authenticateJwt)
     const operarioEmail = req.user.email; 
 
     // 1. Validar los datos de entrada
@@ -74,7 +73,7 @@ export async function updateLote(req, res) {
         if (validationError) return handleErrorClient(res, 400, validationError.message);
 
         const [lote, error] = await updateLoteService(id, body);
-        if (error) return handleErrorClient(res, 400, error); // Puede ser 404 también
+        if (error) return handleErrorClient(res, 400, error); 
 
         handleSuccess(res, 200, "Lote actualizado correctamente", lote);
     } catch (error) {
@@ -85,8 +84,9 @@ export async function updateLote(req, res) {
 export async function deleteLote(req, res) {
     try {
         const { id } = req.params;
-        const [lote, error] = await deleteLoteService(id, req.user?.rol);
-        if (error) return handleErrorClient(res, 400, error); // 400 si tiene hijos, 404 si no existe
+        const { force } = req.query;
+        const [lote, error] = await deleteLoteService(id, req.user?.rol, force === 'true');
+        if (error) return handleErrorClient(res, 400, error); 
 
         handleSuccess(res, 200, "Lote eliminado correctamente", lote);
     } catch (error) {

@@ -4,6 +4,8 @@ import { Router } from "express";
 import {
   getProductos,
   createProducto,
+  updateProducto,
+  deleteProducto
 } from "../controllers/definicionProducto.controller.js";
 import { isAdmin, isOperarioOrAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
@@ -14,5 +16,7 @@ router.use(authenticateJwt, isOperarioOrAdmin);
 
 router.get("/", getProductos);
 router.post("/", createProducto);
+router.put("/:id", updateProducto);
+router.delete("/:id", deleteProducto);
 
 export default router;
