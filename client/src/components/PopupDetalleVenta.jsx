@@ -11,7 +11,7 @@ const PopupDetalleVenta = ({ isOpen, onClose, venta }) => {
     return (
         <div className="bg" onClick={onClose}>
             <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '600px', maxWidth: '90%' }}>
-                <button className="close" onClick={onClose}>&times;</button>
+                <button className="btn-close-x" onClick={onClose}>&times;</button>
 
                 <h2 style={{ color: '#003366', marginTop: 0 }}>Detalle de Venta</h2>
 
@@ -57,7 +57,7 @@ const PopupDetalleVenta = ({ isOpen, onClose, venta }) => {
                 </div>
 
                 <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                    <button className="btn-edit" onClick={onClose} style={{ color: 'white' }}>Cerrar</button>
+                    <button className="btn-cancel" onClick={onClose}>Cerrar</button>
                 </div>
             </div>
         </div>

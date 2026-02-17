@@ -48,6 +48,12 @@ const ProduccionSchema = new EntitySchema({
       default: () => "CURRENT_TIMESTAMP",
       onUpdate: "CURRENT_TIMESTAMP",
     },
+    deletedAt: {
+      type: "timestamp with time zone",
+      nullable: true,
+      default: null,
+      comment: "Soft delete - Fecha de eliminación lógica"
+    },
   },
   relations: {
     loteRecepcion: {

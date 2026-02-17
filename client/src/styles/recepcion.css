@@ -1,32 +1,34 @@
 .recepcion-container {
-    padding: 120px 20px 20px; /* Padding top para el Navbar */
-    max-width: 1200px;
+    padding: 7.5rem 1.25rem 1.25rem;
+    /* Padding top para el Navbar */
+    max-width: 75rem;
     margin: 0 auto;
 }
 
 .content-wrapper {
     display: flex;
-    gap: 30px;
+    gap: 1.875rem;
     flex-wrap: wrap;
 }
 
-.form-section, .weight-section {
+.form-section,
+.weight-section {
     flex: 1;
     background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    min-width: 300px;
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+    min-width: 18.75rem;
 }
 
 /* Estilos Calculadora */
 .weight-display {
     background: #e3f2fd;
-    padding: 20px;
-    border-radius: 8px;
+    padding: 1.25rem;
+    border-radius: 0.5rem;
     text-align: center;
-    margin-bottom: 20px;
-    border: 2px solid #2196f3;
+    margin-bottom: 1.25rem;
+    border: 0.125rem solid #2196f3;
 }
 
 .weight-value {
@@ -38,13 +40,13 @@
 
 .weight-controls {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
 }
 
 .weight-controls input {
     flex: 1;
-    padding: 10px;
+    padding: 0.625rem;
     font-size: 1.1em;
 }
 
@@ -52,8 +54,8 @@
     background-color: #4caf50;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.25rem;
     cursor: pointer;
     font-weight: bold;
 }
@@ -62,21 +64,21 @@
     background-color: #f44336;
     color: white;
     border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 0.3125rem 0.625rem;
+    border-radius: 0.25rem;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 0.625rem;
     font-size: 0.9em;
 }
 
 .weight-history ul {
     list-style: none;
     padding: 0;
-    max-height: 200px;
+    max-height: 12.5rem;
     overflow-y: auto;
 }
 
 .weight-history li {
-    padding: 5px 0;
+    padding: 0.3125rem 0;
     border-bottom: 1px solid #eee;
 }

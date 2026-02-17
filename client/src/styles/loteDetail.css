@@ -1,0 +1,178 @@
+/* LoteDetail.css - Estilo inspirado en ERP clásico */
+
+.lote-detail-container {
+    background-color: #f0f4f8;
+    min-height: 100vh;
+    padding: 6.25rem 20px 20px 20px;
+    /* Consistente con .main-container */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+.lote-header {
+    text-align: left;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.lote-title {
+    font-size: 1.3rem;
+    color: #003366;
+    /* Azul corporativo */
+    margin: 0;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+/* Tabs */
+.lote-tabs {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    background-color: #e0e0e0;
+    margin-bottom: 0;
+    padding-left: 10px;
+}
+
+.tab-button {
+    padding: 8px 20px;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    background-color: #e0e0e0;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #555;
+    margin-right: 2px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+.tab-button.active {
+    background-color: #f8fbfd;
+    /* Color del panel */
+    font-weight: bold;
+    border-bottom: 1px solid #f8fbfd;
+    /* Mismo color que panel para fusionar */
+    margin-bottom: -1px;
+    color: #333;
+}
+
+/* Panel Principal */
+.lote-panel {
+    background-color: #f8fbfd;
+    border: 1px solid #ccc;
+    padding: 15px 30px;
+    /* Reducido vertical de 30px a 15px */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Grilla de Formulario */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 2 Columnas grandes */
+    column-gap: 40px;
+    row-gap: 10px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    /* Label fijo | Input flexible */
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.form-label {
+    text-align: right;
+    padding-right: 15px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: #333;
+}
+
+.form-input-readonly {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    color: #555;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 2px;
+}
+
+.form-input-readonly:disabled {
+    background-color: #f9f9f9;
+    color: #777;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+}
+
+/* Sección SAP / Producción (Recuadro inferior) */
+.section-box {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-top: 10px;
+    /* Reducido de 20px */
+    position: relative;
+    background-color: #fff;
+}
+
+.section-title {
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background-color: #f8fbfd;
+    /* Mismo que el fondo padre para tapar borde */
+    padding: 0 5px;
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+/* Botones de Acción */
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+    /* Reducido de 30px */
+}
+
+.btn-erp {
+    background-color: #ffc107;
+    /* Amarillo tipo imagen */
+    border: 1px solid #d39e00;
+    color: #000;
+    padding: 5px 30px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+    text-transform: capitalize;
+}
+
+.btn-erp:hover {
+    background-color: #e0a800;
+}
+
+.btn-erp.secondary {
+    background-color: #e0e0e0;
+    border: 1px solid #999;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.full-area-input {
+    width: 100%;
+    resize: none;
+    border: 1px solid #ccc;
+    padding: 5px;
+    font-family: inherit;
+}

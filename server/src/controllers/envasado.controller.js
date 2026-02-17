@@ -9,7 +9,7 @@ export async function createProduccion(req, res) {
     const { error } = createProduccionValidation.validate(req.body);
     if (error) return handleErrorClient(res, 400, "Error de validación", error.message);
 
-    const [nuevosProductos, errorService] = await createProduccionService(req.body);
+    const [nuevosProductos, errorService] = await createProduccionService(req.body, req.user);
     if (errorService) return handleErrorClient(res, 400, errorService);
 
     handleSuccess(res, 201, "Producción registrada exitosamente", { cantidad: nuevosProductos.length });
@@ -53,9 +53,16 @@ export async function getResumenProduccionByLote(req, res) {
 
 export async function getProducciones(req, res) {
   try {
-    const [producciones, error] = await getProduccionesService();
+    const { page, limit } = req.query;
+    const options = {
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 100  // Default 100 for backward compat
+    };
+
+    const [result, error] = await getProduccionesService(options);
     if (error) return handleErrorClient(res, 404, error);
-    handleSuccess(res, 200, "Historial de producción obtenido", producciones);
+    
+    handleSuccess(res, 200, "Historial de producción obtenido", result);
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }

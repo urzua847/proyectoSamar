@@ -1,0 +1,171 @@
+/* TouchButton - Optimizado para uso táctil en planta */
+
+.touch-button {
+  /* Tamaño mínimo según guías de accesibilidad */
+  min-width: 44px;
+  min-height: 44px;
+  
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  
+  /* Typography */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  
+  /* Visual */
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  
+  /* Shadow for depth */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  /* Prevent text selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hover/Focus states */
+.touch-button:hover:not(.touch-button--disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.touch-button:active:not(.touch-button--disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.touch-button:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Variants */
+.touch-button--primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+}
+
+.touch-button--primary:hover:not(.touch-button--disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.touch-button--secondary {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: #ffffff;
+}
+
+.touch-button--secondary:hover:not(.touch-button--disabled) {
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+}
+
+.touch-button--danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+}
+
+.touch-button--danger:hover:not(.touch-button--disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.touch-button--success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+}
+
+.touch-button--success:hover:not(.touch-button--disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.touch-button--warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+}
+
+.touch-button--warning:hover:not(.touch-button--disabled) {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+/* Sizes */
+.touch-button--small {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.touch-button--medium {
+  min-width: 56px;
+  min-height: 56px;
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+.touch-button--large {
+  min-width: 64px;
+  min-height: 64px;
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Full width */
+.touch-button--full-width {
+  width: 100%;
+}
+
+/* Disabled state */
+.touch-button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Icon */
+.touch-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25em;
+}
+
+.touch-button__text {
+  flex: 1;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .touch-button--small {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  .touch-button--medium {
+    min-width: 60px;
+    min-height: 60px;
+  }
+  
+  .touch-button--large {
+    min-width: 72px;
+    min-height: 72px;
+    font-size: 20px;
+  }
+}
+
+/* Print - hide buttons */
+@media print {
+  .touch-button {
+    display: none;
+  }
+}

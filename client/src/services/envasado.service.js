@@ -33,21 +33,31 @@ export async function deleteManyProduccion(ids) {
 export async function getProducciones() {
     try {
         const response = await axios.get(`/envasado?t=${Date.now()}`);
-        const data = response.data.data.map(prod => ({
+        
+        // Handle new paginated format: response.data.data is an object with {data: [], pagination: {}}
+        const responseData = response.data.data;
+        
+        // Check if it's the new paginated format
+        const produccionesArray = responseData?.data || responseData || [];
+        
+        const data = produccionesArray.map(prod => ({
             id: prod.id,
-            loteId: prod.loteDeOrigen?.id, 
-            loteCodigo: prod.loteDeOrigen?.codigo,
-            fechaRecepcion: formatTempo(prod.loteDeOrigen?.fecha_recepcion, "DD-MM-YYYY"),
-            proveedorNombre: prod.loteDeOrigen?.proveedor?.nombre,
-            materiaPrimaNombre: prod.loteDeOrigen?.materiaPrima?.nombre,
-            definicionProductoId: prod.definicion?.id,
-            productoFinalNombre: prod.definicion?.nombre,
-            estadoLote: prod.loteDeOrigen?.estado ? 'Abierto' : 'Cerrado',
-            ubicacionNombre: prod.ubicacion?.nombre,
+            loteId: prod.loteId, 
+            loteCodigo: prod.loteCodigo,
+            fechaRecepcion: '-', 
+            proveedorNombre: '-', 
+            materiaPrimaNombre: prod.materiaPrimaNombre,
+            definicionProductoId: prod.definicionProductoId, 
+            productoFinalNombre: prod.productoFinalNombre,
+            estadoLote: 'Abierto', 
+            ubicacionNombre: prod.ubicacionNombre,
             peso_neto_kg: prod.peso_neto_kg,
             calibre: prod.calibre || '-',
-            fecha_produccion: prod.fecha_produccion     
+            horaIngreso: prod.horaIngreso, 
+            cantidad: prod.cantidad,
+            ids: prod.ids || []
         }));
+        
         return data;
     } catch (error) {
         console.error("Error al obtener producciones:", error);

@@ -21,6 +21,16 @@ export async function getEntidadesService(tipo) {
   }
 }
 
+export async function getEntidadByIdService(id) {
+  try {
+    const entidad = await entidadRepository.findOne({ where: { id } });
+    if (!entidad) return [null, "Entidad no encontrada"];
+    return [entidad, null];
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function createEntidadService(data, discriminator) {
     try {
         const { nombre, rut } = data;

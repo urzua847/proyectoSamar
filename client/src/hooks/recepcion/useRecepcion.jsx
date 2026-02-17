@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createLote } from '../../services/recepcion.service';
 import { getProveedores, getMateriasPrimas } from '../../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
@@ -9,9 +9,12 @@ const useRecepcion = () => {
     const [loading, setLoading] = useState(true);
 
     // Estados para la Calculadora de Peso
-    const [pesadas, setPesadas] = useState([]); 
-    const [inputPeso, setInputPeso] = useState(""); 
+    const [pesadas, setPesadas] = useState([]);
+    const [inputPeso, setInputPeso] = useState("");
     const [inputBandejas, setInputBandejas] = useState("");
+
+    // Ref para prevenir doble clic
+    const isAddingRef = useRef(false);
 
     useEffect(() => {
         async function loadData() {
@@ -34,13 +37,25 @@ const useRecepcion = () => {
 
     // --- LÓGICA DE TANDAS ---
     const agregarTanda = () => {
+        // Prevenir doble clic
+        if (isAddingRef.current) {
+            return;
+        }
+
         const peso = parseFloat(inputPeso);
         const bandejas = parseInt(inputBandejas);
 
         if (peso > 0 && bandejas > 0) {
+            isAddingRef.current = true;
+
             setPesadas([...pesadas, { peso, bandejas }]);
             setInputPeso("");
             setInputBandejas("");
+
+            // Reset del flag después de un pequeño delay
+            setTimeout(() => {
+                isAddingRef.current = false;
+            }, 300);
         }
     };
 
@@ -55,7 +70,7 @@ const useRecepcion = () => {
     const handleCreateLote = async (data) => {
         // 1. Usamos los datos que nos pasan (data.pesadas) o los locales si no vienen
         const pesadasFinales = data.pesadas || pesadas;
-        
+
         // 2. Validación correcta
         if (!pesadasFinales || pesadasFinales.length === 0) {
             // Usamos showErrorAlert para que salga la X roja, no el ticket verde
@@ -73,7 +88,7 @@ const useRecepcion = () => {
             };
 
             const response = await createLote(payload);
-            
+
             if (response.status === 'Success') {
                 showSuccessAlert('¡Lote Registrado!', `Código: ${response.data.codigo}`);
                 setPesadas([]); // Limpiamos estado local

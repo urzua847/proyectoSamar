@@ -302,78 +302,80 @@ const Produccion = () => {
                 </div>
 
                 <h3 style={{ color: '#003366', marginTop: '15px', marginBottom: '10px' }}>Inventario en Cámaras</h3>
-                <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    <input
-                        list="lotes-list"
-                        name="loteCodigo"
-                        placeholder="Lote..."
-                        value={filtersStock.loteCodigo}
-                        onChange={handleFilterStockChange}
-                        className="search-input"
-                    />
-                    <datalist id="lotes-list">
-                        {uniqueLotes.map(l => <option key={l} value={l} />)}
-                    </datalist>
+                <div className="table-container-box">
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                        <input
+                            list="lotes-list"
+                            name="loteCodigo"
+                            placeholder="Lote..."
+                            value={filtersStock.loteCodigo}
+                            onChange={handleFilterStockChange}
+                            className="search-input"
+                        />
+                        <datalist id="lotes-list">
+                            {uniqueLotes.map(l => <option key={l} value={l} />)}
+                        </datalist>
 
-                    <input
-                        list="productos-list"
-                        name="producto"
-                        placeholder="Producto..."
-                        value={filtersStock.producto}
-                        onChange={handleFilterStockChange}
-                        className="search-input"
-                    />
-                    <datalist id="productos-list">
-                        {uniqueProductos.map(p => <option key={p} value={p} />)}
-                    </datalist>
+                        <input
+                            list="productos-list"
+                            name="producto"
+                            placeholder="Producto..."
+                            value={filtersStock.producto}
+                            onChange={handleFilterStockChange}
+                            className="search-input"
+                        />
+                        <datalist id="productos-list">
+                            {uniqueProductos.map(p => <option key={p} value={p} />)}
+                        </datalist>
 
-                    <input
-                        name="calibre"
-                        placeholder="Calibre..."
-                        value={filtersStock.calibre}
-                        onChange={handleFilterStockChange}
-                        className="search-input"
-                    />
+                        <input
+                            name="calibre"
+                            placeholder="Calibre..."
+                            value={filtersStock.calibre}
+                            onChange={handleFilterStockChange}
+                            className="search-input"
+                        />
 
-                    <input
-                        list="ubicaciones-list"
-                        name="ubicacion"
-                        placeholder="Cámara..."
-                        value={filtersStock.ubicacion}
-                        onChange={handleFilterStockChange}
-                        className="search-input"
-                    />
-                    <datalist id="ubicaciones-list">
-                        {uniqueUbicaciones.map(u => <option key={u} value={u} />)}
-                    </datalist>
+                        <input
+                            list="ubicaciones-list"
+                            name="ubicacion"
+                            placeholder="Cámara..."
+                            value={filtersStock.ubicacion}
+                            onChange={handleFilterStockChange}
+                            className="search-input"
+                        />
+                        <datalist id="ubicaciones-list">
+                            {uniqueUbicaciones.map(u => <option key={u} value={u} />)}
+                        </datalist>
 
-                    <select
-                        name="orderHora"
-                        value={filtersStock.orderHora}
-                        onChange={handleFilterStockChange}
-                        className="search-input"
-                        style={{ width: 'auto' }}
-                    >
-                        <option value="desc">Más Recientes</option>
-                        <option value="asc">Más Antiguos</option>
-                    </select>
+                        <select
+                            name="orderHora"
+                            value={filtersStock.orderHora}
+                            onChange={handleFilterStockChange}
+                            className="search-input"
+                            style={{ width: 'auto' }}
+                        >
+                            <option value="desc">Más Recientes</option>
+                            <option value="asc">Más Antiguos</option>
+                        </select>
+                    </div>
+
+                    <Table
+                        columns={columnsProduccion}
+                        data={filteredProducciones}
+                        onRowClick={(row) => {
+                            if (selectedRow && selectedRow.id === row.id) {
+                                setSelectedRow(null);
+                            } else {
+                                setSelectedRow(row);
+                            }
+                        }}
+                        selectedId={selectedRow?.id}
+                        multiSelect={true}
+                        selectedIds={selectedIds}
+                        onSelectionChange={setSelectedIds}
+                    />
                 </div>
-
-                <Table
-                    columns={columnsProduccion}
-                    data={filteredProducciones}
-                    onRowClick={(row) => {
-                        if (selectedRow && selectedRow.id === row.id) {
-                            setSelectedRow(null);
-                        } else {
-                            setSelectedRow(row);
-                        }
-                    }}
-                    selectedId={selectedRow?.id}
-                    multiSelect={true}
-                    selectedIds={selectedIds}
-                    onSelectionChange={setSelectedIds}
-                />
             </div>
 
             {/* --- POPUPS --- */}

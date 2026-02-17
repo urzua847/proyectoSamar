@@ -4,6 +4,7 @@ import Form from '../components/Form';
 import useLogin from '../hooks/auth/useLogin.jsx';
 import Swal from 'sweetalert2';
 import '../styles/form.css';
+import Footer from '../components/Footer';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -28,35 +29,38 @@ const Login = () => {
     };
 
     return (
-        <main className="container">
-            <Form
-                title="Iniciar sesión"
-                fields={[
-                    {
-                        label: "Correo electrónico",
-                        name: "email",
-                        placeholder: "example@gmail.cl",
-                        fieldType: 'input',
-                        type: "email",
-                        required: true,
-                        errorMessageData: errorEmail,
-                        onChange: (e) => handleInputChange('email', e.target.value),
-                    },
-                    {
-                        label: "Contraseña",
-                        name: "password",
-                        placeholder: "**********",
-                        fieldType: 'input',
-                        type: "password",
-                        required: true,
-                        errorMessageData: errorPassword,
-                        onChange: (e) => handleInputChange('password', e.target.value)
-                    },
-                ]}
-                buttonText="Iniciar sesión"
-                onSubmit={loginSubmit}
-            />
-        </main>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <main className="container" style={{ flex: 1 }}>
+                <Form
+                    title="Iniciar sesión"
+                    fields={[
+                        {
+                            label: "Correo electrónico",
+                            name: "email",
+                            placeholder: "example@gmail.cl",
+                            fieldType: 'input',
+                            type: "email",
+                            required: true,
+                            errorMessageData: errorEmail,
+                            onChange: (e) => handleInputChange('email', e.target.value),
+                        },
+                        {
+                            label: "Contraseña",
+                            name: "password",
+                            placeholder: "**********",
+                            fieldType: 'input',
+                            type: "password",
+                            required: true,
+                            errorMessageData: errorPassword,
+                            onChange: (e) => handleInputChange('password', e.target.value)
+                        },
+                    ]}
+                    buttonText="Iniciar sesión"
+                    onSubmit={loginSubmit}
+                />
+            </main>
+            <Footer />
+        </div>
     );
 };
 

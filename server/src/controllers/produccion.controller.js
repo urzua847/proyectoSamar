@@ -6,10 +6,11 @@ import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers
 
 export async function createProduccionYield(req, res) {
   try {
+    console.log('[DEBUG] req.user in produccion controller:', req.user);
     const { error } = createProduccionYieldValidation.validate(req.body);
     if (error) return handleErrorClient(res, 400, "Error de validación", error.message);
 
-    const [newProduccion, errorService] = await createProduccionYieldService(req.body);
+    const [newProduccion, errorService] = await createProduccionYieldService(req.body, req.user);
     if (errorService) return handleErrorClient(res, 400, errorService);
 
     handleSuccess(res, 201, "Producción registrada exitosamente", newProduccion);

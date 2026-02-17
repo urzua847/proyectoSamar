@@ -196,7 +196,7 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     return (
         <div className="bg">
             <div className="popup" style={{ width: '1000px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto' }}>
-                <button className='close' onClick={cerrarPopup}>X</button>
+                <button className='btn-close-x' onClick={cerrarPopup}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '20px' }}>Ingreso a Cámara (Envasado)</h2>
 
                 {loading ? <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div> : (
@@ -265,76 +265,78 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                             {/* Content (Calibres Table) */}
                                             {isExpanded && (
                                                 <div style={{ padding: '15px', background: '#f0f4f8' }}>
-                                                    <table className="samar-table">
-                                                        <thead>
-                                                            <tr style={{ background: '#003366', color: 'white' }}>
-                                                                <th style={{ padding: '8px' }}>Calibre</th>
-                                                                <th style={{ width: '100px', padding: '8px' }}>Cant. (Envases)</th>
-                                                                <th style={{ padding: '8px' }}>Peso Total (Kg)</th>
-                                                                <th style={{ padding: '8px' }}>Ubicación</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {calibres.map((cal, idx) => {
-                                                                const key = `${prod.id}-${cal}`;
-                                                                const data = formData[key] || {};
-                                                                const rowErrors = errors[key] || {};
-                                                                const gramaje = obtenerGramaje(cal);
+                                                    <div className="table-container-native" style={{ width: '100%', boxShadow: 'none' }}>
+                                                        <table className="samar-table">
+                                                            <thead>
+                                                                <tr style={{ background: '#003366', color: 'white' }}>
+                                                                    <th style={{ padding: '8px' }}>Calibre</th>
+                                                                    <th style={{ width: '100px', padding: '8px' }}>Cant. (Envases)</th>
+                                                                    <th style={{ padding: '8px' }}>Peso Total (Kg)</th>
+                                                                    <th style={{ padding: '8px' }}>Ubicación</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {calibres.map((cal, idx) => {
+                                                                    const key = `${prod.id}-${cal}`;
+                                                                    const data = formData[key] || {};
+                                                                    const rowErrors = errors[key] || {};
+                                                                    const gramaje = obtenerGramaje(cal);
 
-                                                                return (
-                                                                    <tr key={idx}>
-                                                                        <td style={{ fontWeight: 'bold' }}>{cal}</td>
-                                                                        <td>
-                                                                            <input
-                                                                                type="number"
-                                                                                placeholder="0"
-                                                                                value={data.cantidad || ''}
-                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
-                                                                                style={{
-                                                                                    width: '100%',
-                                                                                    textAlign: 'center',
-                                                                                    border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
-                                                                                }}
-                                                                            />
-                                                                        </td>
-                                                                        <td>
-                                                                            <input
-                                                                                type="number"
-                                                                                placeholder="0.00"
-                                                                                value={data.pesoTotal || ''}
-                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
-                                                                                disabled={gramaje > 0}
-                                                                                style={{
-                                                                                    width: '100%',
-                                                                                    textAlign: 'center',
-                                                                                    background: gramaje > 0 ? '#eee' : '#fff',
-                                                                                    border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
-                                                                                }}
-                                                                            />
-                                                                        </td>
-                                                                        <td>
-                                                                            <select
-                                                                                value={data.ubicacion || camaraGlobal}
-                                                                                onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
-                                                                                style={{
-                                                                                    width: '100%',
-                                                                                    border: rowErrors.ubicacion ? '2px solid red' : '1px solid #ccc'
-                                                                                }}
-                                                                            >
-                                                                                <option value="">- Selec -</option>
-                                                                                {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
-                                                                                    <option key={u.id} value={u.id}>{u.nombre}</option>
-                                                                                ))}
-                                                                            </select>
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                            {calibres.length === 0 && (
-                                                                <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>Sin calibres definidos</td></tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
+                                                                    return (
+                                                                        <tr key={idx}>
+                                                                            <td style={{ fontWeight: 'bold' }}>{cal}</td>
+                                                                            <td>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    placeholder="0"
+                                                                                    value={data.cantidad || ''}
+                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        textAlign: 'center',
+                                                                                        border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
+                                                                                    }}
+                                                                                />
+                                                                            </td>
+                                                                            <td>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    placeholder="0.00"
+                                                                                    value={data.pesoTotal || ''}
+                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
+                                                                                    disabled={gramaje > 0}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        textAlign: 'center',
+                                                                                        background: gramaje > 0 ? '#eee' : '#fff',
+                                                                                        border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
+                                                                                    }}
+                                                                                />
+                                                                            </td>
+                                                                            <td>
+                                                                                <select
+                                                                                    value={data.ubicacion || camaraGlobal}
+                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        border: rowErrors.ubicacion ? '2px solid red' : '1px solid #ccc'
+                                                                                    }}
+                                                                                >
+                                                                                    <option value="">- Selec -</option>
+                                                                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                                {calibres.length === 0 && (
+                                                                    <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>Sin calibres definidos</td></tr>
+                                                                )}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

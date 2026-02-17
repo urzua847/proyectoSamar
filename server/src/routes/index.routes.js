@@ -12,6 +12,7 @@ import produccionRoutes from "./produccion.routes.js";
 import trasladoRoutes from "./traslado.routes.js";
 import pedidoRoutes from "./pedido.routes.js";
 import envasadoRoutes from "./envasado.routes.js";
+import auditRoutes from "./audit.routes.js";
 
 
 const router = Router();
@@ -28,5 +29,6 @@ router.use("/produccion", produccionRoutes);
 router.use("/envasado", envasadoRoutes);
 router.use("/traslado", trasladoRoutes);
 router.use("/pedidos", pedidoRoutes);
+router.use("/audit", auditRoutes);
 
 export default router;

@@ -3,11 +3,13 @@
 import { AppDataSource } from "../config/configDb.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import Ubicacion from "../entity/ubicacion.entity.js";
+import { logCreate } from "./audit.service.js";
 
 const productoRepository = AppDataSource.getRepository(ProductoTerminado);
 const ubicacionRepository = AppDataSource.getRepository(Ubicacion);
 
-export async function trasladoStockService(data) {
+export async function trasladoStockService(data, user = null) {
+    console.log('[DEBUG] User in trasladoStockService:', user);
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -136,6 +138,27 @@ export async function trasladoStockService(data) {
                 }
             }
         }
+
+        // Registrar en auditoría con detalle completo
+        await logCreate('Traslado', null, {
+            destino_id: destino.id,
+            destino_nombre: destino.nombre,
+            destino_tipo: destino.tipo,
+            peso_caja: boxWeight || 'N/A',
+            total_movimientos: movimientos.length,
+            total_items: items.length,
+            detalle_items: items.map(item => ({
+                producto_id: item.definicionProductoId,
+                cantidad_kg: parseFloat(item.cantidad),
+                calibre: item.calibre || 'N/A',
+                lote_id: item.loteId || 'N/A'
+            })),
+            resumen_movimientos: movimientos.length > 0 ? movimientos.map(m => ({
+                accion: m.accion,
+                kilos: m.kilos,
+                id_producto: m.id || m.idNuevo || 'N/A'
+            })) : []
+        }, user);
 
         await queryRunner.commitTransaction();
         return [movimientos, null];

@@ -82,7 +82,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
     return (
         <div className="bg">
             <div className="popup" style={{ width: '950px', maxWidth: '98%' }}>
-                <button className='close' onClick={() => setShow(false)}>X</button>
+                <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '20px' }}>
                     {dataToEdit ? `Editar Lote ${dataToEdit.codigo}` : "Nueva Recepción"}
                 </h2>
@@ -192,7 +192,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                                 <button
                                     type="button"
                                     onClick={agregarTanda}
-                                    className="add-btn"
+                                    className="btn-new"
                                     style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px' }}
                                 >
                                     <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Agregar Tanda
@@ -201,7 +201,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                                     <button
                                         type="button"
                                         onClick={eliminarUltimaTanda}
-                                        className="undo-btn"
+                                        className="btn-cancel"
                                         style={{ flex: 1, marginTop: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                                     >
                                         Borrar última fila
@@ -210,7 +210,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                             </div>
 
                             {/* Tabla de Historial */}
-                            <div className="weight-history" style={{ flex: 1, maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '5px' }}>
+                            <div className="weight-history" style={{ flex: 1, maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead style={{ background: '#f8f9fa', position: 'sticky', top: 0 }}>
                                         <tr>
@@ -264,17 +264,10 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                         <button
                             type="submit"
                             disabled={pesadas.length === 0}
+                            className="btn-save"
                             style={{
                                 width: 'auto',
                                 minWidth: '200px',
-                                fontSize: '1rem',
-                                backgroundColor: '#003366',
-                                color: 'white',
-                                padding: '12px 24px',
-                                borderRadius: '5px',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
                                 opacity: pesadas.length === 0 ? 0.6 : 1
                             }}
                         >

@@ -28,7 +28,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                             name={field.name}
                             placeholder={field.placeholder}
                             type={field.type === 'password' ? (showPassword ? 'text' : 'password') : field.type}
-                            defaultValue={field.defaultValue || ''} 
+                            defaultValue={field.defaultValue || ''}
                             onChange={field.onChange}
                         />
                     )}
@@ -39,7 +39,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                                 required: field.required ? 'Este campo es obligatorio' : false,
                             })}
                             name={field.name}
-                            defaultValue={field.defaultValue || ''} 
+                            defaultValue={field.defaultValue || ''}
                             onChange={field.onChange}
                         >
                             <option value="">Seleccionar opción</option>
@@ -56,7 +56,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                     </div>
                 </div>
             ))}
-            {buttonText && <button type="submit">{buttonText}</button>}
+            {buttonText && <button type="submit" className="btn-save">{buttonText}</button>}
             {footerContent && <div className="footerContent">{footerContent}</div>}
         </form>
     );

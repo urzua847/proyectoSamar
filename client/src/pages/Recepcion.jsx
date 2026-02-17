@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Table from '../components/Table';
 import useGetRecepciones from '../hooks/recepcion/useGetRecepciones';
 import useEditRecepcion from '../hooks/recepcion/useEditRecepcion';
@@ -7,9 +8,11 @@ import PopupRecepcion from '../components/PopupRecepcion';
 import PopupNuevaProduccion from '../components/produccion/PopupNuevaProduccion';
 import { updateLote } from '../services/recepcion.service';
 import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+import TouchButton from '../components/TouchButton';
 import '../styles/users.css';
 
 const Recepcion = () => {
+    const navigate = useNavigate();
     const { lotes, fetchLotes, setLotes } = useGetRecepciones();
     const { handleCreateLote } = useRecepcion();
 
@@ -107,17 +110,12 @@ const Recepcion = () => {
         ...(isAdmin ? [{
             header: "Acciones",
             render: (row) => (
-                <div style={{ display: 'flex', gap: '5px' }}>
+                <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
                     {/* EDIT */}
                     <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
-                        className='btn-edit'
+                        className='btn-icon-circle btn-icon-edit'
                         title="Editar"
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: '#003366', border: 'none', color: 'white', fontSize: '0.9rem'
-                        }}
                     >
                         ✎
                     </button>
@@ -126,12 +124,7 @@ const Recepcion = () => {
                     <button
                         onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
                         title={row.estado ? "Cerrar Lote" : "Reabrir Lote"}
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: row.estado ? '#ffc107' : '#17a2b8',
-                            border: 'none', color: row.estado ? '#000' : '#fff', fontSize: '0.9rem'
-                        }}
+                        className={`btn-icon-circle ${row.estado ? 'btn-icon-warning' : 'btn-icon-action'}`}
                     >
                         {row.estado ? "🔒" : "🔓"}
                     </button>
@@ -143,13 +136,8 @@ const Recepcion = () => {
                             setDataLote(row);
                             handleDelete();
                         }}
-                        className='btn-delete'
+                        className='btn-icon-circle btn-icon-delete'
                         title="Eliminar"
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: '#dc3545', border: 'none', color: 'white', fontSize: '1rem'
-                        }}
                     >
                         🗑
                     </button>
@@ -157,6 +145,7 @@ const Recepcion = () => {
             )
         }] : [])
     ];
+
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -187,110 +176,99 @@ const Recepcion = () => {
         <div className='main-container'>
             <div className='table-wrapper'>
 
-                <div className='top-table'>
-                    <h1 className='title-table'>Recepción de Materia Prima</h1>
+                <div className='top-table' style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <h1 className='title-table' style={{ margin: 0 }}>Recepción de Materia Prima</h1>
 
-                    <div className='action-buttons' style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            onClick={() => setIsCreateOpen(true)}
-                            style={{
-                                backgroundColor: '#4caf50',
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                            }}
-                        >
-                            <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Nuevo Ingreso
-                        </button>
+                        <div className='action-buttons' style={{ display: 'flex', gap: '10px' }}>
+                            <TouchButton
+                                onClick={() => setIsCreateOpen(true)}
+                                variant="primary"
+                                size="medium"
+                            >
+                                + Nuevo Ingreso
+                            </TouchButton>
 
-                        {/* New Production Button */}
-                        <button
-                            onClick={() => {
-                                if (selectedLote) {
-                                    if (Number(selectedLote.peso_total_producido) > 0 || Number(selectedLote.peso_carne_blanca) > 0) {
-                                        showErrorAlert("Aviso", "Este lote ya tiene producción registrada.");
-                                        return;
+                            {/* New Production Button */}
+                            <button
+                                onClick={() => {
+                                    if (selectedLote) {
+                                        if (Number(selectedLote.peso_total_producido) > 0 || Number(selectedLote.peso_carne_blanca) > 0) {
+                                            showErrorAlert("Aviso", "Este lote ya tiene producción registrada.");
+                                            return;
+                                        }
+                                        setIsInputKilosOpen(true);
                                     }
-                                    setIsInputKilosOpen(true);
-                                }
-                                else showErrorAlert("Atención", "Selecciona un lote de la tabla primero.");
-                            }}
-                            className="btn-new"
-                            disabled={!selectedLote}
-                            style={{
-                                backgroundColor: selectedLote ? '#003366' : '#ccc',
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '4px',
-                                cursor: selectedLote ? 'pointer' : 'not-allowed',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                            }}
-                        >
-                            Nueva Producción
-                        </button>
+                                    else showErrorAlert("Atención", "Selecciona un lote de la tabla primero.");
+                                }}
+                                className="btn-new"
+                                disabled={!selectedLote}
+                                style={{
+                                    backgroundColor: selectedLote ? '#003366' : '#ccc',
+                                    cursor: selectedLote ? 'pointer' : 'not-allowed',
+                                }}
+                            >
+                                Nueva Producción
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    <input
-                        name="codigo"
-                        placeholder="Código..."
-                        value={filters.codigo}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="proveedorNombre"
-                        placeholder="Proveedor..."
-                        value={filters.proveedorNombre}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="materiaPrimaNombre"
-                        placeholder="Producto..."
-                        value={filters.materiaPrimaNombre}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="fechaFormateada"
-                        placeholder="Fecha (dd-mm-yyyy)..."
-                        value={filters.fechaFormateada}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <select
-                        name="estadoTexto"
-                        value={filters.estadoTexto}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                        style={{ width: 'auto' }}
-                    >
-                        <option value="">Todos</option>
-                        <option value="Abierto">Abierto</option>
-                        <option value="Cerrado">Cerrado</option>
-                    </select>
-                </div>
+                <div className="table-container-box">
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                        <input
+                            name="codigo"
+                            placeholder="Código..."
+                            value={filters.codigo}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                        />
+                        <input
+                            name="proveedorNombre"
+                            placeholder="Proveedor..."
+                            value={filters.proveedorNombre}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                        />
+                        <input
+                            name="materiaPrimaNombre"
+                            placeholder="Producto..."
+                            value={filters.materiaPrimaNombre}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                        />
+                        <input
+                            name="fechaFormateada"
+                            placeholder="Fecha (dd-mm-yyyy)..."
+                            value={filters.fechaFormateada}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                        />
+                        <select
+                            name="estadoTexto"
+                            value={filters.estadoTexto}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ width: 'auto' }}
+                        >
+                            <option value="">Todos</option>
+                            <option value="Abierto">Abierto</option>
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+                    </div>
 
-                <Table
-                    columns={columns}
-                    data={filteredLotes}
-                    onRowClick={handleRowClick}
-                    selectedId={selectedLote?.id}
-                />
+                    <Table
+                        columns={columns}
+                        data={filteredLotes}
+                        onRowClick={handleRowClick}
+                        onRowDoubleClick={(row) => {
+                            if (row && row.id) {
+                                navigate(`/recepcion/${row.id}`);
+                            }
+                        }}
+                        selectedId={selectedLote?.id}
+                    />
+                </div>
             </div>
 
             <PopupRecepcion show={isCreateOpen} setShow={setIsCreateOpen} action={handleCreateSubmit} />

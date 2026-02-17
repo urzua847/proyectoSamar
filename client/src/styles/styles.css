@@ -5,9 +5,21 @@ html,
 body {
     margin: 0;
     font-family: "Montserrat", sans-serif;
+    height: 100%;
+    font-size: 90%;
+    /* Scales down the entire UI */
+    /* background-color removed in favor of Footer component */
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 #root {
     min-width: 100%;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }

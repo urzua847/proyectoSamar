@@ -1,6 +1,6 @@
 import '../styles/table.css';
 
-const Table = ({ columns, data, onRowClick, selectedId, selectedIds = [], onSelectionChange, multiSelect = false, filters, onFilterChange }) => {
+const Table = ({ columns, data, onRowClick, onRowDoubleClick, selectedId, selectedIds = [], onSelectionChange, multiSelect = false, filters, onFilterChange }) => {
 
     // Validación de seguridad
     const safeData = data || [];
@@ -84,6 +84,7 @@ const Table = ({ columns, data, onRowClick, selectedId, selectedIds = [], onSele
                                 <tr
                                     key={rowIndex}
                                     onClick={() => onRowClick && onRowClick(row)}
+                                    onDoubleClick={() => onRowDoubleClick && onRowDoubleClick(row)}
                                     className={isSelected ? 'selected-row' : ''}
                                 >
                                     {multiSelect && (

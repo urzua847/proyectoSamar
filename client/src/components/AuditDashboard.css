@@ -1,0 +1,224 @@
+/* AuditDashboard.css */
+
+.audit-dashboard {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.audit-dashboard__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.audit-dashboard__header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.audit-dashboard__actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-export--excel {
+    background-color: #10b981;
+    color: white;
+}
+
+.btn-export--excel:hover {
+    background-color: #059669;
+}
+
+.btn-export--pdf {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-export--pdf:hover {
+    background-color: #dc2626;
+}
+
+/* Stats Cards */
+.audit-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.stat-card--warning {
+    background: #fffbeb;
+    border-color: #fcd34d;
+}
+
+.stat-card__icon {
+    font-size: 2rem;
+    background: white;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card__content h3 {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+}
+
+.stat-card__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+/* Recent Logs Table */
+.audit-logs-section h3 {
+    font-size: 1.25rem;
+    color: #334155;
+    margin-bottom: 16px;
+}
+
+.audit-logs-table {
+    overflow-x: auto;
+}
+
+.audit-logs-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.audit-logs-table th {
+    background: #003366;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: white;
+    border-bottom: 2px solid #002855;
+}
+
+.audit-logs-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.audit-logs-table tbody tr:hover {
+    background-color: #f8fafc;
+    transition: background-color 0.2s ease;
+}
+
+.audit-logs-table tbody tr[style*="cursor: pointer"]:hover {
+    background-color: #e0f2fe;
+}
+
+/* Action Badges */
+.action-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.action-badge--create {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.action-badge--update {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.action-badge--soft_delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.action-badge--restore {
+    background: #fef08a;
+    /* Amarillo suave */
+    color: #854d0e;
+}
+
+.action-badge--login {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.audit-dashboard-loading {
+    padding: 40px;
+    text-align: center;
+    color: #64748b;
+    font-size: 1.125rem;
+}
+
+/* Popup de Detalle */
+.audit-detail-popup {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.audit-detail-popup .detail-section {
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.audit-detail-popup pre {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.audit-detail-popup details summary:hover {
+    background: #e5e7eb;
+}

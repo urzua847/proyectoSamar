@@ -38,3 +38,13 @@ export async function deleteEntidad(id) {
         return { status: "Error", message: error.response?.data?.message || error.message };
     }
 }
+
+export async function getEntidadById(id) {
+    try {
+        const response = await axios.get(`/entidades/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error(error);
+        return { status: "Error", message: error.response?.data?.message || error.message };
+    }
+}

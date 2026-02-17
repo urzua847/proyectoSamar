@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../services/root.service.js';
 import '../../styles/popup.css';
 import '../../styles/table.css';
@@ -11,6 +11,9 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
     const [isPacking, setIsPacking] = useState(false);
     const [boxWeight, setBoxWeight] = useState("");
+
+    // Ref para prevenir doble clic en submit
+    const isSubmittingRef = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -54,7 +57,15 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     };
 
     const handleSubmit = async () => {
+        // Prevenir doble clic
+        if (isSubmittingRef.current) {
+            console.log('⚠️  Doble clic en traslado detectado y prevenido');
+            return;
+        }
+
         if (!selectedContenedor) return alert("Seleccione un contenedor de destino");
+
+        isSubmittingRef.current = true;
 
         let itemsToMove = [];
 
@@ -119,6 +130,11 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         } catch (error) {
             console.error("Error en traslado", error);
             alert("Error al trasladar: " + (error.response?.data?.message || error.message));
+        } finally {
+            // Resetear el flag después de un delay
+            setTimeout(() => {
+                isSubmittingRef.current = false;
+            }, 500);
         }
     };
 
@@ -132,7 +148,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     return (
         <div className="bg">
             <div className="popup" style={{ width: '900px', maxWidth: '98%' }}>
-                <button className='close' onClick={onClose}>X</button>
+                <button className='btn-close-x' onClick={onClose}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '10px' }}>
                     {isSelectionMode ? 'Confirmar Empaque y Traslado' : 'Mover Stock a Contenedor'}
                 </h2>
@@ -260,8 +276,8 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 </div>
 
                 <div style={{ padding: '20px', textAlign: 'right', gap: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} className="btn-edit" style={{ backgroundColor: '#6c757d', color: 'white' }}>Cancelar</button>
-                    <button onClick={handleSubmit} className="btn-new" style={{ padding: '10px 25px', color: 'white' }}>Confirmar Traslado</button>
+                    <button onClick={onClose} className="btn-cancel">Cancelar</button>
+                    <button onClick={handleSubmit} className="btn-save">Confirmar Traslado</button>
                 </div>
             </div>
         </div>

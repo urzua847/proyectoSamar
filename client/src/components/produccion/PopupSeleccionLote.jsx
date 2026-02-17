@@ -39,7 +39,7 @@ export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
     return (
         <div className="bg">
             <div className="popup" style={{ width: '500px' }}>
-                <button className='close' onClick={() => setShow(false)}>X</button>
+                <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '20px' }}>Iniciar Nuevo Proceso</h2>
 
                 {loading ? (
@@ -66,9 +66,9 @@ export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
                         <div style={{ textAlign: 'right' }}>
                             <button
                                 onClick={handleConfirm}
-                                className="btn-new"
+                                className="btn-save"
                                 disabled={!selectedLoteId}
-                                style={{ background: selectedLoteId ? '#28a745' : '#ccc', color: 'white' }}
+                                style={{ opacity: selectedLoteId ? 1 : 0.6 }}
                             >
                                 Iniciar Proceso
                             </button>

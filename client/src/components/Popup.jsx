@@ -4,9 +4,9 @@ import '@styles/popup.css';
 // Añadimos la prop 'title'
 export default function Popup({ show, setShow, data, action, title }) {
     const userData = data && data.length > 0 ? data[0] : {};
-    
+
     // Detectamos si estamos en modo CREAR (no hay ID de usuario)
-    const isCreateMode = !userData.id; 
+    const isCreateMode = !userData.id;
 
     const handleSubmit = (formData) => {
         const nonEmptyData = Object.fromEntries(
@@ -19,67 +19,67 @@ export default function Popup({ show, setShow, data, action, title }) {
 
     return (
         <div>
-            { show && (
-            <div className="bg">
-                <div className="popup">
-                    <button className='close' onClick={() => setShow(false)}>X</button>
-                    <Form
-                        title={title || "Usuario"}
-                        fields={[
-                            { 
-                                label: "Nombre completo", 
-                                name: "nombreCompleto", 
-                                defaultValue: userData.nombreCompleto || "", 
-                                fieldType: 'input', 
-                                type: "text", 
-                                required: isCreateMode // Obligatorio al crear
-                            },
-                            { 
-                                label: "Correo electrónico", 
-                                name: "email", 
-                                defaultValue: userData.email || "", 
-                                fieldType: 'input', 
-                                type: "email", 
-                                required: isCreateMode 
-                            },
-                            { 
-                                label: "RUT", 
-                                name: "rut", 
-                                defaultValue: userData.rut || "", 
-                                fieldType: 'input', 
-                                type: "text", 
-                                pattern: patternRut, 
-                                patternMessage: "Formato RUT inválido (sin puntos)", 
-                                required: isCreateMode 
-                            },
-                            {
-                                label: "Rol",
-                                name: "rol",
-                                fieldType: 'select',
-                                options: [
-                                    { value: 'administrador', label: 'Administrador' },
-                                    { value: 'operario', label: 'Operario' },
-                                    { value: 'usuario', label: 'Usuario' },
-                                ],
-                                required: true,
-                                defaultValue: userData.rol || "",
-                            },
-                            { 
-                                // --- CAMBIO CLAVE: Nombre dinámico del campo ---
-                                label: isCreateMode ? "Contraseña" : "Nueva contraseña (opcional)", 
-                                name: isCreateMode ? "password" : "newPassword", 
-                                // ----------------------------------------------
-                                placeholder: "**********", 
-                                fieldType: 'input', 
-                                type: "password",
-                                required: isCreateMode // La contraseña es obligatoria solo al crear
-                            }
-                        ]}
-                        onSubmit={handleSubmit}
-                        buttonText={isCreateMode ? "Crear Usuario" : "Guardar Cambios"}
-                    />
+            {show && (
+                <div className="bg">
+                    <div className="popup">
+                        <button type="button" className='btn-close-x' onClick={() => setShow(false)}>X</button>
+                        <Form
+                            title={title || "Usuario"}
+                            fields={[
+                                {
+                                    label: "Nombre completo",
+                                    name: "nombreCompleto",
+                                    defaultValue: userData.nombreCompleto || "",
+                                    fieldType: 'input',
+                                    type: "text",
+                                    required: isCreateMode // Obligatorio al crear
+                                },
+                                {
+                                    label: "Correo electrónico",
+                                    name: "email",
+                                    defaultValue: userData.email || "",
+                                    fieldType: 'input',
+                                    type: "email",
+                                    required: isCreateMode
+                                },
+                                {
+                                    label: "RUT",
+                                    name: "rut",
+                                    defaultValue: userData.rut || "",
+                                    fieldType: 'input',
+                                    type: "text",
+                                    pattern: patternRut,
+                                    patternMessage: "Formato RUT inválido (sin puntos)",
+                                    required: isCreateMode
+                                },
+                                {
+                                    label: "Rol",
+                                    name: "rol",
+                                    fieldType: 'select',
+                                    options: [
+                                        { value: 'administrador', label: 'Administrador' },
+                                        { value: 'operario', label: 'Operario' },
+                                        { value: 'usuario', label: 'Usuario' },
+                                    ],
+                                    required: true,
+                                    defaultValue: userData.rol || "",
+                                },
+                                {
+                                    // --- CAMBIO CLAVE: Nombre dinámico del campo ---
+                                    label: isCreateMode ? "Contraseña" : "Nueva contraseña (opcional)",
+                                    name: isCreateMode ? "password" : "newPassword",
+                                    // ----------------------------------------------
+                                    placeholder: "**********",
+                                    fieldType: 'input',
+                                    type: "password",
+                                    required: isCreateMode // La contraseña es obligatoria solo al crear
+                                }
+                            ]}
+                            onSubmit={handleSubmit}
+                            buttonText={isCreateMode ? "Crear Usuario" : "Guardar Cambios"}
+                        />
+                    </div>
                 </div>
-            </div>
             )}
         </div>
     );

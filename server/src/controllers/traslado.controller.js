@@ -26,7 +26,7 @@ export async function createTraslado(req, res) {
         return handleErrorClient(res, 400, "Error de validación: " + error.message, error.message);
     }
 
-    const [movimientos, errorService] = await trasladoStockService(req.body);
+    const [movimientos, errorService] = await trasladoStockService(req.body, req.user);
     if (errorService) return handleErrorClient(res, 400, errorService);
 
     handleSuccess(res, 200, "Traslado realizado con éxito", movimientos);

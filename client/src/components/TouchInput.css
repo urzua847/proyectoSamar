@@ -1,0 +1,138 @@
+/* TouchInput - Optimizado para uso táctil */
+
+.touch-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.touch-input-wrapper--full-width {
+    max-width: 100%;
+}
+
+.touch-input__label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.touch-input__required {
+    color: #ef4444;
+    font-size: 18px;
+}
+
+.touch-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.touch-input-container:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.touch-input-container--error {
+    border-color: #ef4444;
+}
+
+.touch-input-container--error:focus-within {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.touch-input {
+    /* Tamaño optimizado para táctil */
+    min-height: 56px;
+    width: 100%;
+    padding: 16px;
+
+    /* Typography */
+    font-size: 18px;
+    font-family: inherit;
+    color: #1f2937;
+
+    /* Visual */
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    outline: none;
+
+    /* Remove spinner for number inputs */
+    -moz-appearance: textfield;
+}
+
+.touch-input::-webkit-outer-spin-button,
+.touch-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.touch-input--with-icon {
+    padding-left: 52px;
+}
+
+.touch-input::placeholder {
+    color: #9ca3af;
+}
+
+.touch-input:disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.touch-input__icon {
+    position: absolute;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #6b7280;
+    pointer-events: none;
+}
+
+.touch-input__helper {
+    font-size: 14px;
+    color: #6b7280;
+    padding-left: 4px;
+}
+
+.touch-input__helper--error {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .touch-input {
+        min-height: 60px;
+        font-size: 20px;
+    }
+
+    .touch-input__label {
+        font-size: 18px;
+    }
+}
+
+/* Print */
+@media print {
+    .touch-input-container {
+        border: 1px solid #000;
+    }
+
+    .touch-input {
+        min-height: auto;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+}

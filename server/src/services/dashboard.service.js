@@ -1,7 +1,7 @@
 "use strict";
 import { AppDataSource } from "../config/configDb.js";
 import LoteRecepcion from "../entity/loteRecepcion.entity.js";
-import { getStockCamarasService, getStockContenedoresService } from "./envasado.service.js";
+import { getDashboardStockCamarasService, getDashboardStockContenedoresService } from "./envasado.service.js";
 
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
 
@@ -14,12 +14,12 @@ export async function getDashboardDataService() {
             take: 5
         });
 
-        // 2. Stock en Camaras 
-        const [stockCamaras, errorCamaras] = await getStockCamarasService();
+        // 2. Stock en Camaras (Optimized)
+        const [stockCamaras, errorCamaras] = await getDashboardStockCamarasService();
         if (errorCamaras) throw new Error(errorCamaras);
 
-        // 3. Stock en Contenedores
-        const [stockContenedores, errorContenedores] = await getStockContenedoresService();
+        // 3. Stock en Contenedores (Optimized)
+        const [stockContenedores, errorContenedores] = await getDashboardStockContenedoresService();
         if (errorContenedores) throw new Error(errorContenedores);
 
         return [{

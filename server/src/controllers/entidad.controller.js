@@ -2,6 +2,7 @@
 
 import {
   getEntidadesService,
+  getEntidadByIdService,
   createEntidadService,
   updateEntidadService,
   deleteEntidadService
@@ -18,6 +19,17 @@ export async function getEntidades(req, res) {
     const [entidades, error] = await getEntidadesService(tipo);
     if (error) return handleErrorClient(res, 404, error);
     handleSuccess(res, 200, "Entidades encontradas", entidades);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function getEntidadById(req, res) {
+  try {
+    const { id } = req.params;
+    const [entidad, error] = await getEntidadByIdService(id);
+    if (error) return handleErrorClient(res, 404, error);
+    handleSuccess(res, 200, "Entidad encontrada", entidad);
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }

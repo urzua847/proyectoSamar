@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from '../services/root.service.js';
 import { format as formatTempo } from "@formkit/tempo";
+import Table from '../components/Table';
+import '../components/AuditDashboard.css';
+import '../styles/users.css';
 
 const Home = () => {
   const user = JSON.parse(sessionStorage.getItem('usuario'));
@@ -28,116 +31,127 @@ const Home = () => {
     }
   };
 
-  const tableHeaderStyle = { backgroundColor: '#003366', color: 'white', padding: '10px', textAlign: 'left' };
-  const cellStyle = { padding: '8px', borderBottom: '1px solid #ddd' };
-  const cardStyle = { backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflow: 'hidden', padding: '15px' };
+  // --- CALCULATED KPIs ---
+  const totalStockCamaras = useMemo(() =>
+    data.stockCamaras.reduce((acc, curr) => acc + Number(curr.totalKilos || 0), 0)
+    , [data.stockCamaras]);
 
-  if (loading) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Cargando Dashboard...</div>;
+  const totalStockContenedores = useMemo(() =>
+    data.stockContenedores.reduce((acc, curr) => acc + Number(curr.totalKilos || 0), 0)
+    , [data.stockContenedores]);
+
+  const ultimoLote = data.ultimosLotes.length > 0 ? data.ultimosLotes[0] : null;
+
+  // --- COLUMNS FOR TABLES ---
+  const columnsLotes = [
+    { header: "Fecha", accessor: "createdAt", render: (row) => formatTempo(row.createdAt, "DD/MM HH:mm") },
+    { header: "Lote", accessor: "codigo", render: (row) => <span style={{ fontWeight: 'bold', color: '#003366' }}>{row.codigo}</span> },
+    { header: "Materia Prima", accessor: "materiaPrima.nombre", render: (row) => row.materiaPrima?.nombre },
+    { header: "Proveedor", accessor: "proveedor.nombre", render: (row) => row.proveedor?.nombre },
+    { header: "Kilos", accessor: "peso_bruto_kg", render: (row) => <span style={{ fontWeight: 'bold' }}>{Number(row.peso_bruto_kg).toLocaleString('es-CL')} kg</span> }
+  ];
+
+  const columnsCamaras = [
+    { header: "Producto", accessor: "productoNombre" },
+    { header: "Calibre", accessor: "calibre" },
+    { header: "Stock Total", accessor: "totalKilos", render: (row) => `${Number(row.totalKilos).toLocaleString('es-CL')} kg` }
+  ];
+
+  const columnsContenedores = [
+    { header: "Ubicación", accessor: "ubicacionNombre", render: (row) => <span style={{ fontWeight: 'bold' }}>{row.ubicacionNombre}</span> },
+    { header: "Producto", accessor: "productoNombre" },
+    { header: "Calibre", accessor: "calibre" },
+    { header: "Cajas", accessor: "totalCantidad" },
+    { header: "Kilos", accessor: "totalKilos", render: (row) => <span style={{ color: '#10b981', fontWeight: 'bold' }}>{Number(row.totalKilos).toLocaleString('es-CL')} kg</span> }
+  ];
+
+  if (loading) return (
+    <div className="main-container" style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>
+      <div className="audit-dashboard-loading">Cargando Dashboard...</div>
+    </div>
+  );
 
   return (
-    <div className="main-container" style={{ marginTop: '60px', padding: '20px' }}>
-      <header style={{ marginBottom: '30px', textAlign: 'center' }}>
-        <h1 style={{ color: '#003366' }}>Situación Actual de Planta</h1>
-      </header>
+    <div className="main-container">
+      <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 className="title-table" style={{ margin: 0 }}>Panel de Control</h1>
+            <p style={{ color: '#64748b', margin: '5px 0 0 0' }}></p>
+          </div>
+        </header>
 
-        <div style={cardStyle}>
-          <h3 style={{ borderBottom: '2px solid #28a745', paddingBottom: '10px', color: '#28a745', marginTop: 0 }}>
-            Últimos Lotes Recepcionados
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={tableHeaderStyle}>Fecha</th>
-                  <th style={tableHeaderStyle}>Lote</th>
-                  <th style={tableHeaderStyle}>Materia Prima</th>
-                  <th style={tableHeaderStyle}>Kilos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.ultimosLotes.length === 0 ? (
-                  <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center' }}>Sin movimientos recientes.</td></tr>
-                ) : (
-                  data.ultimosLotes.map(lote => (
-                    <tr key={lote.id}>
-                      <td style={cellStyle}>{formatTempo(lote.createdAt, "DD/MM HH:mm")}</td>
-                      <td style={{ ...cellStyle, fontWeight: 'bold', color: '#003366' }}>{lote.codigo}</td>
-                      <td style={cellStyle}>{lote.materiaPrima?.nombre}</td>
-                      <td style={{ ...cellStyle, textAlign: 'right' }}>{lote.peso_bruto_kg} kg</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        {/* --- KPI CARDS --- */}
+        <div className="audit-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+
+          {/* 1. ÚLTIMO INGRESO */}
+          <div className="stat-card">
+            <div className="stat-card__content">
+              <h3>Último Ingreso</h3>
+              <p className="stat-card__value" style={{ fontSize: '1.2rem' }}>
+                {ultimoLote ? (
+                  <>
+                    {ultimoLote.codigo} <br />
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'normal', color: '#64748b' }}>
+                      {Number(ultimoLote.peso_bruto_kg).toLocaleString('es-CL')} kg ({ultimoLote.materiaPrima?.nombre})
+                    </span>
+                  </>
+                ) : 'Sin datos'}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. STOCK EN CÁMARAS */}
+          <div className="stat-card">
+            <div className="stat-card__content">
+              <h3>Stock en Cámaras</h3>
+              <p className="stat-card__value">{totalStockCamaras.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: '#64748b' }}>kg</span></p>
+            </div>
+          </div>
+
+          {/* 3. STOCK EN CONTENEDORES */}
+          <div className="stat-card">
+            <div className="stat-card__content">
+              <h3>Stock en Contenedores</h3>
+              <p className="stat-card__value">{totalStockContenedores.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: '#64748b' }}>kg</span></p>
+            </div>
           </div>
         </div>
 
-        <div style={cardStyle}>
-          <h3 style={{ borderBottom: '2px solid #17a2b8', paddingBottom: '10px', color: '#17a2b8', marginTop: 0 }}>
-            Stock en Cámaras
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={tableHeaderStyle}>Producto</th>
-                  <th style={tableHeaderStyle}>Calibre</th>
-                  <th style={tableHeaderStyle}>Total Stock</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.stockCamaras.length === 0 ? (
-                  <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center' }}>Cámaras vacías.</td></tr>
-                ) : (
-                  data.stockCamaras.map((item, idx) => (
-                    <tr key={idx}>
-                      <td style={cellStyle}>{item.productoNombre}</td>
-                      <td style={cellStyle}>{item.calibre || '-'}</td>
-                      <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold' }}>{Number(item.totalKilos).toFixed(2)} Kg</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* --- GRID DE TABLAS --- */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: '24px',
+          width: '100%'
+        }}>
 
-        <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
-          <h3 style={{ borderBottom: '2px solid #ffc107', paddingBottom: '10px', color: '#d39e00', marginTop: 0 }}>
-            Contenedores
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={tableHeaderStyle}>Contenedor / Ubicación</th>
-                  <th style={tableHeaderStyle}>Producto</th>
-                  <th style={tableHeaderStyle}>Calibre</th>
-                  <th style={tableHeaderStyle}>Cajas</th>
-                  <th style={tableHeaderStyle}>Kilos Totales</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.stockContenedores.length === 0 ? (
-                  <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center' }}>No hay carga lista para despacho.</td></tr>
-                ) : (
-                  data.stockContenedores.map((item, idx) => (
-                    <tr key={idx}>
-                      <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.ubicacionNombre}</td>
-                      <td style={cellStyle}>{item.productoNombre}</td>
-                      <td style={cellStyle}>{item.calibre || '-'}</td>
-                      <td style={{ ...cellStyle, textAlign: 'center' }}>{item.totalCantidad}</td>
-                      <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold', color: '#28a745' }}>{Number(item.totalKilos).toFixed(2)} Kg</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* TABLA 1: ÚLTIMOS LOTES */}
+          <div className="table-container-box" style={{ marginTop: 0 }}>
+            <h3 style={{ color: '#003366', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Últimos Lotes Recepcionados
+            </h3>
+            <Table columns={columnsLotes} data={data.ultimosLotes} />
           </div>
-        </div>
 
+          {/* TABLA 2: STOCK CÁMARAS */}
+          <div className="table-container-box" style={{ marginTop: 0 }}>
+            <h3 style={{ color: '#003366', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Resumen Cámaras
+            </h3>
+            <Table columns={columnsCamaras} data={data.stockCamaras} />
+          </div>
+
+          {/* TABLA 3: CONTENEDORES (Full Width si es necesario) */}
+          <div className="table-container-box" style={{ marginTop: 0, gridColumn: '1 / -1' }}>
+            <h3 style={{ color: '#003366', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Carga en Contenedores
+            </h3>
+            <Table columns={columnsContenedores} data={data.stockContenedores} />
+          </div>
+
+        </div>
       </div>
     </div>
   );
