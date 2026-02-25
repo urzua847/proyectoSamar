@@ -4,7 +4,7 @@ import '../styles/popup.css';
 const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) => {
     const [clientData, setClientData] = useState({
         cliente: '',
-        n_guia_despacho: '', // Will be ignored by backend but kept for UI if needed or read-only
+        n_guia_despacho: '',
         tipo_venta: 'Nacional'
     });
 

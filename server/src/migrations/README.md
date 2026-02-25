@@ -88,24 +88,24 @@ WHERE tablename = 'audit_logs';
    - Click en "Auditoría"
 
 3. **Revisa la consola del navegador** (F12):
-   - Deberías ver logs como: `✅ [AuditDashboard] Logs recibidos`
-   - Si hay errores, revisa los logs con emojis ❌
+   - Deberías ver logs como: ` [AuditDashboard] Logs recibidos`
+   - Si hay errores, revisa los logs con emojis 
 
 ---
 
 ## Troubleshooting
 
 ### "Table already exists"
-✅ **OK** - La tabla ya existía, solo se insertaron datos de prueba.
+ OK - La tabla ya existía, solo se insertaron datos de prueba.
 
 ### "Permission denied"
-❌ Verifica que el usuario `postgres` tenga permisos:
+ Verifica que el usuario `postgres` tenga permisos:
 ```sql
 GRANT ALL PRIVILEGES ON TABLE audit_logs TO postgres;
 ```
 
 ### "Database does not exist"
-❌ El nombre de la base de datos puede ser diferente. Verifica con:
+ El nombre de la base de datos puede ser diferente. Verifica con:
 ```bash
 docker exec -it samar_db psql -U postgres -l
 ```

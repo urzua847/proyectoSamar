@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getLoteById } from '../services/recepcion.service';
 import { generateLotPDF } from '../services/pdf.service';
-import '../styles/loteDetail.css'; // New ERP style
+import '../styles/loteDetail.css';
 
 const LoteDetail = () => {
     const { id } = useParams();

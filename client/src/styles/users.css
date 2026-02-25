@@ -328,20 +328,3 @@
 .btn-cancel:hover {
     background-color: #475569 !important;
 }
-
-/* Botón Cerrar (X) */
-.btn-close-x {
-    position: absolute;
-    top: 0.9375rem;
-    right: 0.9375rem;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #666;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.btn-close-x:hover {
-    color: #000;
-}

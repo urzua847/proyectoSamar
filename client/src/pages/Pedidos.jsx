@@ -264,9 +264,6 @@ const Pedidos = () => {
         }
     };
 
-    // --- LÓGICA DE NEGOCIO CLIENTE (sin cambios, omitida por brevedad en tool) ---
-    // ... Se asume que handleAddToCart, handleRemoveFromCart, handleConfirmPedido siguen igual ...
-
     const handleAddToCart = (item, qtyBultos) => {
         // Prevenir doble clic
         if (isAddingToCartRef.current) {

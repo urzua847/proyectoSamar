@@ -2,7 +2,7 @@
 
 API REST para sistema ERP de trazabilidad e inventario para plantas de procesamiento de salmones.
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 - **Runtime**: Node.js v22+
 - **Framework**: Express 5
@@ -13,14 +13,13 @@ API REST para sistema ERP de trazabilidad e inventario para plantas de procesami
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
-```
 server/
 ├── src/
 │   ├── auth/              # Configuración de autenticación (Passport JWT)
 │   ├── config/            # Configuración de BD y variables de entorno
-│   │   ├── configDb.js    # ⚠️ Configuración TypeORM con soporte entornos
+│   │   ├── configDb.js    # Configuración TypeORM con soporte entornos
 │   │   └── configEnv.js   # Carga de variables .env
 │   ├── controllers/       # Controladores de endpoints
 │   ├── entity/            # Entidades de TypeORM (modelos)
@@ -28,23 +27,21 @@ server/
 │   ├── middlewares/       # Middleware de autenticación
 │   ├── routes/            # Definición de rutas de API
 │   ├── services/          # Lógica de negocio
-│   │   ├── *.service.js   # ✅ Ahora con transacciones ACID
+│   │   ├── *.service.js   # Ahora con transacciones ACID
 │   └── validations/       # Esquemas de validación Joi
 ├── index.js               # Punto de entrada
-├── package.json
-├── MIGRATIONS_GUIDE.md    # 📖 Guía de migraciones de BD
-└── PAGINATION_API.md      # 📖 Documentación de paginación
-```
+└── package.json
+
 
 ---
 
-## 🚀 Inicio Rápido
+## Inicio Rápido
 
 ### 1. Variables de Entorno
 
 Copia el archivo de ejemplo y configúralo:
 
-```bash
+
 cp .env.example .env
 nano .env  # O tu editor favorito
 ```
@@ -77,7 +74,7 @@ El servidor estará disponible en `http://localhost:3000/api`
 
 ---
 
-## 🐳 Docker
+## Docker
 
 ### Desarrollo con Docker Compose
 
@@ -91,42 +88,10 @@ Esto levanta:
 - Backend en `samar_backend:5000`
 - Frontend en `samar_frontend:5173`
 
----
 
-## 🔒 Configuración de Entornos
+## Características Implementadas
 
-### Development (Default)
-
-```env
-NODE_ENV=development
-```
-
-**Características**:
-- ✅ `synchronize: true` - Cambios en entidades se aplican automáticamente
-- ✅ Logging de queries SQL
-- ✅ CORS permite todos los orígenes
-- ⚠️ NO usar en producción
-
-### Production
-
-```env
-NODE_ENV=production
-ALLOWED_ORIGINS=https://tudominio.com,https://app.tudominio.com
-```
-
-**Características**:
-- 🔒 `synchronize: false` - Cambios requieren migraciones
-- 🔒 CORS con whitelist estricta
-- 🔒 Connection pool optimizado
-- 🔒 Logging solo de errores
-
-**⚠️ CRÍTICO**: Lee `MIGRATIONS_GUIDE.md` antes de modificar entidades en producción.
-
----
-
-## 📊 Características Implementadas
-
-### ✅ Transacciones ACID
+### Transacciones ACID
 
 Los siguientes servicios usan `QueryRunner` para garantizar atomicidad:
 
@@ -138,7 +103,7 @@ Los siguientes servicios usan `QueryRunner` para garantizar atomicidad:
 
 Si alguna operación falla, **TODAS** se revierten automáticamente.
 
-### ✅ Paginación Server-Side
+### Paginación Server-Side
 
 Endpoints con soporte de paginación:
 
@@ -146,64 +111,7 @@ Endpoints con soporte de paginación:
 GET /api/envasado/producciones?page=1&limit=50
 GET /api/lote/activos?page=1&limit=30
 GET /api/pedido?page=1&limit=25
-```
 
-Ver `PAGINATION_API.md` para detalles de implementación.
-
----
-
-## 🗄️ Base de Datos
-
-### Conexión Manual a PostgreSQL
-
-```bash
-# Con Docker
-docker exec -it samar_db psql -U postgres -d samar_dev
-
-# Local
-psql -U postgres -d samar_dev
-```
-
-### Backup (Producción)
-
-```bash
-# Crear backup
-pg_dump -U postgres -d samar_prod > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Restaurar backup
-psql -U postgres -d samar_prod < backup_20260113_120000.sql
-```
-
----
-
-## 🧪 Testing
-
-### Probar Endpoints
-
-Con herramientas como Postman, Insomnia o curl:
-
-```bash
-# Login
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@test.com","password":"admin123"}'
-
-# Obtener lotes (con token)
-curl -X GET http://localhost:3000/api/lote/activos \
-  -H "Authorization: Bearer TU_TOKEN_AQUI"
-```
-
----
-
-## 📚 Documentación Adicional
-
-- **Migraciones**: Ver `MIGRATIONS_GUIDE.md`
-- **Paginación**: Ver `PAGINATION_API.md`
-- **Seguridad**: Ver `../PRODUCTION_CHECKLIST.md` (raíz del proyecto)
-
----
-
-## 🐛 Troubleshooting
 
 ### Error: "Cannot find package 'cors'"
 
@@ -230,7 +138,7 @@ Esto es intencional. Cambia `NODE_ENV=production` en tu `.env` y **lee la guía 
 
 ---
 
-## 📝 Scripts Disponibles
+## Scripts Disponibles
 
 ```bash
 npm start          # Inicia servidor en modo producción
@@ -241,7 +149,7 @@ npm audit fix      # Intenta corregir vulnerabilidades automáticamente
 
 ---
 
-## 🤝 Contribución
+## Contribución
 
 1. Crea una rama feature: `git checkout -b feature/nueva-funcionalidad`
 2. Commit con mensajes descriptivos
@@ -250,13 +158,13 @@ npm audit fix      # Intenta corregir vulnerabilidades automáticamente
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto es parte de una tesis universitaria.
 
 ---
 
-## 🆘 Soporte
+## Soporte
 
 Para problemas de configuración o preguntas, revisa primero:
 1. Esta documentación

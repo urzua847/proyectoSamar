@@ -4,7 +4,7 @@ import { getEntidadById } from '../services/entidad.service';
 import { getRecepcionesByEntidad } from '../services/recepcion.service';
 import { generateEntityPDF, generateLotPDF } from '../services/pdf.service';
 import Table from '../components/Table';
-import '../styles/form.css'; // Reusing form styles
+import '../styles/form.css';
 
 const EntityDetail = () => {
     const { id } = useParams();
@@ -18,7 +18,7 @@ const EntityDetail = () => {
             if (id) {
                 // Fetch Entidad Profile
                 const entidadRes = await getEntidadById(id);
-                if (entidadRes && entidadRes.data) { // Check structure of response
+                if (entidadRes && entidadRes.data) {
                     setEntidad(entidadRes.data);
                 } else if (entidadRes) {
                     setEntidad(entidadRes);

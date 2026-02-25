@@ -20,35 +20,12 @@ async function setupServer() {
 
     app.disable("x-powered-by");
 
-    // CORS Configuration - Environment-aware
-    const corsOptions = {
-      credentials: true,
-      origin: (origin, callback) => {
-        const nodeEnv = process.env.NODE_ENV || 'development';
-        
-        // Development: Allow all origins for easier testing
-        if (nodeEnv === 'development') {
-          return callback(null, true);
-        }
-        
-        // Production: Strict whitelist
-        const allowedOrigins = process.env.ALLOWED_ORIGINS 
-          ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-          : [];
-        
-        // Allow requests with no origin (like mobile apps, Postman, curl)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          console.warn(`CORS blocked request from unauthorized origin: ${origin}`);
-          callback(new Error(`CORS policy: Origin ${origin} is not allowed`));
-        }
-      }
-    };
-
-    app.use(cors(corsOptions));
+    app.use(
+      cors({
+        credentials: true,
+        origin: true,
+      }),
+    );
 
     app.use(
       urlencoded({
@@ -73,9 +50,9 @@ async function setupServer() {
         resave: false,
         saveUninitialized: false,
         cookie: {
-          secure: process.env.NODE_ENV === 'production', // true en producción (HTTPS)
+          secure: false,
           httpOnly: true,
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // 'none' es necesario para cross-site cookies si el front y back están en dominios distintos, 'strict' si es el mismo dominio. Asumiendo mismo dominio por defecto mejor 'strict' o 'lax'.
+          sameSite: "strict",
         },
       }),
     );
