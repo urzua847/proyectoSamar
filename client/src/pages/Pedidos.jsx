@@ -501,6 +501,13 @@ const Pedidos = () => {
                                             <option key={u} value={u} />
                                         ))}
                                     </datalist>
+                                    <button
+                                        onClick={() => setFilters({ lote: '', producto: '', ubicacion: '' })}
+                                        className="btn-cancel"
+                                        style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}
+                                    >
+                                        Limpiar
+                                    </button>
                                 </div>
 
                                 <Table
@@ -602,57 +609,46 @@ const Pedidos = () => {
                     </div>
                 ) : (
                     <div className="table-container-box">
-                        {/* Filtros y Botones en una sola línea */}
-                        <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                            <h3 style={{ color: '#003366', marginTop: '0', marginBottom: '15px', fontSize: '1rem' }}>Filtros de Búsqueda</h3>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <input
-                                    type="text"
-                                    placeholder="Cliente..."
-                                    value={historialFilters.cliente}
-                                    onChange={e => setHistorialFilters({ ...historialFilters, cliente: e.target.value })}
-                                    className="search-input"
-                                    style={{ flex: '1 1 180px', minWidth: '180px' }}
-                                />
-                                <input
-                                    type="date"
-                                    placeholder="Desde"
-                                    value={historialFilters.fecha_desde}
-                                    onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
-                                    className="search-input"
-                                    style={{ flex: '1 1 160px', minWidth: '160px' }}
-                                />
-                                <input
-                                    type="date"
-                                    placeholder="Hasta"
-                                    value={historialFilters.fecha_hasta}
-                                    onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
-                                    className="search-input"
-                                    style={{ flex: '1 1 160px', minWidth: '160px' }}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="N° Guía..."
-                                    value={historialFilters.numero_guia}
-                                    onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
-                                    className="search-input"
-                                    style={{ flex: '1 1 140px', minWidth: '140px' }}
-                                />
-                                <button onClick={handleApplyFilters} className="btn-save" style={{ padding: '8px 16px' }}>
-                                    Aplicar Filtros
-                                </button>
-                                <button onClick={handleClearFilters} className="btn-cancel" style={{ padding: '8px 16px' }}>
-                                    Limpiar
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Botones de Exportación */}
-                        <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                            <button onClick={handleExportExcel} className="btn-save" style={{ padding: '10px 20px' }}>
+                        {/* Filtros */}
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                placeholder="Cliente..."
+                                value={historialFilters.cliente}
+                                onChange={e => setHistorialFilters({ ...historialFilters, cliente: e.target.value })}
+                                className="search-input"
+                            />
+                            <input
+                                type="date"
+                                value={historialFilters.fecha_desde}
+                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
+                                className="search-input"
+                                title="Fecha desde"
+                            />
+                            <input
+                                type="date"
+                                value={historialFilters.fecha_hasta}
+                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
+                                className="search-input"
+                                title="Fecha hasta"
+                            />
+                            <input
+                                type="text"
+                                placeholder="N° Guía..."
+                                value={historialFilters.numero_guia}
+                                onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
+                                className="search-input"
+                            />
+                            <button onClick={handleApplyFilters} className="btn-new" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
+                                Buscar
+                            </button>
+                            <button onClick={handleClearFilters} className="btn-cancel" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
+                                Limpiar
+                            </button>
+                            <button onClick={handleExportExcel} className="btn-new" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                                 Exportar Excel
                             </button>
-                            <button onClick={handleExportPDF} className="btn-cancel" style={{ padding: '10px 20px', backgroundColor: '#ef4444' }}>
+                            <button onClick={handleExportPDF} className="btn-delete" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                                 Exportar PDF
                             </button>
                         </div>

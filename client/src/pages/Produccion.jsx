@@ -358,6 +358,14 @@ const Produccion = () => {
                             <option value="desc">Más Recientes</option>
                             <option value="asc">Más Antiguos</option>
                         </select>
+
+                        <button
+                            onClick={() => setFiltersStock({ loteCodigo: '', orderHora: 'desc', producto: '', calibre: '', ubicacion: '' })}
+                            className="btn-cancel"
+                            style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}
+                        >
+                            Limpiar
+                        </button>
                     </div>
 
                     <Table

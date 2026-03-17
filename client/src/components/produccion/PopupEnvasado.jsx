@@ -195,19 +195,19 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
 
     return (
         <div className="bg">
-            <div className="popup" style={{ width: '1000px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="popup" style={{ width: '1100px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
                 <button className='btn-close-x' onClick={cerrarPopup}>X</button>
-                <h2 style={{ color: '#003366', marginBottom: '20px' }}>Ingreso a Cámara (Envasado)</h2>
+                <h2 style={{ color: '#003366', marginBottom: '24px', fontSize: '1.4rem' }}>Ingreso a Cámara (Envasado)</h2>
 
                 {loading ? <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div> : (
                     <>
-                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontWeight: 'bold' }}>Lote Origen</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '28px' }}>
+                            <div>
+                                <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Lote Origen</label>
                                 <select
                                     value={loteSeleccionado}
                                     onChange={(e) => setLoteSeleccionado(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
                                 >
                                     <option value="">-- Seleccione Lote --</option>
                                     {(lotes || []).map(l => (
@@ -217,12 +217,12 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                     ))}
                                 </select>
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontWeight: 'bold' }}>Cámara Global</label>
+                            <div>
+                                <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Cámara Global</label>
                                 <select
                                     value={camaraGlobal}
                                     onChange={(e) => handleCamaraGlobalChange(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
                                 >
                                     <option value="">-- Todas --</option>
                                     {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
@@ -269,10 +269,10 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                         <table className="samar-table">
                                                             <thead>
                                                                 <tr style={{ background: '#003366', color: 'white' }}>
-                                                                    <th style={{ padding: '8px' }}>Calibre</th>
-                                                                    <th style={{ width: '100px', padding: '8px' }}>Cant. (Envases)</th>
-                                                                    <th style={{ padding: '8px' }}>Peso Total (Kg)</th>
-                                                                    <th style={{ padding: '8px' }}>Ubicación</th>
+                                                                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Calibre</th>
+                                                                    <th style={{ width: '140px', padding: '12px 16px', textAlign: 'center' }}>Cant. (Envases)</th>
+                                                                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Peso Total (Kg)</th>
+                                                                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ubicación</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -283,9 +283,9 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                                     const gramaje = obtenerGramaje(cal);
 
                                                                     return (
-                                                                        <tr key={idx}>
-                                                                            <td style={{ fontWeight: 'bold' }}>{cal}</td>
-                                                                            <td>
+                                                                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                                            <td style={{ fontWeight: '600', padding: '12px 16px', whiteSpace: 'nowrap' }}>{cal}</td>
+                                                                            <td style={{ padding: '8px 12px' }}>
                                                                                 <input
                                                                                     type="number"
                                                                                     placeholder="0"
@@ -293,12 +293,14 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                                                     onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
                                                                                     style={{
                                                                                         width: '100%',
+                                                                                        padding: '8px',
                                                                                         textAlign: 'center',
+                                                                                        borderRadius: '4px',
                                                                                         border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
                                                                                     }}
                                                                                 />
                                                                             </td>
-                                                                            <td>
+                                                                            <td style={{ padding: '8px 12px' }}>
                                                                                 <input
                                                                                     type="number"
                                                                                     placeholder="0.00"
@@ -307,18 +309,22 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                                                     disabled={gramaje > 0}
                                                                                     style={{
                                                                                         width: '100%',
+                                                                                        padding: '8px',
                                                                                         textAlign: 'center',
+                                                                                        borderRadius: '4px',
                                                                                         background: gramaje > 0 ? '#eee' : '#fff',
                                                                                         border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
                                                                                     }}
                                                                                 />
                                                                             </td>
-                                                                            <td>
+                                                                            <td style={{ padding: '8px 12px' }}>
                                                                                 <select
                                                                                     value={data.ubicacion || camaraGlobal}
                                                                                     onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
                                                                                     style={{
                                                                                         width: '100%',
+                                                                                        padding: '8px',
+                                                                                        borderRadius: '4px',
                                                                                         border: rowErrors.ubicacion ? '2px solid red' : '1px solid #ccc'
                                                                                     }}
                                                                                 >
@@ -350,8 +356,8 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                             </div>
                         )}
 
-                        <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                            <button className="btn-save" onClick={handleConfirmar}>
+                        <div style={{ marginTop: '28px', textAlign: 'right', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                            <button className="btn-new" onClick={handleConfirmar} style={{ padding: '12px 28px', fontSize: '1rem' }}>
                                 Confirmar y Guardar Todos
                             </button>
                         </div>

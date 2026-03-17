@@ -239,7 +239,31 @@ const Contenedores = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: isCartOpen ? '1.2fr 0.8fr' : '1fr', gap: '20px', marginTop: '20px', transition: 'grid-template-columns 0.3s ease' }}>
                     <div className="stock-section">
-                        <h3 style={{ color: '#003366', marginTop: '15px', marginBottom: '10px', fontSize: '1.1rem' }}>Inventario Disponible</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
+                            <h3 style={{ color: '#003366', margin: 0, fontSize: '1.1rem' }}>Inventario Disponible</h3>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                {!isCartOpen && (
+                                    <button
+                                        onClick={() => setIsCartOpen(true)}
+                                        className="btn-new"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                        🛒 Ver Pedido
+                                        <span style={{ background: 'rgba(255,255,255,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                                            {totalBultosGlobal}
+                                        </span>
+                                    </button>
+                                )}
+                                {isCartOpen && (
+                                    <button
+                                        onClick={() => setIsCartOpen(false)}
+                                        className="btn-cancel"
+                                    >
+                                        Ocultar Pedido
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                         <div className="table-container-box">
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
                                 <input
@@ -266,6 +290,13 @@ const Contenedores = () => {
                                         <option key={u} value={u} />
                                     ))}
                                 </datalist>
+                                <button
+                                    onClick={() => setFilters({ lote: '', producto: '', ubicacion: '' })}
+                                    className="btn-cancel"
+                                    style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}
+                                >
+                                    Limpiar
+                                </button>
                             </div>
 
                             <Table
@@ -367,14 +398,6 @@ const Contenedores = () => {
                 </div>
             </div>
 
-            {!isCartOpen && (
-                <button
-                    onClick={() => setIsCartOpen(true)}
-                    className="floating-cart-btn"
-                >
-                    🛒 Ver Pedido <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px' }}>{totalBultosGlobal}</span>
-                </button>
-            )}
         </div>
     );
 };

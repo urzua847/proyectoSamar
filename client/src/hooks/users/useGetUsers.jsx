@@ -7,12 +7,17 @@ const useUsers = () => {
     const fetchUsers = async () => {
         try {
             const response = await getUsers();
-            // Filtramos al usuario logueado para que no aparezca en la tabla
+            if (!response || response.length === 0) {
+                setUsers([]);
+                return;
+            }
+            // Filtrar al usuario logueado para que no aparezca en la tabla
             const loggedUserRut = JSON.parse(sessionStorage.getItem('usuario'))?.rut;
             const filteredData = response.filter(user => user.rut !== loggedUserRut);
             setUsers(filteredData);
         } catch (error) {
-            console.error("Error fetching users: ", error);
+            console.error('[useGetUsers] Error inesperado:', error);
+            setUsers([]);
         }
     };
 

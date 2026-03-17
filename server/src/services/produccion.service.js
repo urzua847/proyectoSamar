@@ -2,6 +2,7 @@
 import { AppDataSource } from "../config/configDb.js";
 import Produccion from "../entity/produccion.entity.js";
 import LoteRecepcion from "../entity/loteRecepcion.entity.js";
+import ProductoTerminado from "../entity/productoTerminado.entity.js";
 import { logCreate } from "./audit.service.js";
 
 const produccionRepository = AppDataSource.getRepository(Produccion);
@@ -65,6 +66,7 @@ export async function createProduccionYieldService(data, user = null) {
     lote.peso_carne_blanca = totalCarne;
     lote.peso_pinzas = totalPinzas;
     lote.peso_total_producido = totalCarne + totalPinzas;
+    lote.observacion_produccion = observacion || null;
     lote.en_proceso_produccion = true; 
     
     await queryRunner.manager.save(LoteRecepcion, lote);
@@ -102,5 +104,100 @@ export async function getProduccionesByLoteService(loteId) {
         return [producciones, null];
     } catch (error) {
         return [null, error.message];
+    }
+}
+
+export async function getProduccionByLoteService(loteId) {
+    try {
+        const produccion = await produccionRepository.findOne({
+            where: { loteRecepcion: { id: loteId } }
+        });
+        return [produccion, null];
+    } catch (error) {
+        return [null, error.message];
+    }
+}
+
+export async function updateProduccionYieldService(loteId, data, user = null) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const { peso_carne_blanca, peso_pinzas, observacion } = data;
+
+        // 1. Buscar la producción existente del lote
+        const produccion = await queryRunner.manager.findOne(Produccion, {
+            where: { loteRecepcion: { id: loteId } }
+        });
+        if (!produccion) {
+            await queryRunner.rollbackTransaction();
+            return [null, "No existe registro de producción para este lote."];
+        }
+
+        // 2. Verificar si ya fue editada
+        if (produccion.editada) {
+            await queryRunner.rollbackTransaction();
+            return [null, "Este registro ya fue editado una vez. No se permiten más modificaciones."];
+        }
+
+        // 3. Verificar que no haya productos en cámara para este lote
+        const productosEnCamara = await queryRunner.manager.count(ProductoTerminado, {
+            where: { loteDeOrigen: { id: loteId } }
+        });
+        if (productosEnCamara > 0) {
+            await queryRunner.rollbackTransaction();
+            return [null, "No se puede editar: ya existen productos de este lote ingresados en Cámaras."];
+        }
+
+        // 4. Obtener el lote para validar y recalcular
+        const lote = await queryRunner.manager.findOne(LoteRecepcion, { where: { id: loteId } });
+        if (!lote) {
+            await queryRunner.rollbackTransaction();
+            return [null, "Lote no encontrado."];
+        }
+
+        const nuevoPesoCarne = Number(peso_carne_blanca);
+        const nuevoPesoPinzas = Number(peso_pinzas);
+        const total = nuevoPesoCarne + nuevoPesoPinzas;
+
+        // 5. Validación de yield
+        if (total > Number(lote.peso_bruto_kg)) {
+            await queryRunner.rollbackTransaction();
+            return [null, `Error de Rendimiento: El total procesado (${total.toFixed(2)} kg) excede el peso bruto del lote (${Number(lote.peso_bruto_kg).toFixed(2)} kg).`];
+        }
+
+        // 6. Actualizar producción y marcar como editada
+        produccion.peso_carne_blanca = nuevoPesoCarne;
+        produccion.peso_pinzas = nuevoPesoPinzas;
+        produccion.peso_total = total;
+        produccion.observacion = observacion || produccion.observacion;
+        produccion.editada = true;
+        await queryRunner.manager.save(Produccion, produccion);
+
+        // 7. Recalcular y actualizar lote
+        lote.peso_carne_blanca = nuevoPesoCarne;
+        lote.peso_pinzas = nuevoPesoPinzas;
+        lote.peso_total_producido = total;
+        lote.observacion_produccion = observacion !== undefined ? observacion : lote.observacion_produccion;
+        await queryRunner.manager.save(LoteRecepcion, lote);
+
+        await logCreate('Produccion_Edicion', produccion.id, {
+            loteRecepcionId: lote.id,
+            lote_codigo: lote.codigo,
+            peso_carne_blanca: nuevoPesoCarne,
+            peso_pinzas: nuevoPesoPinzas,
+            peso_total: total
+        }, user);
+
+        await queryRunner.commitTransaction();
+        return [produccion, null];
+
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error updateProduccionYieldService:", error);
+        return [null, error.message];
+    } finally {
+        await queryRunner.release();
     }
 }

@@ -18,7 +18,9 @@
     border-radius: 1rem;
     position: relative;
     width: 100%;
-    max-width: 24rem;
+    max-width: 500px;
+    box-sizing: border-box;
+    overflow: hidden;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
@@ -58,7 +60,8 @@
 .popup input,
 .popup select,
 .popup textarea {
-    /* Styles are mostly inherited from form.css, but we ensure consistency here */
+    width: 100%;
+    box-sizing: border-box;
     border-radius: 0.5rem;
 }
 

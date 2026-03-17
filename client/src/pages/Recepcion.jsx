@@ -6,6 +6,7 @@ import useEditRecepcion from '../hooks/recepcion/useEditRecepcion';
 import useRecepcion from '../hooks/recepcion/useRecepcion';
 import PopupRecepcion from '../components/PopupRecepcion';
 import PopupNuevaProduccion from '../components/produccion/PopupNuevaProduccion';
+import PopupEditarProduccion from '../components/produccion/PopupEditarProduccion';
 import { updateLote } from '../services/recepcion.service';
 import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 import TouchButton from '../components/TouchButton';
@@ -25,6 +26,7 @@ const Recepcion = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     const [isInputKilosOpen, setIsInputKilosOpen] = useState(false);
+    const [isEditProduccionOpen, setIsEditProduccionOpen] = useState(false);
 
     const [selectedLote, setSelectedLote] = useState(null);
 
@@ -42,10 +44,15 @@ const Recepcion = () => {
 
     const handleToggleEstado = async (lote) => {
         if (!lote) return;
-        if (!isAdmin) return;
 
         const nuevoEstado = !lote.estado;
         const accion = nuevoEstado ? "Reabrir" : "Cerrar";
+
+        // Operario solo puede cerrar, no reabrir
+        if (!isAdmin && nuevoEstado === true) {
+            showErrorAlert('Sin permiso', 'Solo un administrador puede reabrir un lote.');
+            return;
+        }
 
         if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${lote.codigo}?`)) return;
 
@@ -53,7 +60,7 @@ const Recepcion = () => {
             const response = await updateLote(lote.id, { estado: nuevoEstado });
 
             if (response.status === 'Success') {
-                showSuccessAlert('¡Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
+                showSuccessAlert('\u00a1Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
                 fetchLotes();
             } else {
                 showErrorAlert('Error', response.message || "No se pudo cambiar el estado.");
@@ -78,7 +85,24 @@ const Recepcion = () => {
     };
 
     const columns = [
-        { header: "Lote", accessor: "codigo" },
+        {
+            header: "Lote",
+            render: (row) => (
+                <span
+                    onClick={(e) => { e.stopPropagation(); navigate(`/recepcion/${row.id}`); }}
+                    style={{
+                        color: '#1a6bbf',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap'
+                    }}
+                    title="Ver detalle del lote"
+                >
+                    {row.codigo}
+                </span>
+            )
+        },
         { header: "Recepción", accessor: "fechaFormateada" },
         { header: "Proveedor", accessor: "proveedorNombre" },
         { header: "Especie", accessor: "materiaPrimaNombre" },
@@ -107,43 +131,50 @@ const Recepcion = () => {
                 </span>
             )
         },
-        ...(isAdmin ? [{
+        {
             header: "Acciones",
             render: (row) => (
                 <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                    {/* EDIT */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
-                        className='btn-icon-circle btn-icon-edit'
-                        title="Editar"
-                    >
-                        ✎
-                    </button>
+                    {/* EDIT - Solo admin */}
+                    {isAdmin && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
+                            className='btn-icon-circle btn-icon-edit'
+                            title="Editar"
+                        >
+                            ✎
+                        </button>
+                    )}
 
-                    {/* TOGGLE STATE */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
-                        title={row.estado ? "Cerrar Lote" : "Reabrir Lote"}
-                        className={`btn-icon-circle ${row.estado ? 'btn-icon-warning' : 'btn-icon-action'}`}
-                    >
-                        {row.estado ? "🔒" : "🔓"}
-                    </button>
+                    {/* TOGGLE STATE - Admin: puede abrir y cerrar. Operario: solo puede cerrar */}
+                    {(isAdmin || row.estado) && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
+                            title={row.estado ? (isAdmin ? "Cerrar Lote" : "Bloquear Lote") : "Reabrir Lote (admin)"}
+                            className={`btn-icon-circle ${row.estado ? 'btn-icon-warning' : 'btn-icon-action'}`}
+                            disabled={!isAdmin && !row.estado}
+                        >
+                            {row.estado ? "🔒" : "🔓"}
+                        </button>
+                    )}
 
-                    {/* DELETE */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setDataLote(row);
-                            handleDelete();
-                        }}
-                        className='btn-icon-circle btn-icon-delete'
-                        title="Eliminar"
-                    >
-                        🗑
-                    </button>
+                    {/* DELETE - Solo admin */}
+                    {isAdmin && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setDataLote(row);
+                                handleDelete();
+                            }}
+                            className='btn-icon-circle btn-icon-delete'
+                            title="Eliminar"
+                        >
+                            🗑
+                        </button>
+                    )}
                 </div>
             )
-        }] : [])
+        }
     ];
 
 
@@ -183,7 +214,7 @@ const Recepcion = () => {
                         <div className='action-buttons' style={{ display: 'flex', gap: '10px' }}>
                             <TouchButton
                                 onClick={() => setIsCreateOpen(true)}
-                                variant="primary"
+                                variant="success"
                                 size="medium"
                             >
                                 + Nuevo Ingreso
@@ -203,14 +234,22 @@ const Recepcion = () => {
                                 }}
                                 className="btn-new"
                                 disabled={!selectedLote}
-                                style={{
-                                    backgroundColor: selectedLote ? '#003366' : '#ccc',
-                                    cursor: selectedLote ? 'pointer' : 'not-allowed',
-                                }}
                             >
                                 Nueva Producción
                             </button>
                         </div>
+
+                        {/* Botón Corregir Producción - solo si el lote tiene un registro real en producciones */}
+                        {selectedLote && selectedLote.en_proceso_produccion === true && (
+                            <button
+                                onClick={() => setIsEditProduccionOpen(true)}
+                                className="btn-new"
+                                style={{ padding: '10px 18px' }}
+                                title="Corregir los kilos de producción (solo una vez permitido)"
+                            >
+                                ✏️ Corregir Producción
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -255,17 +294,19 @@ const Recepcion = () => {
                             <option value="Abierto">Abierto</option>
                             <option value="Cerrado">Cerrado</option>
                         </select>
+                        <button
+                            onClick={() => setFilters({ codigo: '', proveedorNombre: '', materiaPrimaNombre: '', fechaFormateada: '', estadoTexto: '' })}
+                            className="btn-cancel"
+                            style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}
+                        >
+                            Limpiar
+                        </button>
                     </div>
 
                     <Table
                         columns={columns}
                         data={filteredLotes}
                         onRowClick={handleRowClick}
-                        onRowDoubleClick={(row) => {
-                            if (row && row.id) {
-                                navigate(`/recepcion/${row.id}`);
-                            }
-                        }}
                         selectedId={selectedLote?.id}
                     />
                 </div>
@@ -277,6 +318,16 @@ const Recepcion = () => {
             <PopupNuevaProduccion
                 show={isInputKilosOpen}
                 setShow={setIsInputKilosOpen}
+                selectedLote={selectedLote}
+                onSuccess={() => {
+                    fetchLotes();
+                    setSelectedLote(null);
+                }}
+            />
+
+            <PopupEditarProduccion
+                show={isEditProduccionOpen}
+                setShow={setIsEditProduccionOpen}
                 selectedLote={selectedLote}
                 onSuccess={() => {
                     fetchLotes();

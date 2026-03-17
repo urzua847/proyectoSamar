@@ -10,3 +10,9 @@ export const createProduccionYieldValidation = Joi.object({
   peso_pinzas: Joi.number().min(0).required(),
   observacion: Joi.string().allow('', null).optional()
 }).unknown(false);
+
+export const updateProduccionYieldValidation = Joi.object({
+  peso_carne_blanca: Joi.number().min(0).required(),
+  peso_pinzas: Joi.number().min(0).required(),
+  observacion: Joi.string().allow('', null).optional()
+}).unknown(false);

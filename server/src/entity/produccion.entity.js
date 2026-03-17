@@ -35,6 +35,12 @@ const ProduccionSchema = new EntitySchema({
       type: "text",
       nullable: true,
     },
+    editada: {
+      type: "boolean",
+      default: false,
+      nullable: false,
+      comment: "True si ya fue editada una vez. No se permite una segunda edición."
+    },
     fecha_produccion: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",

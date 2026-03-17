@@ -201,51 +201,77 @@ const MantenedorEntidades = () => {
 
                 {isModalOpen && (
                     <div className="bg">
-                        <div className="popup" style={{ maxWidth: '600px' }}>
-                            <button className="close" onClick={() => setIsModalOpen(false)}>X</button>
-                            <h2 style={{ marginBottom: '20px' }}>{isEditMode ? 'Editar Entidad' : 'Nueva Entidad'}</h2>
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '5px' }}>Nombre *</label>
-                                        <input className="form-control" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required />
+                        <div className="popup" style={{ maxWidth: '620px', width: '95%', padding: '0', overflow: 'hidden' }}>
+                            {/* Header bar */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, #003366 0%, #00509e 100%)',
+                                padding: '20px 28px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <h2 style={{ color: '#fff', margin: 0, fontSize: '1.3rem', fontWeight: '700', letterSpacing: '0.3px' }}>
+                                    {isEditMode ? 'Editar Entidad' : 'Nueva Entidad'}
+                                </h2>
+                                <button className="close" onClick={() => setIsModalOpen(false)} style={{
+                                    position: 'static',
+                                    background: 'rgba(255,255,255,0.15)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '30px',
+                                    height: '30px',
+                                    cursor: 'pointer',
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>✕</button>
+                            </div>
+                            {/* Body */}
+                            <div style={{ padding: '28px 32px 32px' }}>
+                                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Nombre *</label>
+                                            <input className="form-control" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required style={{ padding: '10px 12px' }} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Tipo *</label>
+                                            <select className="form-control" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} disabled={isEditMode} style={{ padding: '10px 12px' }}>
+                                                <option value="cliente">Cliente</option>
+                                                <option value="proveedor">Proveedor</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>RUT</label>
+                                            <input className="form-control" value={form.rut} onChange={e => setForm({ ...form, rut: e.target.value })} style={{ padding: '10px 12px' }} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Teléfono</label>
+                                            <input className="form-control" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} style={{ padding: '10px 12px' }} />
+                                        </div>
                                     </div>
 
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '5px' }}>Tipo *</label>
-                                        <select className="form-control" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} disabled={isEditMode}>
-                                            <option value="cliente">Cliente</option>
-                                            <option value="proveedor">Proveedor</option>
-                                        </select>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Email</label>
+                                        <input type="email" className="form-control" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={{ padding: '10px 12px' }} />
                                     </div>
-                                </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '5px' }}>RUT</label>
-                                        <input className="form-control" value={form.rut} onChange={e => setForm({ ...form, rut: e.target.value })} />
+                                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Dirección</label>
+                                        <input className="form-control" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={{ padding: '10px 12px' }} />
                                     </div>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '5px' }}>Teléfono</label>
-                                        <input className="form-control" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
+
+                                    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginTop: '4px' }}>
+                                        <button type="submit" className="btn-new" style={{ width: '100%', padding: '12px', fontSize: '1rem' }}>Guardar</button>
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '5px' }}>Email</label>
-                                    <input type="email" className="form-control" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '5px' }}>Dirección</label>
-                                    <input className="form-control" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} />
-                                </div>
-
-                                <div style={{ marginTop: '10px' }}>
-                                    <button type="submit" className="btn-save" style={{ width: '100%' }}>Guardar</button>
-                                </div>
-                            </form>
-                        </div>
+                                </form>
+                            </div>{/* /Body */}
+                        </div>{/* /popup */}
                     </div>
                 )}
             </div>

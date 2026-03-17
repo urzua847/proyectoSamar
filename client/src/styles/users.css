@@ -85,12 +85,32 @@
 
 .btn-new {
     background-color: #10b981 !important;
-    /* Actualizado: verde moderno (Excel) */
     color: white !important;
 }
 
 .btn-new:hover {
     background-color: #059669 !important;
+    transform: translateY(-1px);
+}
+
+/* Botones en zona superior (top-table / action-buttons) siempre verdes */
+.top-table .btn-save,
+.action-buttons .btn-save,
+.top-table button.btn-save,
+.action-buttons button.btn-save {
+    background-color: #10b981 !important;
+}
+
+.top-table .btn-save:hover,
+.action-buttons .btn-save:hover {
+    background-color: #059669 !important;
+}
+
+/* Botón naranja "Corregir Produccion" → también verde en zona superior */
+.top-table button[style*="e67e22"],
+.action-buttons button[style*="e67e22"] {
+    background-color: #10b981 !important;
+    color: white !important;
 }
 
 .btn-edit {
@@ -327,4 +347,21 @@
 
 .btn-cancel:hover {
     background-color: #475569 !important;
+}
+
+/* ---- INPUT FECHA ---- */
+/* Los type="date" nativos siempre muestran picker y permiten escritura */
+input[type="date"].search-input {
+    cursor: pointer;
+    min-width: 140px;
+}
+
+input[type="date"].search-input::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+    filter: invert(30%) sepia(100%) saturate(500%) hue-rotate(180deg);
+}
+
+input[type="date"].search-input:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
 }

@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from '../services/root.service.js';
 import { format as formatTempo } from "@formkit/tempo";
 import '../styles/users.css';
 import '../styles/pedidos.css';
-import { getClientes } from '../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 
 const Despachos = () => {
     const [orderHistory, setOrderHistory] = useState([]);
-    const [clientesList, setClientesList] = useState([]);
 
-    // Filtros Historial
+    // Filtros locales
     const [historialFilters, setHistorialFilters] = useState({
         cliente: '',
         fecha_desde: '',
@@ -20,29 +18,20 @@ const Despachos = () => {
 
     useEffect(() => {
         fetchHistory();
-        getClientes().then(data => setClientesList(data || []));
     }, []);
 
+    // Carga TODOS los datos sin filtros
     const fetchHistory = async () => {
         try {
-            // Construir query params con filtros
-            const params = new URLSearchParams();
-            if (historialFilters.cliente) params.append('cliente', historialFilters.cliente);
-            if (historialFilters.fecha_desde) params.append('fecha_desde', historialFilters.fecha_desde);
-            if (historialFilters.fecha_hasta) params.append('fecha_hasta', historialFilters.fecha_hasta);
-            if (historialFilters.numero_guia) params.append('numero_guia', historialFilters.numero_guia);
-
-            const url = `/pedidos${params.toString() ? '?' + params.toString() : ''}`;
-            const response = await axios.get(url);
+            const response = await axios.get('/pedidos');
             const responseData = response.data.data;
             const rawData = responseData.data || responseData;
 
-            if (!Array.isArray(rawData)) {
-                setOrderHistory([]);
-                return;
-            }
+            if (!Array.isArray(rawData)) { setOrderHistory([]); return; }
+
             const data = rawData.map(v => ({
                 id: v.id,
+                fechaISO: v.fecha,  // guardamos la fecha original para comparar
                 fecha: formatTempo(v.fecha, "DD-MM-YYYY HH:mm"),
                 cliente: v.cliente,
                 guia: v.numero_guia || '-',
@@ -57,21 +46,26 @@ const Despachos = () => {
         }
     };
 
-    // Función para aplicar filtros
-    const handleApplyFilters = () => {
-        fetchHistory();
-    };
+    // Filtrado local instantáneo con useMemo
+    const filteredHistory = useMemo(() => {
+        return orderHistory.filter(item => {
+            const matchCliente = !historialFilters.cliente ||
+                (item.cliente || '').toLowerCase().includes(historialFilters.cliente.toLowerCase());
 
-    // Función para limpiar filtros
-    const handleClearFilters = () => {
-        setHistorialFilters({
-            cliente: '',
-            fecha_desde: '',
-            fecha_hasta: '',
-            numero_guia: ''
+            const matchGuia = !historialFilters.numero_guia ||
+                (item.guia || '').toLowerCase().includes(historialFilters.numero_guia.toLowerCase());
+
+            const itemDate = item.fechaISO ? item.fechaISO.slice(0, 10) : '';
+            const matchDesde = !historialFilters.fecha_desde || itemDate >= historialFilters.fecha_desde;
+            const matchHasta = !historialFilters.fecha_hasta || itemDate <= historialFilters.fecha_hasta;
+
+            return matchCliente && matchGuia && matchDesde && matchHasta;
         });
-        // Forzar refetch sin filtros
-        setTimeout(() => fetchHistory(), 100);
+    }, [orderHistory, historialFilters]);
+
+    // Limpiar filtros
+    const handleClearFilters = () => {
+        setHistorialFilters({ cliente: '', fecha_desde: '', fecha_hasta: '', numero_guia: '' });
     };
 
     // Exportar a Excel
@@ -148,59 +142,51 @@ const Despachos = () => {
                 <div className="top-table" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h1 className="title-table" style={{ margin: 0 }}>Historial de Despachos</h1>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={handleExportExcel} className="btn-save" style={{ padding: '8px 16px' }}>
+                        <button onClick={handleExportExcel} className="btn-new" style={{ padding: '8px 16px' }}>
                             Exportar Excel
                         </button>
-                        <button onClick={handleExportPDF} className="btn-cancel" style={{ padding: '8px 16px', backgroundColor: '#ef4444' }}>
+                        <button onClick={handleExportPDF} className="btn-delete" style={{ padding: '8px 16px' }}>
                             Exportar PDF
                         </button>
                     </div>
                 </div>
 
                 <div className="table-container-box">
-                    {/* Filtros y Botones en una sola línea */}
-                    <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <h3 style={{ color: '#003366', marginTop: '0', marginBottom: '15px', fontSize: '1rem' }}>Filtros de Búsqueda</h3>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <input
-                                type="text"
-                                placeholder="Cliente..."
-                                value={historialFilters.cliente}
-                                onChange={e => setHistorialFilters({ ...historialFilters, cliente: e.target.value })}
-                                className="search-input"
-                                style={{ flex: '1 1 180px', minWidth: '180px' }}
-                            />
-                            <input
-                                type="date"
-                                placeholder="Desde"
-                                value={historialFilters.fecha_desde}
-                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
-                                className="search-input"
-                                style={{ flex: '1 1 160px', minWidth: '160px' }}
-                            />
-                            <input
-                                type="date"
-                                placeholder="Hasta"
-                                value={historialFilters.fecha_hasta}
-                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
-                                className="search-input"
-                                style={{ flex: '1 1 160px', minWidth: '160px' }}
-                            />
-                            <input
-                                type="text"
-                                placeholder="N° Guía..."
-                                value={historialFilters.numero_guia}
-                                onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
-                                className="search-input"
-                                style={{ flex: '1 1 140px', minWidth: '140px' }}
-                            />
-                            <button onClick={handleApplyFilters} className="btn-save" style={{ padding: '8px 16px' }}>
-                                Aplicar Filtros
-                            </button>
-                            <button onClick={handleClearFilters} className="btn-cancel" style={{ padding: '8px 16px' }}>
-                                Limpiar
-                            </button>
-                        </div>
+                    {/* Filtros */}
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="Cliente..."
+                            value={historialFilters.cliente}
+                            onChange={e => setHistorialFilters({ ...historialFilters, cliente: e.target.value })}
+                            className="search-input"
+                        />
+                        <input
+                            type="date"
+                            value={historialFilters.fecha_desde}
+                            onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
+                            className="search-input"
+                            title="Fecha desde"
+                            placeholder="Desde..."
+                        />
+                        <input
+                            type="date"
+                            value={historialFilters.fecha_hasta}
+                            onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
+                            className="search-input"
+                            title="Fecha hasta"
+                            placeholder="Hasta..."
+                        />
+                        <input
+                            type="text"
+                            placeholder="N° Guía..."
+                            value={historialFilters.numero_guia}
+                            onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
+                            className="search-input"
+                        />
+                        <button onClick={handleClearFilters} className="btn-cancel" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
+                            Limpiar
+                        </button>
                     </div>
 
 
@@ -225,7 +211,7 @@ const Despachos = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {orderHistory.map((pedido) => {
+                                {filteredHistory.map((pedido) => {
                                     const products = pedido.details || [];
 
                                     // Agrupar productos por nombre + calibre

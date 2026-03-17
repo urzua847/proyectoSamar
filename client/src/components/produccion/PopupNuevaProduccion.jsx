@@ -57,7 +57,7 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
 
     return (
         <div className="bg">
-            <div className="popup" style={{ width: '500px', borderRadius: '12px', padding: '30px' }}>
+            <div className="popup" style={{ padding: '30px' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
 
                 <h2 style={{ color: '#003366', marginBottom: '10px', textAlign: 'center' }}>
