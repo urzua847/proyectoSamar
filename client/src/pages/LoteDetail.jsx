@@ -132,7 +132,25 @@ const LoteDetail = () => {
 
                 {/* Sección Resultados de Producción */}
                 <div className="section-box">
-                    <span className="section-title">Resultados de Producción</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <span className="section-title" style={{ margin: 0 }}>Resultados de Producción</span>
+                        {!lote.estado && (
+                            <span style={{
+                                background: '#fef2f2',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}>
+                                🔒 Lote Cerrado (Ingresos Bloqueados)
+                            </span>
+                        )}
+                    </div>
                     <div className="form-grid">
                         <div>
                             <div className="form-row">
@@ -161,6 +179,70 @@ const LoteDetail = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Tarjeta de Merma y Porcentaje de Pérdida */}
+                    {Number(lote.merma_kg || 0) > 0 && (
+                        <div style={{
+                            marginTop: '20px',
+                            padding: '14px 18px',
+                            background: '#f8f9fa',
+                            border: '1px solid #ced4da',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    background: '#e9ecef',
+                                    color: '#495057',
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem'
+                                }}>
+                                    !
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: '600', color: '#343a40', fontSize: '0.95rem' }}>
+                                        Merma Registrada (Cierre de Lote)
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '2px' }}>
+                                        Diferencia entre el total producido y el ingreso final a cámara
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                <div style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: '700',
+                                    color: '#212529',
+                                    fontFamily: 'Consolas, "Courier New", monospace'
+                                }}>
+                                    {Number(lote.merma_kg).toFixed(2)} <span style={{ fontSize: '0.85rem', fontWeight: '500', color: '#6c757d' }}>Kg</span>
+                                </div>
+                                <div style={{
+                                    padding: '4px 10px',
+                                    background: '#e9ecef',
+                                    color: '#495057',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    fontWeight: '600',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    {lote.peso_total_producido
+                                        ? ((Number(lote.merma_kg) / Number(lote.peso_total_producido)) * 100).toFixed(2)
+                                        : '0.00'}% de pérdida
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Botón extra decorativo opcional o nada */}

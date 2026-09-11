@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import axios from '../services/root.service.js';
 import { format as formatTempo } from "@formkit/tempo";
 import '../styles/users.css';
@@ -7,6 +7,11 @@ import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 
 const Despachos = () => {
     const [orderHistory, setOrderHistory] = useState([]);
+    const [expandedRows, setExpandedRows] = useState({});
+
+    const toggleRow = (id) => {
+        setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     // Filtros locales
     const [historialFilters, setHistorialFilters] = useState({
@@ -161,22 +166,26 @@ const Despachos = () => {
                             onChange={e => setHistorialFilters({ ...historialFilters, cliente: e.target.value })}
                             className="search-input"
                         />
-                        <input
-                            type="date"
-                            value={historialFilters.fecha_desde}
-                            onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
-                            className="search-input"
-                            title="Fecha desde"
-                            placeholder="Desde..."
-                        />
-                        <input
-                            type="date"
-                            value={historialFilters.fecha_hasta}
-                            onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
-                            className="search-input"
-                            title="Fecha hasta"
-                            placeholder="Hasta..."
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#fff', padding: '0 8px', borderRadius: '4px', border: '1px solid #ccc', height: '38px' }}>
+                            <span style={{ fontSize: '0.85rem', color: '#666' }}>Desde:</span>
+                            <input
+                                type="date"
+                                value={historialFilters.fecha_desde}
+                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_desde: e.target.value })}
+                                style={{ border: 'none', outline: 'none', backgroundColor: 'transparent' }}
+                                title="Fecha desde"
+                            />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#fff', padding: '0 8px', borderRadius: '4px', border: '1px solid #ccc', height: '38px' }}>
+                            <span style={{ fontSize: '0.85rem', color: '#666' }}>Hasta:</span>
+                            <input
+                                type="date"
+                                value={historialFilters.fecha_hasta}
+                                onChange={e => setHistorialFilters({ ...historialFilters, fecha_hasta: e.target.value })}
+                                style={{ border: 'none', outline: 'none', backgroundColor: 'transparent' }}
+                                title="Fecha hasta"
+                            />
+                        </div>
                         <input
                             type="text"
                             placeholder="N° Guía..."
@@ -213,6 +222,7 @@ const Despachos = () => {
                             <tbody>
                                 {filteredHistory.map((pedido) => {
                                     const products = pedido.details || [];
+                                    const isExpanded = expandedRows[pedido.id];
 
                                     // Agrupar productos por nombre + calibre
                                     const groupedProducts = products.reduce((acc, p) => {
@@ -234,18 +244,27 @@ const Despachos = () => {
                                     }, {});
 
                                     const productList = Object.values(groupedProducts);
-                                    const rowCount = productList.length || 1;
 
-                                    if (productList.length === 0) {
-                                        return (
-                                            <tr key={pedido.id}>
-                                                <td>{pedido.id}</td>
+                                    return (
+                                        <Fragment key={pedido.id}>
+                                            <tr 
+                                                onClick={() => toggleRow(pedido.id)}
+                                                style={{ cursor: 'pointer', backgroundColor: isExpanded ? '#f8fafc' : 'white', transition: 'background-color 0.2s' }}
+                                            >
+                                                <td style={{ fontWeight: '600' }}>
+                                                    <span style={{ marginRight: '8px', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', fontSize: '0.8rem' }}>
+                                                        ▶
+                                                    </span>
+                                                    {pedido.id}
+                                                </td>
                                                 <td>{pedido.fecha}</td>
                                                 <td>{pedido.cliente}</td>
-                                                <td>{pedido.guia}</td>
-                                                <td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8' }}>Sin productos</td>
-                                                <td style={{ textAlign: 'center' }}>{pedido.totalKilos}</td>
-                                                <td style={{ textAlign: 'center' }}>{pedido.totalItems}</td>
+                                                <td style={{ fontWeight: '600', color: '#3b82f6' }}>{pedido.guia}</td>
+                                                <td colSpan={5} style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                                                    {productList.length} tipo(s) de producto
+                                                </td>
+                                                <td style={{ textAlign: 'center', fontWeight: '600' }}>{pedido.totalKilos}</td>
+                                                <td style={{ textAlign: 'center', fontWeight: '600' }}>{pedido.totalItems}</td>
                                                 <td style={{ textAlign: 'center' }}>
                                                     <span style={{
                                                         padding: '4px 8px',
@@ -258,57 +277,43 @@ const Despachos = () => {
                                                     </span>
                                                 </td>
                                             </tr>
-                                        );
-                                    }
-
-                                    return productList.map((product, idx) => (
-                                        <tr key={`${pedido.id}-${idx}`} style={{
-                                            borderBottom: idx === productList.length - 1 ? '2px solid #cbd5e1' : 'none'
-                                        }}>
-                                            {idx === 0 && (
-                                                <>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle', fontWeight: '600' }}>
-                                                        {pedido.id}
+                                            
+                                            {isExpanded && (
+                                                <tr style={{ backgroundColor: '#f8fafc' }}>
+                                                    <td colSpan={12} style={{ padding: '0' }}>
+                                                        <div style={{ padding: '15px 40px', borderBottom: '2px solid #cbd5e1' }}>
+                                                            {productList.length === 0 ? (
+                                                                <p style={{ margin: 0, color: '#64748b', fontStyle: 'italic' }}>Sin productos registrados en este pedido.</p>
+                                                            ) : (
+                                                                <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                                                                    <thead style={{ backgroundColor: '#f1f5f9' }}>
+                                                                        <tr>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Producto</th>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Calibre</th>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Cajas</th>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Kilos/Caja</th>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Total Kilos</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {productList.map((product, idx) => (
+                                                                            <tr key={idx} style={{ borderBottom: idx === productList.length - 1 ? 'none' : '1px solid #e2e8f0' }}>
+                                                                                <td style={{ padding: '8px 12px' }}>{product.nombre}</td>
+                                                                                <td style={{ padding: '8px 12px' }}>{product.calibre}</td>
+                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>{product.totalCajas}</td>
+                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>{(product.totalKilos / product.totalCajas).toFixed(2)}</td>
+                                                                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '500' }}>{product.totalKilos.toFixed(2)}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            )}
+                                                        </div>
                                                     </td>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle' }}>
-                                                        {pedido.fecha}
-                                                    </td>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle' }}>
-                                                        {pedido.cliente}
-                                                    </td>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle', fontWeight: '600', color: '#3b82f6' }}>
-                                                        {pedido.guia}
-                                                    </td>
-                                                </>
+                                                </tr>
                                             )}
-                                            <td>{product.nombre}</td>
-                                            <td>{product.calibre}</td>
-                                            <td style={{ textAlign: 'center' }}>{product.totalCajas}</td>
-                                            <td style={{ textAlign: 'center' }}>{(product.totalKilos / product.totalCajas).toFixed(2)}</td>
-                                            <td style={{ textAlign: 'center' }}>{product.totalKilos.toFixed(2)}</td>
-                                            {idx === 0 && (
-                                                <>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle', textAlign: 'center', fontWeight: '600' }}>
-                                                        {pedido.totalKilos}
-                                                    </td>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle', textAlign: 'center', fontWeight: '600' }}>
-                                                        {pedido.totalItems}
-                                                    </td>
-                                                    <td rowSpan={rowCount} style={{ verticalAlign: 'middle', textAlign: 'center' }}>
-                                                        <span style={{
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            backgroundColor: '#dbeafe',
-                                                            color: '#1e40af',
-                                                            fontSize: '0.85rem'
-                                                        }}>
-                                                            {pedido.estado}
-                                                        </span>
-                                                    </td>
-                                                </>
-                                            )}
-                                        </tr>
-                                    ));
+                                        </Fragment>
+                                    );
                                 })}
                             </tbody>
                         </table>

@@ -80,20 +80,24 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
     if (!show) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ width: '950px', maxWidth: '98%' }}>
+        <div className="bg" onClick={() => setShow(false)}>
+            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '950px', maxWidth: '98%' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '20px' }}>
                     {dataToEdit ? `Editar Lote ${dataToEdit.codigo}` : "Nueva Recepción"}
                 </h2>
 
                 <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '20px' }}>
-                    <div className="content-wrapper" style={{ gap: '30px', alignItems: 'flex-start', flex: 1 }}>
+                    <div className="popup-grid-2" style={{ flex: 1 }}>
 
                         {/* --- IZQUIERDA: DATOS DEL LOTE --- */}
-                        <div className="form-section" style={{ flex: 1 }}>
-                            <div className="form" style={{ width: '100%', padding: 0, boxShadow: 'none', background: 'transparent' }}>
+                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <h3 className="popup-section-title">
+                                <span className="popup-step-badge">1</span>
+                                Detalles Generales
+                            </h3>
 
+                            <div className="form" style={{ width: '100%', padding: 0, boxShadow: 'none', background: 'transparent' }}>
                                 <div className="container_inputs">
                                     <label>Proveedor</label>
                                     <select {...register("proveedor", { required: "Requerido" })}>
@@ -114,10 +118,13 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
 
                                 {/* ---Production Data (Only in Edit Mode)--- */}
                                 {dataToEdit && (
-                                    <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                        <h4 style={{ margin: '0 0 10px 0', color: '#003366' }}>Datos de Producción</h4>
+                                    <>
+                                        <hr className="popup-divider" />
+                                        <h4 style={{ margin: '0 0 10px 0', color: '#003366', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            Rendimientos (Opcional)
+                                        </h4>
 
-                                        <div style={{ display: 'flex', gap: '15px' }}>
+                                        <div className="popup-grid-2" style={{ gap: '15px' }}>
                                             <div className="container_inputs" style={{ flex: 1 }}>
                                                 <label>Carne Blanca (Kg)</label>
                                                 <input
@@ -138,24 +145,24 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                                             </div>
                                         </div>
 
-                                        <div className="container_inputs">
-                                            <label>Observación</label>
+                                        <div className="container_inputs" style={{ marginTop: '15px' }}>
+                                            <label>Observación de Producción</label>
                                             <textarea
                                                 {...register("observacion_produccion")}
                                                 rows="2"
-                                                placeholder="Observaciones de producción..."
-                                                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '5px' }}
+                                                placeholder="Ej. Problemas de calidad..."
                                             />
                                         </div>
-                                    </div>
+                                    </>
                                 )}
                             </div>
                         </div>
 
                         {/* --- DERECHA: REGISTRO DE TANDAS (MEJORADO) --- */}
-                        <div className="weight-section" style={{ flex: 1.2, padding: '20px', border: '1px solid #ddd', display: 'flex', flexDirection: 'column' }}>
-                            <h3 style={{ marginTop: 0, color: '#003366', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
-                                Registro de Tandas
+                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '20px' }}>
+                            <h3 className="popup-section-title">
+                                <span className="popup-step-badge">2</span>
+                                Registro de Pesajes
                             </h3>
 
                             {/* Fila de Inputs */}
@@ -258,18 +265,16 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                             </div>
                         </div>
                     </div>
-
-                    {/* Footer con Botón Guardar Centrado */}
-                    <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
+                    {/* Footer Estándar */}
+                    <div className="popup-actions">
+                        <button type="button" className="btn-cancel" onClick={() => setShow(false)}>
+                            Cancelar
+                        </button>
                         <button
                             type="submit"
                             disabled={pesadas.length === 0}
                             className="btn-save"
-                            style={{
-                                width: 'auto',
-                                minWidth: '200px',
-                                opacity: pesadas.length === 0 ? 0.6 : 1
-                            }}
+                            style={{ opacity: pesadas.length === 0 ? 0.6 : 1 }}
                         >
                             {dataToEdit ? "Guardar Cambios" : "Registrar Lote"}
                         </button>

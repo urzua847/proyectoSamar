@@ -149,6 +149,13 @@ export async function updateLoteService(id, data, user = null) {
         
         if (!lote) return [null, "Lote no encontrado"];
 
+        // Guardar estado previo para la auditoría
+        const previousData = {
+            peso_bruto_kg: Number(lote.peso_bruto_kg),
+            estado: lote.estado,
+            en_proceso_produccion: lote.en_proceso_produccion
+        };
+
         const tieneProduccion = (lote.productosTerminados && lote.productosTerminados.length > 0) || lote.en_proceso_produccion;
 
         const intentaEditarFisico = 
@@ -186,8 +193,8 @@ export async function updateLoteService(id, data, user = null) {
         const loteActualizado = await loteRepository.save(lote);
         
         // Registrar en auditoría
-        await logUpdate('LoteRecepcion', lote.id, null, {
-          peso_bruto_kg: loteActualizado.peso_bruto_kg,
+        await logUpdate('LoteRecepcion', lote.id, previousData, {
+          peso_bruto_kg: Number(loteActualizado.peso_bruto_kg),
           estado: loteActualizado.estado,
           en_proceso_produccion: loteActualizado.en_proceso_produccion
         }, user);

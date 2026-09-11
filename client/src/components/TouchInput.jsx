@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types';
 import './TouchInput.css';
 
 /**
@@ -62,23 +61,5 @@ const TouchInput = ({
     );
 };
 
-TouchInput.propTypes = {
-    label: PropTypes.string,
-    type: PropTypes.string,
-    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    onChange: PropTypes.func.isRequired,
-    placeholder: PropTypes.string,
-    disabled: PropTypes.bool,
-    required: PropTypes.bool,
-    error: PropTypes.string,
-    helperText: PropTypes.string,
-    icon: PropTypes.node,
-    fullWidth: PropTypes.bool,
-    min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    step: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    name: PropTypes.string,
-    id: PropTypes.string
-};
-
 export default TouchInput;
+

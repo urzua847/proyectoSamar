@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../services/root.service.js';
+import { showToastSuccess, showToastError, showToastWarning } from '../../helpers/sweetAlert.js';
 import '../../styles/popup.css';
 import '../../styles/table.css';
 
@@ -27,7 +28,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const fetchContenedores = async () => {
         try {
             const response = await axios.get('/ubicaciones');
-            const conts = response.data.data.filter(u => u.tipo === 'contenedor');
+            const conts = (response.data?.data || []).filter(u => u.tipo === 'contenedor');
             setContenedores(conts);
         } catch (error) {
             console.error("Error fetching ubicaciones", error);
@@ -37,9 +38,10 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
     const fetchStockCamara = async () => {
         try {
             const response = await axios.get('/envasado/stock/camaras');
-            setStockCamara(response.data.data);
+            setStockCamara(response.data?.data || []);
         } catch (error) {
             console.error("Error fetching stock camara", error);
+            setStockCamara([]);
         }
     };
 
@@ -56,6 +58,13 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         }));
     };
 
+    // Validar si algún movimiento excede el stock disponible
+    const hasExceededStock = (stockCamara || []).some(item => {
+        const uniqueKey = `${item.definicionProductoId}__${item.calibre || 'null'}`;
+        const qty = Number(movements[uniqueKey] || 0);
+        return qty > Number(item.totalCantidad || 0);
+    });
+
     const handleSubmit = async () => {
         // Prevenir doble clic
         if (isSubmittingRef.current) {
@@ -63,7 +72,9 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
             return;
         }
 
-        if (!selectedContenedor) return alert("Seleccione un contenedor de destino");
+        if (!selectedContenedor) return showToastWarning("Seleccione un contenedor de destino");
+
+        if (hasExceededStock) return showToastError("La cantidad ingresada supera el stock disponible en uno o más productos.");
 
         isSubmittingRef.current = true;
 
@@ -71,18 +82,19 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
         if (initialSelection && initialSelection.length > 0) {
             itemsToMove = initialSelection.map(item => {
-                const totalWeight = Number(item.peso_neto_kg);
-                const totalCount = Number(item.cantidad);
+                const enteredQty = Number(selectionMovements[item.id] || 0);
+                const totalWeight = Number(item.peso_neto_kg || 0);
+                const totalCount = Number(item.cantidad || 0);
                 const unitWeight = totalCount > 0 ? totalWeight / totalCount : 0;
-                const weightToMove = unitWeight * Number(item.cantidadTransfer);
+                let weightToMove = unitWeight * enteredQty;
 
                 return {
                     definicionProductoId: item.definicionProductoId,
                     calibre: item.calibre === '-' ? null : item.calibre,
-                    loteId: item.loteId,
-                    cantidad: Number(weightToMove.toFixed(2))
+                    loteId: item.loteId || null,
+                    cantidad: Number(weightToMove.toFixed(2)) || 0
                 };
-            });
+            }).filter(item => item.cantidad > 0);
         } else {
             itemsToMove = Object.entries(movements)
                 .filter(([_, qty]) => qty > 0)
@@ -94,9 +106,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     );
 
                     let weightToMove = 0;
-                    if (isPacking && Number(boxWeight) > 0) {
-                        weightToMove = Number(qty) * Number(boxWeight);
-                    } else if (stockItem) {
+                    if (stockItem) {
                         const totalWeight = Number(stockItem.totalKilos);
                         const totalCount = Number(stockItem.totalCantidad);
                         const unitWeight = totalCount > 0 ? totalWeight / totalCount : 0;
@@ -111,7 +121,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 });
         }
 
-        if (itemsToMove.length === 0) return alert("Ingrese cantidad a mover en al menos un producto.");
+        if (itemsToMove.length === 0) return showToastWarning("Ingrese cantidad a mover en al menos un producto.");
 
         try {
             const payload = {
@@ -124,12 +134,12 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
             }
 
             await axios.post('/traslado', payload);
-            alert("Traslado realizado con éxito");
+            showToastSuccess("Traslado realizado con éxito");
             onTrasladoSuccess();
             onClose();
         } catch (error) {
             console.error("Error en traslado", error);
-            alert("Error al trasladar: " + (error.response?.data?.message || error.message));
+            showToastError("Error al trasladar: " + (error.response?.data?.message || error.message));
         } finally {
             // Resetear el flag después de un delay
             setTimeout(() => {
@@ -138,33 +148,80 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         }
     };
 
+    const isSelectionMode = initialSelection && initialSelection.length > 0;
+    const [selectionMovements, setSelectionMovements] = useState({});
+
+    // Initialize selection movements when popup opens
+    useEffect(() => {
+        if (isSelectionMode) {
+            const initialMoves = {};
+            (initialSelection || []).forEach(item => {
+                initialMoves[item.id] = item.cantidadTransfer;
+            });
+            setSelectionMovements(initialMoves);
+        }
+    }, [isSelectionMode, initialSelection]);
+
     if (!isOpen) return null;
 
-    const isSelectionMode = initialSelection && initialSelection.length > 0;
-    const displayData = isSelectionMode ? initialSelection : stockCamara;
+    const handleSelectionInputChange = (id, value) => {
+        setSelectionMovements(prev => ({
+            ...prev,
+            [id]: value
+        }));
+    };
+
+    const hasSelectionExceededStock = isSelectionMode && (initialSelection || []).some(item => {
+        const qty = Number(selectionMovements[item.id] || 0);
+        return qty > Number(item.cantidad || 0); // item.cantidad is the max available for that row
+    });
+
+    const displayData = isSelectionMode ? (initialSelection || []) : (stockCamara || []);
 
     const showPackingOption = selectedContenedor !== '';
 
+    // Calculate total kilos to be moved for the dynamic summary
+    const totalKilosToMove = displayData.reduce((acc, item) => {
+        const enteredQty = isSelectionMode 
+            ? Number(selectionMovements[item.id] || 0)
+            : Number(movements[`${item.definicionProductoId}__${item.calibre || 'null'}`] || 0);
+
+        const totalWeight = Number(item.peso_neto_kg || item.totalKilos || 0);
+        const totalCount = Number(item.cantidad || item.totalCantidad || 0);
+        const unitWeight = totalCount > 0 ? totalWeight / totalCount : 0;
+        
+        return acc + (unitWeight * enteredQty);
+    }, 0);
+
+    const projectedBoxes = (isPacking && Number(boxWeight) > 0) 
+        ? Math.floor(totalKilosToMove / Number(boxWeight))
+        : 0;
+
     return (
-        <div className="bg">
-            <div className="popup" style={{ width: '900px', maxWidth: '98%' }}>
+        <div className="bg" onClick={onClose}>
+            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '900px', maxWidth: '98%' }}>
                 <button className='btn-close-x' onClick={onClose}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '10px' }}>
                     {isSelectionMode ? 'Confirmar Empaque y Traslado' : 'Mover Stock a Contenedor'}
                 </h2>
-                <div style={{ marginBottom: '15px', background: '#e3f2fd', padding: '10px', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9rem' }}>
-                    ℹ️ <strong>Modulo de Empaque:</strong> Seleccione productos de Cámara y muévalos a un Contenedor.
-                    El sistema convertirá los Kilos seleccionados en el destino. Indique cantidad de <strong>Bultos/Cajas</strong> si corresponde.
+                <div style={{ marginBottom: '20px', background: '#e3f2fd', padding: '12px 16px', borderRadius: '8px', color: '#0d47a1', fontSize: '0.9rem', border: '1px solid #bbdefb' }}>
+                    ℹ️ <strong>Módulo de Traslados:</strong> Mueva productos desde una Cámara hacia un Contenedor de destino.
+                    Indique la cantidad de <strong>Unidades a Mover</strong> y, opcionalmente, empaquételas en cajas usando el Paso 2.
                 </div>
 
-                <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#003366' }}>
-                        Destino (Contenedor)
+                {/* PASO 1: Destino */}
+                <div className="popup-section" style={{ padding: '20px' }}>
+                    <h3 className="popup-section-title">
+                        <span className="popup-step-badge">1</span>
+                        Seleccionar Destino
+                    </h3>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155' }}>
+                        Contenedor de Destino
                     </label>
                     <select
                         value={selectedContenedor}
                         onChange={handleContenedorChange}
-                        style={{ width: '100%', padding: '10px', fontSize: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ width: '100%', padding: '12px', fontSize: '1rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                         <option value="">-- Seleccionar --</option>
                         {contenedores.map(c => (
@@ -173,14 +230,18 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     </select>
                 </div>
 
-                {/* Packing Options */}
+                {/* PASO 2: Empaque Automático */}
                 {showPackingOption && (
-                    <div style={{ marginBottom: '20px', padding: '15px', background: '#e8f5e9', borderRadius: '8px', border: '1px solid #c8e6c9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#2e7d32' }}>
+                    <div className="popup-section" style={{ padding: '20px', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                        <h3 className="popup-section-title" style={{ color: '#166534', borderBottomColor: '#bbf7d0' }}>
+                            <span className="popup-step-badge" style={{ background: '#16a34a' }}>2</span>
+                            Empaque Automático (Opcional)
+                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#15803d' }}>
                                 <input
                                     type="checkbox"
-                                    style={{ width: '18px', height: '18px' }}
+                                    style={{ width: '20px', height: '20px', accentColor: '#16a34a' }}
                                     checked={isPacking}
                                     onChange={e => setIsPacking(e.target.checked)}
                                 />
@@ -188,26 +249,37 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                             </label>
 
                             {isPacking && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <label style={{ fontWeight: 'bold', color: '#424242' }}>Kilos por Caja:</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <label style={{ fontWeight: '600', color: '#334155' }}>Kilos por Caja:</label>
                                     <input
                                         type="number"
-                                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100px', textAlign: 'right' }}
+                                        style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '110px', textAlign: 'right' }}
                                         placeholder="Ej: 10"
                                         min="0.01"
                                         step="0.01"
                                         value={boxWeight}
                                         onChange={e => setBoxWeight(e.target.value)}
                                     />
-                                    <span style={{ fontSize: '0.85rem', color: '#616161' }}>(El sistema dividirá los kilos movidos en cajas de este peso)</span>
+                                    
+                                    {totalKilosToMove > 0 && Number(boxWeight) > 0 && (
+                                        <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '6px', fontWeight: '500', fontSize: '0.9rem', marginLeft: '10px' }}>
+                                            Moverás <strong>{totalKilosToMove.toFixed(2)} kg</strong> en total ➡️ Se crearán <strong>{projectedBoxes} cajas</strong> de {boxWeight} kg en el destino.
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                 )}
 
-                <div className="table-container-native" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    <table className="samar-table">
+                {/* PASO 3: Selección de Productos */}
+                <div className="popup-section" style={{ padding: 0, overflow: 'hidden' }}>
+                    <h3 className="popup-section-title" style={{ padding: '20px', margin: 0, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                        <span className="popup-step-badge">3</span>
+                        Productos a Trasladar
+                    </h3>
+                    <div className="table-container-native" style={{ maxHeight: '400px', overflowY: 'auto', border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+                        <table className="samar-table">
                         <thead>
                             <tr>
                                 <th>Producto</th>
@@ -216,14 +288,12 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                 {isSelectionMode ? (
                                     <>
                                         <th>Lote</th>
-                                        <th style={{ textAlign: 'right' }}>A Mover (Cant.)</th>
+                                        <th style={{ textAlign: 'right' }}>Unidades a Mover</th>
                                     </>
                                 ) : (
                                     <>
                                         <th style={{ textAlign: 'right' }}>Disponible (Unid)</th>
-                                        <th style={{ width: '150px' }}>
-                                            {isPacking ? 'Cant. Cajas Destino' : 'Mover (Unid)'}
-                                        </th>
+                                        <th style={{ width: '160px', textAlign: 'right' }}>Unidades a Mover</th>
                                     </>
                                 )}
                             </tr>
@@ -231,6 +301,8 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                         <tbody>
                             {displayData.map((item, idx) => {
                                 const uniqueKey = `${item.definicionProductoId}__${item.calibre || 'null'}`;
+                                const enteredQty = Number(movements[uniqueKey] || 0);
+                                const isExceeded = !isSelectionMode && enteredQty > Number(item.totalCantidad);
 
                                 return (
                                     <tr key={idx} className="hover-row">
@@ -243,8 +315,26 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                         {isSelectionMode ? (
                                             <>
                                                 <td>{item.loteCodigo}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#007bff' }}>
-                                                    {item.cantidadTransfer}
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        className="column-filter-input"
+                                                        style={{
+                                                            textAlign: 'right',
+                                                            fontWeight: 'bold',
+                                                            border: (Number(selectionMovements[item.id] || 0) > Number(item.cantidad)) ? '2px solid #ef4444' : '1px solid #ccc',
+                                                            backgroundColor: (Number(selectionMovements[item.id] || 0) > Number(item.cantidad)) ? '#fef2f2' : '#ffffff'
+                                                        }}
+                                                        min="0"
+                                                        max={item.cantidad}
+                                                        value={selectionMovements[item.id] !== undefined ? selectionMovements[item.id] : ''}
+                                                        onChange={(e) => handleSelectionInputChange(item.id, e.target.value)}
+                                                    />
+                                                    {(Number(selectionMovements[item.id] || 0) > Number(item.cantidad)) && (
+                                                        <div style={{ color: '#ef4444', fontSize: '0.75rem', textAlign: 'right', marginTop: '2px', fontWeight: 600 }}>
+                                                            Máx: {item.cantidad}
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </>
                                         ) : (
@@ -256,12 +346,22 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                                     <input
                                                         type="number"
                                                         className="column-filter-input"
-                                                        style={{ textAlign: 'right', fontWeight: 'bold' }}
+                                                        style={{
+                                                            textAlign: 'right',
+                                                            fontWeight: 'bold',
+                                                            border: isExceeded ? '2px solid #ef4444' : '1px solid #ccc',
+                                                            backgroundColor: isExceeded ? '#fef2f2' : '#ffffff'
+                                                        }}
                                                         min="0"
                                                         max={item.totalCantidad}
                                                         placeholder="0"
                                                         onChange={(e) => handleInputChange(uniqueKey, e.target.value)}
                                                     />
+                                                    {isExceeded && (
+                                                        <div style={{ color: '#ef4444', fontSize: '0.75rem', textAlign: 'right', marginTop: '2px', fontWeight: 600 }}>
+                                                            Supera stock ({item.totalCantidad})
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </>
                                         )}
@@ -274,10 +374,24 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                         </tbody>
                     </table>
                 </div>
+                </div>
 
-                <div style={{ padding: '20px', textAlign: 'right', gap: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} className="btn-cancel">Cancelar</button>
-                    <button onClick={handleSubmit} className="btn-save">Confirmar Traslado</button>
+                <div className="popup-actions">
+                    <button type="button" onClick={onClose} className="btn-cancel">
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        className="btn-save"
+                        disabled={hasExceededStock || hasSelectionExceededStock}
+                        style={{
+                            opacity: (hasExceededStock || hasSelectionExceededStock) ? 0.5 : 1,
+                            cursor: (hasExceededStock || hasSelectionExceededStock) ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        Confirmar Traslado
+                    </button>
                 </div>
             </div>
         </div>
@@ -285,3 +399,4 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 };
 
 export default PopupTraslado;
+

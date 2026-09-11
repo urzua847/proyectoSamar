@@ -61,6 +61,13 @@ const LoteRecepcionSchema = new EntitySchema({
         nullable: true,
         default: 0
     },
+    merma_kg: {
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        default: 0
+    },
     observacion_produccion: {
         type: "text",
         nullable: true,

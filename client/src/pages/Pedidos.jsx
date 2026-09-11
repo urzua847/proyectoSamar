@@ -7,7 +7,7 @@ import '../styles/users.css';
 import '../styles/pedidos.css';
 import { deleteManyProduccion } from '../services/envasado.service';
 import { getClientes } from '../services/catalogos.service';
-import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+import { deleteDataAlert, showSuccessAlert, showErrorAlert, showToastSuccess, showToastError, showToastWarning } from '../helpers/sweetAlert';
 
 const Pedidos = () => {
     // ... (Hooks y estados se mantienen igual) ...
@@ -284,7 +284,7 @@ const Pedidos = () => {
                 const currentQty = prev[existingItemIndex].cantidadBultos;
                 const newQty = currentQty + qtyToAdd;
                 if (item.totalCantidad && newQty > item.totalCantidad) {
-                    alert(`Stock insuficiente. Total intentado: ${newQty}, Disponible: ${item.totalCantidad} bultos.`);
+                    showToastWarning(`Stock insuficiente. Total intentado: ${newQty}, Disponible: ${item.totalCantidad} bultos.`);
                     return prev;
                 }
                 const newCart = [...prev];
@@ -292,13 +292,15 @@ const Pedidos = () => {
                 updatedItem.cantidadBultos = newQty;
                 updatedItem.subtotalKilos = (newQty * pesoPorCaja).toFixed(2);
                 newCart[existingItemIndex] = updatedItem;
+                showToastSuccess(`Actualizado pedido de ${item.productoNombre}`);
                 return newCart;
             } else {
                 if (item.totalCantidad && qtyToAdd > item.totalCantidad) {
-                    alert(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
+                    showToastWarning(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
                     return prev;
                 }
                 const kilosEstimados = (qtyToAdd * pesoPorCaja).toFixed(2);
+                showToastSuccess(`Agregado a pedido: ${qtyToAdd} bultos`);
                 return [...prev, {
                     ...item,
                     cantidadBultos: qtyToAdd,
@@ -318,8 +320,8 @@ const Pedidos = () => {
 
     const handleConfirmPedido = async (e) => {
         e.preventDefault();
-        if (cart.length === 0) return alert("El carrito está vacío");
-        if (!header.cliente || !header.numero_guia) return alert("Complete Cliente y N° Guía");
+        if (cart.length === 0) return showToastWarning("El carrito está vacío");
+        if (!header.cliente || !header.numero_guia) return showToastWarning("Complete Cliente y N° Guía");
         try {
             const payload = {
                 ...header,
@@ -331,14 +333,14 @@ const Pedidos = () => {
                 }))
             };
             await axios.post('/pedidos', payload);
-            alert("Pedido registrado exitosamente!");
+            showToastSuccess("Pedido registrado exitosamente!");
             setCart([]);
             setHeader({ ...header, numero_guia: '', cliente: '' });
             fetchContenedorStock();
             setIsCartOpen(false);
         } catch (error) {
             console.error(error);
-            alert("Error al registrar: " + (error.response?.data?.message || error.message));
+            showToastError("Error al registrar: " + (error.response?.data?.message || error.message));
         }
     };
 
@@ -464,9 +466,10 @@ const Pedidos = () => {
                         <button
                             onClick={handleBulkDelete}
                             className="btn-delete"
-                            style={{ alignSelf: 'flex-end' }}
+                            style={{ alignSelf: 'flex-end', backgroundColor: '#eab308' }}
+                            title="Devuelve los bultos seleccionados a la Cámara origen"
                         >
-                            Eliminar ({selectedIds.length})
+                            Devolver a Cámara ({selectedIds.length})
                         </button>
                     )}
                 </div>
@@ -807,9 +810,9 @@ const StockActionCell = ({ item, onAdd }) => {
     const [qty, setQty] = useState('');
 
     const handleAdd = () => {
-        if (!qty || Number(qty) <= 0) return alert("Ingrese cantidad válida");
-        if (Number(qty) > Number(item.totalCantidad)) return alert("Cantidad excede stock disponible");
-        onAdd(qty);
+        if (!qty || Number(qty) <= 0) return showToastWarning("Ingrese cantidad válida");
+        if (Number(qty) > Number(item.totalCantidad)) return showToastWarning("Cantidad excede stock disponible");
+        onAdd(Number(qty));
         setQty('');
     };
 
@@ -840,9 +843,9 @@ const AddCartPopup = ({ item, onClose, onConfirm }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!qty || Number(qty) <= 0) return alert("Ingrese cantidad válida");
-        if (Number(qty) > Number(item.totalCantidad)) return alert("Cantidad excede stock disponible");
-        onConfirm(qty);
+        if (!qty || Number(qty) <= 0) return showToastWarning("Ingrese cantidad válida");
+        if (Number(qty) > Number(item.totalCantidad)) return showToastWarning("Cantidad excede stock disponible");
+        onConfirm(Number(qty));
     };
 
     return (

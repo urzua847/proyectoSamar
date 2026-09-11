@@ -9,46 +9,53 @@ export const generateEntityPDF = (entidad, history) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // -- Encabezado --
-    doc.setFontSize(20);
-    doc.setTextColor(0, 51, 102);
-    doc.text(`Ficha de ${entidad.tipo}: ${entidad.nombre}`, 14, 20);
+    // -- Encabezado (Banner) --
+    doc.setFillColor(15, 23, 42); // slate-900 background
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Ficha de ${entidad.tipo}: ${entidad.nombre}`, 14, 22);
 
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generado el: ${formatTempo(new Date(), "DD-MM-YYYY HH:mm")}`, 14, 28);
-
-    // -- Información de Contacto (Formato Formulario) --
-    doc.setFontSize(14);
-    doc.setTextColor(0, 51, 102);
-    doc.text("Información de Contacto", 14, 40);
-    doc.line(14, 42, 80, 42);
-
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    const startY = 50;
-    const lineHeight = 8;
-    
-    doc.setFont("helvetica", "bold");
-    doc.text("RUT:", 14, startY);
-    doc.text("Dirección:", 14, startY + lineHeight);
-    doc.text("Teléfono:", 14, startY + (lineHeight * 2));
-    doc.text("Email:", 14, startY + (lineHeight * 3));
-    doc.text("Giro:", 14, startY + (lineHeight * 4));
-
     doc.setFont("helvetica", "normal");
-    doc.text(entidad.rut || "N/A", 50, startY);
-    doc.text(entidad.direccion || "N/A", 50, startY + lineHeight);
-    doc.text(entidad.telefono || "N/A", 50, startY + (lineHeight * 2));
-    doc.text(entidad.email || "N/A", 50, startY + (lineHeight * 3));
-    doc.text(entidad.giro || "N/A", 50, startY + (lineHeight * 4));
+    doc.text(`Generado el: ${formatTempo(new Date(), "DD-MM-YYYY HH:mm")}`, 14, 32);
+
+    let currentY = 50;
+
+    // -- Información de Contacto (Grid) --
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text("Información de Contacto", 14, currentY);
+    currentY += 6;
+
+    autoTable(doc, {
+        startY: currentY,
+        body: [
+            [{ content: 'RUT:', styles: { fontStyle: 'bold' } }, entidad.rut || "N/A", { content: 'Teléfono:', styles: { fontStyle: 'bold' } }, entidad.telefono || "N/A"],
+            [{ content: 'Dirección:', styles: { fontStyle: 'bold' } }, entidad.direccion || "N/A", { content: 'Email:', styles: { fontStyle: 'bold' } }, entidad.email || "N/A"],
+            [{ content: 'Giro:', styles: { fontStyle: 'bold' } }, entidad.giro || "N/A", '', '']
+        ],
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: { top: 3, right: 2, bottom: 3, left: 0 } },
+        columnStyles: {
+            0: { textColor: [71, 85, 105] },
+            1: { textColor: [15, 23, 42] },
+            2: { textColor: [71, 85, 105] },
+            3: { textColor: [15, 23, 42] }
+        }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 8;
 
     // -- Estadísticas Globales --
-    const statsY = startY + (lineHeight * 6);
     doc.setFontSize(14);
-    doc.setTextColor(0, 51, 102);
-    doc.text("Estadísticas Globales", 14, statsY);
-    doc.line(14, statsY + 2, 80, statsY + 2);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text("Estadísticas Globales", 14, currentY);
+    currentY += 6;
 
     const totalEntregas = history.length;
     const kilosTotales = history.reduce((acc, curr) => acc + Number(curr.peso_bruto_kg || 0), 0);
@@ -64,22 +71,24 @@ export const generateEntityPDF = (entidad, history) => {
     }, 0);
     const averageYield = validYieldsCount > 0 ? (userGlobalYield / validYieldsCount).toFixed(2) : "0.00";
 
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    doc.setFont("helvetica", "bold");
-    doc.text("Entregas Totales:", 14, statsY + 12);
-    doc.text("Kilos Totales:", 80, statsY + 12);
-    doc.text("Rendimiento Promedio:", 140, statsY + 12);
+    autoTable(doc, {
+        startY: currentY,
+        head: [['Entregas Totales', 'Kilos Totales', 'Rendimiento Promedio']],
+        body: [[totalEntregas.toString(), `${kilosTotales} kg`, `${averageYield}%`]],
+        theme: 'grid',
+        styles: { fontSize: 11, cellPadding: 8, halign: 'center', lineColor: [226, 232, 240], lineWidth: 0.1 },
+        headStyles: { fillColor: [248, 250, 252], textColor: [71, 85, 105], fontStyle: 'bold' },
+        bodyStyles: { textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 14 }
+    });
 
-    doc.setFont("helvetica", "normal");
-    doc.text(totalEntregas.toString(), 50, statsY + 12);
-    doc.text(`${kilosTotales} kg`, 110, statsY + 12);
-    doc.text(`${averageYield}%`, 185, statsY + 12);
+    currentY = doc.lastAutoTable.finalY + 8;
 
-    // -- Historial de Entregas (Fila por Fila) --
+    // -- Historial de Entregas --
     doc.setFontSize(14);
-    doc.setTextColor(0, 51, 102);
-    doc.text("Historial de Entregas", 14, statsY + 25);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text("Historial de Entregas", 14, currentY);
+    currentY += 6;
 
     const tableData = history.map(row => [
         row.codigo,
@@ -92,12 +101,13 @@ export const generateEntityPDF = (entidad, history) => {
     ]);
 
     autoTable(doc, {
-        startY: statsY + 30,
+        startY: currentY,
         head: [['Lote', 'Fecha', 'Especie', 'Entrada', 'Salida', 'Rend.', 'Estado']],
         body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [0, 51, 102] },
-        styles: { fontSize: 9 }
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+        styles: { fontSize: 9, cellPadding: 4, lineColor: [226, 232, 240] },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
     });
 
     doc.save(`Ficha_${entidad.nombre}_${formatTempo(new Date(), "YYYYMMDD")}.pdf`);
@@ -108,77 +118,100 @@ export const generateEntityPDF = (entidad, history) => {
  */
 export const generateLotPDF = (lote) => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    doc.setFontSize(20);
-    doc.setTextColor(0, 51, 102);
-    doc.text(`Detalle de Recepción: ${lote.codigo}`, 14, 20);
+    // -- Encabezado (Banner) --
+    doc.setFillColor(15, 23, 42); // slate-900 background
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Detalle de Recepción: ${lote.codigo}`, 14, 22);
 
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generado el: ${formatTempo(new Date(), "DD-MM-YYYY HH:mm")}`, 14, 28);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generado el: ${formatTempo(new Date(), "DD-MM-YYYY HH:mm")}`, 14, 32);
 
+    let currentY = 50;
+
+    // -- Información del Lote --
     doc.setFontSize(14);
-    doc.setTextColor(0, 51, 102);
-    doc.text("Información del Lote", 14, 40);
-    doc.line(14, 42, 80, 42);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text("Información del Lote", 14, currentY);
+    currentY += 6;
 
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    const startY = 50;
-    const lineHeight = 8;
-
-    const info = [
-        ["Proveedor:", lote.proveedorNombre],
-        ["Fecha Recepción:", lote.fechaFormateada],
-        ["Materia Prima:", lote.materiaPrimaNombre],
-        ["Peso Bruto Entrada:", `${lote.peso_bruto_kg} kg`],
-        ["Número de Bandejas:", lote.numero_bandejas],
-        ["Estado:", lote.estadoTexto]
-    ];
-
-    info.forEach((item, index) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(item[0], 14, startY + (index * lineHeight));
-        doc.setFont("helvetica", "normal");
-        doc.text(item[1].toString(), 60, startY + (index * lineHeight));
+    autoTable(doc, {
+        startY: currentY,
+        body: [
+            [{ content: 'Proveedor:', styles: { fontStyle: 'bold' } }, lote.proveedorNombre, { content: 'Fecha Recepción:', styles: { fontStyle: 'bold' } }, lote.fechaFormateada],
+            [{ content: 'Materia Prima:', styles: { fontStyle: 'bold' } }, lote.materiaPrimaNombre, { content: 'Estado:', styles: { fontStyle: 'bold' } }, lote.estadoTexto],
+            [{ content: 'Peso Bruto Entrada:', styles: { fontStyle: 'bold' } }, `${lote.peso_bruto_kg} kg`, { content: 'Número de Bandejas:', styles: { fontStyle: 'bold' } }, lote.numero_bandejas.toString()]
+        ],
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: { top: 3, right: 2, bottom: 3, left: 0 } },
+        columnStyles: {
+            0: { textColor: [71, 85, 105] },
+            1: { textColor: [15, 23, 42] },
+            2: { textColor: [71, 85, 105] },
+            3: { textColor: [15, 23, 42] }
+        }
     });
 
+    currentY = doc.lastAutoTable.finalY + 8;
+
+    // -- Resultados de Producción --
     if (lote.peso_total > 0) {
         doc.setFontSize(14);
-        doc.setTextColor(0, 51, 102);
-        doc.text("Resultados de Producción", 14, startY + (info.length * lineHeight) + 10);
-        
-        const resY = startY + (info.length * lineHeight) + 20;
-        doc.setFontSize(11);
-        doc.setTextColor(0);
-        
-        const results = [
-            ["Peso Carne Blanca:", `${lote.peso_carne_blanca || 0} kg`],
-            ["Peso Pinzas:", `${lote.peso_pinzas || 0} kg`],
-            ["Peso Total Producido:", `${lote.peso_total} kg`],
-            ["Rendimiento:", `${((lote.peso_total / lote.peso_bruto_kg) * 100).toFixed(2)}%`]
+        doc.setTextColor(15, 23, 42);
+        doc.setFont("helvetica", "bold");
+        doc.text("Resultados de Producción", 14, currentY);
+        currentY += 6;
+
+        const resultsBody = [
+            [{ content: 'Peso Carne Blanca:', styles: { fontStyle: 'bold' } }, `${lote.peso_carne_blanca || 0} kg`, { content: 'Rendimiento:', styles: { fontStyle: 'bold' } }, `${(((lote.peso_total || lote.peso_total_producido || 0) / lote.peso_bruto_kg) * 100).toFixed(2)}%`],
+            [{ content: 'Peso Pinzas:', styles: { fontStyle: 'bold' } }, `${lote.peso_pinzas || 0} kg`, { content: 'Peso Total Producido:', styles: { fontStyle: 'bold' } }, `${lote.peso_total || lote.peso_total_producido || 0} kg`],
         ];
 
-        results.forEach((item, index) => {
-            doc.setFont("helvetica", "bold");
-            doc.text(item[0], 14, resY + (index * lineHeight));
-            doc.setFont("helvetica", "normal");
-            doc.text(item[1].toString(), 60, resY + (index * lineHeight));
+        if (Number(lote.merma_kg || 0) > 0) {
+            const pesoTotalParaMerma = Number(lote.peso_total || lote.peso_total_producido || 0);
+            const lossPercent = pesoTotalParaMerma > 0 ? ((Number(lote.merma_kg) / pesoTotalParaMerma) * 100).toFixed(2) : '0.00';
+            resultsBody.push([
+                { content: 'Merma Registrada:', styles: { fontStyle: 'bold', textColor: [220, 38, 38] } }, 
+                { content: `${Number(lote.merma_kg).toFixed(2)} kg`, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } },
+                { content: 'Porcentaje de Pérdida:', styles: { fontStyle: 'bold', textColor: [220, 38, 38] } },
+                { content: `${lossPercent}%`, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } }
+            ]);
+        }
+
+        autoTable(doc, {
+            startY: currentY,
+            body: resultsBody,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 6, lineColor: [226, 232, 240], lineWidth: 0.1 },
+            columnStyles: {
+                0: { fillColor: [248, 250, 252], textColor: [71, 85, 105] },
+                1: { textColor: [15, 23, 42], fontStyle: 'bold' },
+                2: { fillColor: [248, 250, 252], textColor: [71, 85, 105] },
+                3: { textColor: [21, 128, 61], fontStyle: 'bold' } // green for yield/total
+            }
         });
+
+        currentY = doc.lastAutoTable.finalY + 8;
 
         // --- DETALLE DE PRODUCTOS TERMINADOS (RESUMIDO) ---
         if (lote.productosTerminados && lote.productosTerminados.length > 0) {
-            const tableY = resY + (results.length * lineHeight) + 10;
-            
             doc.setFontSize(14);
-            doc.setTextColor(0, 51, 102);
-            doc.text("Detalle de Productos Terminados (Resumen)", 14, tableY);
+            doc.setTextColor(15, 23, 42);
+            doc.setFont("helvetica", "bold");
+            doc.text("Detalle de Productos Terminados (Resumen)", 14, currentY);
+            currentY += 6;
 
             // Agrupar items
             const grouped = {};
 
             lote.productosTerminados.forEach(prod => {
-                // Intento robusto de obtener el nombre
                 const prodName = prod.definicion?.nombre 
                               || prod.productoNombre 
                               || prod.definicionproductonombre
@@ -215,16 +248,16 @@ export const generateLotPDF = (lote) => {
             ]);
 
             autoTable(doc, {
-                startY: tableY + 5,
+                startY: currentY,
                 head: [['Producto', 'Ubicación', 'Cajas/Unid.', 'Kilos Totales', 'Estado']],
                 body: tableData,
-                theme: 'striped',
-                headStyles: { fillColor: [0, 51, 102] },
-                bodyStyles: { textColor: 50 },
-                styles: { fontSize: 9, halign: 'center' },
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+                styles: { fontSize: 9, cellPadding: 5, lineColor: [226, 232, 240], halign: 'center' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
-                    0: { halign: 'left' }, // Producto a la izquierda
-                    1: { halign: 'left' }  // Ubicación a la izquierda
+                    0: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] },
+                    1: { halign: 'left' }
                 }
             });
         }

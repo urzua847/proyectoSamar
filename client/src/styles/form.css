@@ -8,21 +8,21 @@
 
 .form {
     background-color: #ffffff;
-    padding: 1.5rem 2rem;
+    padding: 2.5rem 3rem;
     display: flex;
     flex-direction: column;
     border-radius: 1rem;
     align-items: center;
-    width: 20rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    width: 24rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .form h1 {
-    color: #1e293b;
-    font-size: 1.35rem;
+    color: var(--text-dark, #1e293b);
+    font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
     text-align: center;
 }
 
@@ -90,13 +90,12 @@
 }
 
 .form .error-message {
-    height: 1.25rem;
     color: #ef4444;
     font-size: 0.75rem;
     margin-top: 0.25rem;
-    visibility: hidden;
+    display: none;
 }
 
 .form .error-message.visible {
-    visibility: visible;
+    display: block;
 }

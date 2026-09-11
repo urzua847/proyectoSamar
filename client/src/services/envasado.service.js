@@ -53,7 +53,8 @@ export async function getProducciones() {
             ubicacionNombre: prod.ubicacionNombre,
             peso_neto_kg: prod.peso_neto_kg,
             calibre: prod.calibre || '-',
-            horaIngreso: prod.horaIngreso, 
+            horaIngreso: prod.horaIngreso,
+            fechaReal: prod.fechaReal,
             cantidad: prod.cantidad,
             ids: prod.ids || []
         }));

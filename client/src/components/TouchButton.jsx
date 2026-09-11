@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types';
 import './TouchButton.css';
 
 /**
@@ -44,16 +43,5 @@ const TouchButton = ({
     );
 };
 
-TouchButton.propTypes = {
-    children: PropTypes.node.isRequired,
-    onClick: PropTypes.func,
-    variant: PropTypes.oneOf(['primary', 'secondary', 'danger', 'success', 'warning']),
-    size: PropTypes.oneOf(['small', 'medium', 'large']),
-    disabled: PropTypes.bool,
-    type: PropTypes.oneOf(['button', 'submit', 'reset']),
-    icon: PropTypes.node,
-    fullWidth: PropTypes.bool,
-    className: PropTypes.string
-};
-
 export default TouchButton;
+

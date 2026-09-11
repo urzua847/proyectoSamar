@@ -6,7 +6,7 @@ import '../styles/users.css';
 import '../styles/pedidos.css';
 import { deleteManyProduccion } from '../services/envasado.service';
 import { getClientes } from '../services/catalogos.service';
-import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+import { deleteDataAlert, showSuccessAlert, showErrorAlert, showToastWarning, showToastSuccess, showToastError, confirmActionAlert } from '../helpers/sweetAlert';
 
 const Contenedores = () => {
     const { user } = useAuth();
@@ -67,11 +67,16 @@ const Contenedores = () => {
 
         if (allIdsToDelete.length === 0) return;
 
-        const result = await deleteDataAlert();
+        const result = await confirmActionAlert(
+            "¿Devolver a Cámara?",
+            "Esta acción retirará los bultos seleccionados del contenedor y los devolverá a la cámara original.",
+            "Sí, Devolver",
+            "#eab308"
+        );
         if (result.isConfirmed) {
             const response = await deleteManyProduccion(allIdsToDelete);
             if (response.status === 'Success') {
-                showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
+                showSuccessAlert('Devuelto', 'Registros devueltos a la cámara correctamente.');
                 fetchContenedorStock();
                 setSelectedIds([]);
             } else {
@@ -83,11 +88,16 @@ const Contenedores = () => {
     const handleDeleteRow = async (row) => {
         const idsToDelete = row.ids || [row.id];
 
-        const result = await deleteDataAlert();
+        const result = await confirmActionAlert(
+            "¿Devolver a Cámara?",
+            "Esta acción retirará los bultos del contenedor y los devolverá a la cámara original.",
+            "Sí, Devolver",
+            "#eab308"
+        );
         if (result.isConfirmed) {
             const response = await deleteManyProduccion(idsToDelete);
             if (response.status === 'Success') {
-                showSuccessAlert('Eliminado', 'Registro eliminado correctamente.');
+                showSuccessAlert('Devuelto', 'Registro devuelto a la cámara correctamente.');
                 fetchContenedorStock();
             } else {
                 showErrorAlert('Error', response.message || 'No se pudo eliminar el registro.');
@@ -116,10 +126,13 @@ const Contenedores = () => {
                                 e.stopPropagation();
                                 handleDeleteRow(row);
                             }}
-                            className="btn-icon-circle btn-icon-delete"
-                            title="Eliminar"
+                            className="btn-icon-circle"
+                            style={{ backgroundColor: '#eab308', color: 'white', border: 'none', background: 'transparent' }}
+                            title="Devolver a Cámara"
                         >
-                            🗑
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 9l4-4m-4 4l4 4M3 9h14a5 5 0 0 1 0 10h-4"/>
+                            </svg>
                         </button>
                     )}
                 </div>
@@ -147,7 +160,7 @@ const Contenedores = () => {
                 const currentQty = prev[existingItemIndex].cantidadBultos;
                 const newQty = currentQty + qtyToAdd;
                 if (item.totalCantidad && newQty > item.totalCantidad) {
-                    alert(`Stock insuficiente. Total intentado: ${newQty}, Disponible: ${item.totalCantidad} bultos.`);
+                    showToastWarning(`Stock insuficiente. Total intentado: ${newQty}, Disponible: ${item.totalCantidad} bultos.`);
                     return prev;
                 }
                 const newCart = [...prev];
@@ -155,13 +168,15 @@ const Contenedores = () => {
                 updatedItem.cantidadBultos = newQty;
                 updatedItem.subtotalKilos = (newQty * pesoPorCaja).toFixed(2);
                 newCart[existingItemIndex] = updatedItem;
+                showToastSuccess(`Actualizada cantidad de ${item.productoNombre}`);
                 return newCart;
             } else {
                 if (item.totalCantidad && qtyToAdd > item.totalCantidad) {
-                    alert(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
+                    showToastWarning(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
                     return prev;
                 }
                 const kilosEstimados = (qtyToAdd * pesoPorCaja).toFixed(2);
+                showToastSuccess(`Agregado a pedido: ${qtyToAdd} bultos de ${item.productoNombre}`);
                 return [...prev, {
                     ...item,
                     cantidadBultos: qtyToAdd,
@@ -181,8 +196,8 @@ const Contenedores = () => {
 
     const handleConfirmPedido = async (e) => {
         e.preventDefault();
-        if (cart.length === 0) return alert("El carrito está vacío");
-        if (!header.cliente || !header.numero_guia) return alert("Complete Cliente y N° Guía");
+        if (cart.length === 0) return showToastWarning("El carrito está vacío");
+        if (!header.cliente || !header.numero_guia) return showToastWarning("Complete Cliente y N° Guía");
         try {
             const payload = {
                 ...header,
@@ -194,14 +209,14 @@ const Contenedores = () => {
                 }))
             };
             await axios.post('/pedidos', payload);
-            alert("Pedido registrado exitosamente!");
+            showToastSuccess("Pedido registrado exitosamente!");
             setCart([]);
             setHeader({ ...header, numero_guia: '', cliente: '' });
             fetchContenedorStock();
             setIsCartOpen(false);
         } catch (error) {
             console.error(error);
-            alert("Error al registrar: " + (error.response?.data?.message || error.message));
+            showToastError("Error al registrar: " + (error.response?.data?.message || error.message));
         }
     };
 
@@ -230,9 +245,10 @@ const Contenedores = () => {
                         <button
                             onClick={handleBulkDelete}
                             className="btn-delete"
-                            style={{ alignSelf: 'flex-end' }}
+                            style={{ alignSelf: 'flex-end', backgroundColor: '#eab308' }}
+                            title="Devuelve los bultos seleccionados a la Cámara origen"
                         >
-                            Eliminar ({selectedIds.length})
+                            Devolver a Cámara ({selectedIds.length})
                         </button>
                     )}
                 </div>
@@ -406,9 +422,9 @@ const StockActionCell = ({ item, onAdd }) => {
     const [qty, setQty] = useState('');
 
     const handleAdd = () => {
-        if (!qty || Number(qty) <= 0) return alert("Ingrese cantidad válida");
-        if (Number(qty) > Number(item.totalCantidad)) return alert("Cantidad excede stock disponible");
-        onAdd(qty);
+        if (!qty || Number(qty) <= 0) return showToastWarning("Ingrese cantidad válida");
+        if (Number(qty) > Number(item.totalCantidad)) return showToastWarning("Cantidad excede stock disponible");
+        onAdd(Number(qty));
         setQty('');
     };
 

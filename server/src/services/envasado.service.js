@@ -17,7 +17,7 @@ export async function createProduccionService(data, user = null) {
   await queryRunner.startTransaction();
 
   try {
-    const { loteRecepcionId, items } = data;
+    const { loteRecepcionId, items, cerrar_lote, merma_kg } = data;
 
     // 1. Validar existencia del lote de origen
     const loteOrigen = await queryRunner.manager.findOne(LoteRecepcion, { where: { id: loteRecepcionId } });
@@ -141,6 +141,13 @@ export async function createProduccionService(data, user = null) {
     // 8. Guardar todos los productos en la misma transacción
     await queryRunner.manager.save(ProductoTerminado, nuevosRegistros);
 
+    // 8.5 Si se solicitó cerrar el lote, actualizar estado a false (Cerrado) y guardar merma_kg
+    if (cerrar_lote) {
+      loteOrigen.estado = false;
+      loteOrigen.merma_kg = Number(merma_kg || 0);
+      await queryRunner.manager.save(LoteRecepcion, loteOrigen);
+    }
+
     // Registrar en auditoría con detalle completo
     await logCreate('ProductoTerminado', null, {
       loteRecepcionId: loteOrigen.id,
@@ -173,8 +180,23 @@ export async function createProduccionService(data, user = null) {
 
 export async function deleteProduccionService(id) {
     try {
-        const prod = await produccionRepository.findOne({ where: { id } });
+        const prod = await produccionRepository.findOne({ 
+            where: { id },
+            relations: ["ubicacion"] 
+        });
         if (!prod) return [null, "Producto no encontrado"];
+
+        if (prod.ubicacion && prod.ubicacion.tipo !== "camara") {
+            let defaultCamera = await ubicacionRepository.findOne({ where: { nombre: "Cámara 0" } });
+            if (!defaultCamera) {
+                defaultCamera = await ubicacionRepository.findOne({ where: { tipo: "camara" } });
+            }
+            if (!defaultCamera) return [null, "No hay cámaras disponibles para recuperar el stock."];
+
+            prod.ubicacion = defaultCamera;
+            await produccionRepository.save(prod);
+            return [true, null];
+        }
 
         await produccionRepository.remove(prod);
         return [true, null];
@@ -187,8 +209,47 @@ export async function deleteProduccionService(id) {
 export async function deleteManyProduccionService(ids) {
     try {
         if (!ids || ids.length === 0) return [null, "No hay IDs para eliminar"];
-        
-        await produccionRepository.delete(ids);
+
+        const productos = await produccionRepository.createQueryBuilder("prod")
+            .leftJoinAndSelect("prod.ubicacion", "ubi")
+            .where("prod.id IN (:...ids)", { ids })
+            .getMany();
+
+        if (productos.length === 0) return [true, null];
+
+        let defaultCamera = null;
+
+        const toDelete = [];
+        const toRecover = [];
+
+        for (const prod of productos) {
+            if (prod.ubicacion && prod.ubicacion.tipo !== "camara") {
+                if (!defaultCamera) {
+                    defaultCamera = await ubicacionRepository.findOne({ where: { nombre: "Cámara 0" } });
+                    if (!defaultCamera) {
+                        defaultCamera = await ubicacionRepository.findOne({ where: { tipo: "camara" } });
+                    }
+                }
+                if (defaultCamera) {
+                    prod.ubicacion = defaultCamera;
+                    toRecover.push(prod);
+                } else {
+                    toDelete.push(prod);
+                }
+            } else {
+                toDelete.push(prod);
+            }
+        }
+
+        if (toRecover.length > 0) {
+            await produccionRepository.save(toRecover);
+        }
+
+        if (toDelete.length > 0) {
+            const deleteIds = toDelete.map(p => p.id);
+            await produccionRepository.delete(deleteIds);
+        }
+
         return [true, null];
     } catch (error) {
         console.error("Error deleteManyProduccionService:", error);
@@ -313,7 +374,7 @@ export async function getProduccionesService(options = {}) {
         .addSelect("def.id", "definicionProductoId")
         .addSelect("prod.calibre", "calibre")
         .addSelect("ubi.nombre", "ubicacionNombre")
-        .addSelect("TO_CHAR(prod.fecha_produccion, 'HH24:MI DD-MM')", "horaIngreso")
+        .addSelect("MAX(prod.fecha_produccion)", "fechaReal")
         .addSelect("COUNT(prod.id)", "cantidad")
         .addSelect("SUM(prod.peso_neto_kg)", "peso_neto_kg")
         .addSelect("array_agg(prod.id)", "ids")
@@ -326,7 +387,6 @@ export async function getProduccionesService(options = {}) {
         .addGroupBy("def.id")
         .addGroupBy("prod.calibre")
         .addGroupBy("ubi.nombre")
-        .addGroupBy("TO_CHAR(prod.fecha_produccion, 'HH24:MI DD-MM')")
         .orderBy("lote.id", "DESC")
         .addOrderBy("MAX(prod.fecha_produccion)", "DESC");
 
@@ -348,7 +408,7 @@ export async function getProduccionesService(options = {}) {
         definicionProductoId: p.definicionProductoId || p.definicionproductoid,
         calibre: p.calibre,
         ubicacionNombre: p.ubicacionNombre || p.ubicacionnombre,
-        horaIngreso: p.horaIngreso || p.horaingreso,
+        fechaReal: p.fechaReal || p.fechareal,
         peso_neto_kg: Number(p.peso_neto_kg || p.peso_neto_kg).toFixed(2),
         cantidad: Number(p.cantidad),
         ids: p.ids,
@@ -402,6 +462,8 @@ export async function getResumenProduccionByLoteService(loteId) {
 
         return [{
             loteId: lote.id,
+            estado: lote.estado,
+            merma_kg: Number(lote.merma_kg || 0),
             input: {
                 carne: limitCarne,
                 pinzas: limitPinzas

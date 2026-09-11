@@ -11,8 +11,28 @@ const useGetProducciones = () => {
     const fetchProducciones = async () => {
         try {
             const data = await getProducciones();
-            // Backend now returns data already grouped and formatted
-            setProducciones(Array.isArray(data) ? data : []);
+            // Backend now returns data already grouped
+            const rawProducciones = Array.isArray(data) ? data : [];
+            const now = new Date();
+            
+            const formattedProducciones = rawProducciones.map(p => {
+                let horaIngreso = '-';
+                let horasEnCamara = 0;
+                
+                if (p.fechaReal) {
+                    const date = new Date(p.fechaReal);
+                    horaIngreso = formatTempo(date, "HH:mm DD-MM");
+                    horasEnCamara = Math.floor((now - date) / (1000 * 60 * 60));
+                }
+                
+                return {
+                    ...p,
+                    horaIngreso,
+                    horasEnCamara: horasEnCamara >= 0 ? horasEnCamara : 0
+                };
+            });
+            
+            setProducciones(formattedProducciones);
         } catch (error) {
             console.error(error);
             setProducciones([]);

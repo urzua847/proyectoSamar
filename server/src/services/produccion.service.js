@@ -3,7 +3,7 @@ import { AppDataSource } from "../config/configDb.js";
 import Produccion from "../entity/produccion.entity.js";
 import LoteRecepcion from "../entity/loteRecepcion.entity.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
-import { logCreate } from "./audit.service.js";
+import { logCreate, logUpdate } from "./audit.service.js";
 
 const produccionRepository = AppDataSource.getRepository(Produccion);
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
@@ -141,6 +141,13 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
             return [null, "Este registro ya fue editado una vez. No se permiten más modificaciones."];
         }
 
+        // Guardar estado previo para la auditoría
+        const previousData = {
+            peso_carne_blanca: Number(produccion.peso_carne_blanca),
+            peso_pinzas: Number(produccion.peso_pinzas),
+            peso_total: Number(produccion.peso_total)
+        };
+
         // 3. Verificar que no haya productos en cámara para este lote
         const productosEnCamara = await queryRunner.manager.count(ProductoTerminado, {
             where: { loteDeOrigen: { id: loteId } }
@@ -182,9 +189,7 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
         lote.observacion_produccion = observacion !== undefined ? observacion : lote.observacion_produccion;
         await queryRunner.manager.save(LoteRecepcion, lote);
 
-        await logCreate('Produccion_Edicion', produccion.id, {
-            loteRecepcionId: lote.id,
-            lote_codigo: lote.codigo,
+        await logUpdate('Produccion', produccion.id, previousData, {
             peso_carne_blanca: nuevoPesoCarne,
             peso_pinzas: nuevoPesoPinzas,
             peso_total: total

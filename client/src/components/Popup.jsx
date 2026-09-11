@@ -18,7 +18,7 @@ export default function Popup({ show, setShow, data, action, title }) {
         <div>
             {show && (
                 <div className="bg">
-                    <div className="popup" style={{ padding: '0', overflow: 'hidden', maxWidth: '520px', width: '95%' }}>
+                    <div className="popup" style={{ padding: '0', overflow: 'hidden', maxWidth: '520px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
 
                         {/* Header bar azul */}
                         <div style={{
@@ -51,8 +51,8 @@ export default function Popup({ show, setShow, data, action, title }) {
                             >✕</button>
                         </div>
 
-                        {/* Body */}
-                        <div style={{ padding: '28px 32px 32px' }}>
+                        {/* Body scrollable */}
+                        <div style={{ padding: '20px 28px 20px', overflowY: 'auto' }}>
                             <Form
                                 title=""
                                 fields={[
@@ -105,6 +105,7 @@ export default function Popup({ show, setShow, data, action, title }) {
                                 ]}
                                 onSubmit={handleSubmit}
                                 buttonText={isCreateMode ? "Crear Usuario" : "Guardar Cambios"}
+                                onCancel={() => setShow(false)}
                             />
                         </div>
 

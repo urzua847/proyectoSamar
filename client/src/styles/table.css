@@ -10,31 +10,31 @@
 .samar-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.875rem;
 }
 
 /* --- CABECERA --- */
 .samar-table thead {
-    background-color: #003366;
-    color: white;
+    background-color: #f8fafc;
+    color: var(--text-dark, #1e293b);
 }
 
 .samar-table th {
-    padding: 12px;
+    padding: 14px 12px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 2px solid #002855;
-    color: white;
+    border-bottom: 2px solid #e2e8f0;
+    color: var(--text-dark, #1e293b);
 }
 
 /* --- CUERPO --- */
 .samar-table td {
-    padding: 12px;
-    color: #334155;
+    padding: 14px 12px;
+    color: var(--text-secondary, #64748b);
     font-size: 0.9rem;
     border-bottom: 1px solid #e2e8f0;
 }
@@ -42,20 +42,19 @@
 /* --- INTERACCIÓN --- */
 .samar-table tbody tr {
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
 }
 
 .samar-table tbody tr:hover {
-    background-color: #f8fafc;
-    /* Hover muy suave */
+    background-color: #f1f5f9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 /* Fila Seleccionada */
 .samar-table tbody tr.selected-row {
-    background-color: #dbeafe;
-    /* Azul muy suave (igual que badge update) */
-    box-shadow: inset 3px 0 0 #3b82f6;
-    /* Borde izquierdo azul moderno */
+    background-color: var(--info-bg, #dbeafe);
+    box-shadow: inset 3px 0 0 var(--info-color, #3b82f6);
 }
 
 .no-data {

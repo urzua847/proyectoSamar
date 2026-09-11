@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import useProduccion from '../../hooks/produccion/useProduccion';
 import { getResumenProduccion } from '../../services/envasado.service';
 import { showErrorAlert } from '../../helpers/sweetAlert';
+import ProductionSummaryBar from './ProductionSummaryBar';
 import '../../styles/popup.css';
 import '../../styles/table.css';
 
@@ -13,26 +14,53 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
         loading
     } = useProduccion();
 
-    const [expandedProductIds, setExpandedProductIds] = useState([]);
     const [formData, setFormData] = useState({});
     const [camaraGlobal, setCamaraGlobal] = useState('');
     const [resumenYield, setResumenYield] = useState(null);
+    const [cerrarLote, setCerrarLote] = useState(false);
 
+    // Load draft on mount
     useEffect(() => {
-        if (loteSeleccionado) {
+        if (show && loteSeleccionado) {
+            const savedDraft = localStorage.getItem(`draft_envasado_${loteSeleccionado}`);
+            if (savedDraft) {
+                try {
+                    setFormData(JSON.parse(savedDraft));
+                } catch (e) {
+                    console.error("Error loading draft", e);
+                }
+            } else {
+                setFormData({});
+            }
+            
             getResumenProduccion(loteSeleccionado).then(res => {
                 if (res.status === 'Success') {
                     setResumenYield(res.data);
                 }
             });
+        } else if (!show) {
+            setResumenYield(null);
         }
-    }, [loteSeleccionado]);
+    }, [loteSeleccionado, show]);
+
+    // Save draft when formData changes
+    useEffect(() => {
+        if (show && loteSeleccionado && Object.keys(formData).length > 0) {
+            localStorage.setItem(`draft_envasado_${loteSeleccionado}`, JSON.stringify(formData));
+        }
+    }, [formData, loteSeleccionado, show]);
 
     const cerrarPopup = () => {
         setShow(false);
         setFormData({});
-        setExpandedProductIds([]);
+        setCerrarLote(false);
         if (onSuccess) onSuccess();
+    };
+
+    const clearDraft = () => {
+        if (loteSeleccionado) {
+            localStorage.removeItem(`draft_envasado_${loteSeleccionado}`);
+        }
     };
 
     const activeLote = lotes.find(l => l.id == loteSeleccionado);
@@ -40,13 +68,79 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
         ? productosCatalogo.filter(p => p.materiaPrima?.id === activeLote.materiaPrima?.id && p.tipo === 'elaborado')
         : [];
 
-    const toggleExpand = (prodId) => {
-        setExpandedProductIds(prev =>
-            prev.includes(prodId)
-                ? prev.filter(id => id !== prodId)
-                : [...prev, prodId]
-        );
-    };
+    const totalCarneProducido = useMemo(() => {
+        if (resumenYield?.input) return Number(resumenYield.input.carne || 0);
+        return activeLote ? Number(activeLote.peso_carne_blanca || 0) : 0;
+    }, [resumenYield, activeLote]);
+
+    const totalPinzasProducido = useMemo(() => {
+        if (resumenYield?.input) return Number(resumenYield.input.pinzas || 0);
+        return activeLote ? Number(activeLote.peso_pinzas || 0) : 0;
+    }, [resumenYield, activeLote]);
+
+    const totalProducido = useMemo(() => {
+        if (resumenYield?.input) {
+            return Number(resumenYield.input.carne || 0) + Number(resumenYield.input.pinzas || 0);
+        }
+        return activeLote
+            ? (Number(activeLote.peso_total_producido) || (Number(activeLote.peso_carne_blanca || 0) + Number(activeLote.peso_pinzas || 0)) || Number(activeLote.peso_bruto_kg || 0))
+            : 0;
+    }, [resumenYield, activeLote]);
+
+    const yaIngresadosCarne = useMemo(() => {
+        if (!resumenYield?.used) return 0;
+        return Number(resumenYield.used.carne || 0);
+    }, [resumenYield]);
+
+    const yaIngresadosPinzas = useMemo(() => {
+        if (!resumenYield?.used) return 0;
+        return Number(resumenYield.used.pinzas || 0);
+    }, [resumenYield]);
+
+    const yaIngresados = useMemo(() => {
+        if (!resumenYield?.used) return 0;
+        return Number(resumenYield.used.carne || 0) + Number(resumenYield.used.pinzas || 0);
+    }, [resumenYield]);
+
+    const { ingresoActualCarne, ingresoActualPinzas, ingresoActual } = useMemo(() => {
+        let carne = 0;
+        let pinzas = 0;
+        let total = 0;
+
+        Object.keys(formData).forEach(key => {
+            const firstHyphen = key.indexOf('-');
+            const prodId = Number(key.substring(0, firstHyphen));
+            const entry = formData[key];
+            const val = parseFloat(entry?.pesoTotal);
+            const kg = isNaN(val) ? 0 : val;
+
+            total += kg;
+
+            const prodDef = productosCatalogo.find(p => p.id === prodId);
+            if (prodDef) {
+                if (prodDef.origen === 'carne_blanca') carne += kg;
+                else if (prodDef.origen === 'pinza') pinzas += kg;
+            }
+        });
+
+        return { ingresoActualCarne: carne, ingresoActualPinzas: pinzas, ingresoActual: total };
+    }, [formData, productosCatalogo]);
+
+    const saldoRestanteCarne = useMemo(() => {
+        return totalCarneProducido - yaIngresadosCarne - ingresoActualCarne;
+    }, [totalCarneProducido, yaIngresadosCarne, ingresoActualCarne]);
+
+    const saldoRestantePinzas = useMemo(() => {
+        return totalPinzasProducido - yaIngresadosPinzas - ingresoActualPinzas;
+    }, [totalPinzasProducido, yaIngresadosPinzas, ingresoActualPinzas]);
+
+    const saldoRestante = useMemo(() => {
+        return totalProducido - yaIngresados - ingresoActual;
+    }, [totalProducido, yaIngresados, ingresoActual]);
+
+    const isExceeded = useMemo(() => {
+        return saldoRestanteCarne < 0 || saldoRestantePinzas < 0;
+    }, [saldoRestanteCarne, saldoRestantePinzas]);
 
     const obtenerGramaje = (textoCalibre) => {
         if (!textoCalibre) return 0;
@@ -87,8 +181,15 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     };
 
     const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleConfirmar = async () => {
+        if (isExceeded) {
+            showErrorAlert('Límite Excedido', 'El saldo restante no puede ser negativo. Ajuste los kilos a ingresar.');
+            return;
+        }
+        if (isSubmitting) return; // Prevent double-clicks
+
         const itemsToSave = [];
         const newErrors = {};
 
@@ -174,9 +275,18 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
             }
         }
 
-        const success = await handleGuardarEnvasado(itemsToSave);
-        if (success) {
-            cerrarPopup();
+        setIsSubmitting(true);
+        try {
+            const success = await handleGuardarEnvasado(itemsToSave, {
+                cerrar_lote: cerrarLote,
+                merma_kg: cerrarLote && saldoRestante > 0 ? saldoRestante : 0
+            });
+            if (success) {
+                clearDraft();
+                cerrarPopup();
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -194,176 +304,279 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     if (!show) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ width: '1100px', maxWidth: '98%', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+        <div className="bg" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="popup" style={{ width: '1100px', flex: loteSeleccionado ? '1 1 auto' : '0 1 auto', maxWidth: loteSeleccionado ? '1100px' : '98%', maxHeight: '90vh', overflowY: 'auto', padding: '32px', margin: 0 }}>
                 <button className='btn-close-x' onClick={cerrarPopup}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '24px', fontSize: '1.4rem' }}>Ingreso a Cámara (Envasado)</h2>
 
                 {loading ? <div style={{ padding: '30px', textAlign: 'center' }}>Cargando...</div> : (
-                    <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '28px' }}>
-                            <div>
-                                <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Lote Origen</label>
-                                <select
-                                    value={loteSeleccionado}
-                                    onChange={(e) => setLoteSeleccionado(e.target.value)}
-                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
-                                >
-                                    <option value="">-- Seleccione Lote --</option>
-                                    {(lotes || []).map(l => (
-                                        <option key={l.id} value={l.id}>
-                                            {l.codigo} | {l.materiaPrimaNombre}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Cámara Global</label>
-                                <select
-                                    value={camaraGlobal}
-                                    onChange={(e) => handleCamaraGlobalChange(e.target.value)}
-                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
-                                >
-                                    <option value="">-- Todas --</option>
-                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
-                                        <option key={u.id} value={u.id}>{u.nombre}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {loteSeleccionado && (
-                            <div className="accordion-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {filteredProducts.map(prod => {
-                                    const calibres = Array.isArray(prod.calibres)
-                                        ? prod.calibres
-                                        : (typeof prod.calibres === 'string'
-                                            ? prod.calibres.split(',').map(c => c.trim()).filter(c => c !== '')
-                                            : []);
-
-                                    const isExpanded = expandedProductIds.includes(prod.id);
-
-                                    return (
-                                        <div key={prod.id} style={{ border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
-                                            {/* Header / Button */}
-                                            <div
-                                                onClick={() => toggleExpand(prod.id)}
-                                                style={{
-                                                    padding: '15px',
-                                                    background: isExpanded ? '#003366' : '#f8f9fa',
-                                                    color: isExpanded ? '#fff' : '#333',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    fontWeight: 'bold'
-                                                }}
-                                            >
-                                                <span>{prod.nombre}</span>
-                                                <span>{isExpanded ? '▲' : '▼'}</span>
-                                            </div>
-
-                                            {/* Content (Calibres Table) */}
-                                            {isExpanded && (
-                                                <div style={{ padding: '15px', background: '#f0f4f8' }}>
-                                                    <div className="table-container-native" style={{ width: '100%', boxShadow: 'none' }}>
-                                                        <table className="samar-table">
-                                                            <thead>
-                                                                <tr style={{ background: '#003366', color: 'white' }}>
-                                                                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Calibre</th>
-                                                                    <th style={{ width: '140px', padding: '12px 16px', textAlign: 'center' }}>Cant. (Envases)</th>
-                                                                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Peso Total (Kg)</th>
-                                                                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ubicación</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {calibres.map((cal, idx) => {
-                                                                    const key = `${prod.id}-${cal}`;
-                                                                    const data = formData[key] || {};
-                                                                    const rowErrors = errors[key] || {};
-                                                                    const gramaje = obtenerGramaje(cal);
-
-                                                                    return (
-                                                                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                                            <td style={{ fontWeight: '600', padding: '12px 16px', whiteSpace: 'nowrap' }}>{cal}</td>
-                                                                            <td style={{ padding: '8px 12px' }}>
-                                                                                <input
-                                                                                    type="number"
-                                                                                    placeholder="0"
-                                                                                    value={data.cantidad || ''}
-                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
-                                                                                    style={{
-                                                                                        width: '100%',
-                                                                                        padding: '8px',
-                                                                                        textAlign: 'center',
-                                                                                        borderRadius: '4px',
-                                                                                        border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
-                                                                                    }}
-                                                                                />
-                                                                            </td>
-                                                                            <td style={{ padding: '8px 12px' }}>
-                                                                                <input
-                                                                                    type="number"
-                                                                                    placeholder="0.00"
-                                                                                    value={data.pesoTotal || ''}
-                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
-                                                                                    disabled={gramaje > 0}
-                                                                                    style={{
-                                                                                        width: '100%',
-                                                                                        padding: '8px',
-                                                                                        textAlign: 'center',
-                                                                                        borderRadius: '4px',
-                                                                                        background: gramaje > 0 ? '#eee' : '#fff',
-                                                                                        border: rowErrors.cantidad ? '2px solid red' : '1px solid #ccc'
-                                                                                    }}
-                                                                                />
-                                                                            </td>
-                                                                            <td style={{ padding: '8px 12px' }}>
-                                                                                <select
-                                                                                    value={data.ubicacion || camaraGlobal}
-                                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
-                                                                                    style={{
-                                                                                        width: '100%',
-                                                                                        padding: '8px',
-                                                                                        borderRadius: '4px',
-                                                                                        border: rowErrors.ubicacion ? '2px solid red' : '1px solid #ccc'
-                                                                                    }}
-                                                                                >
-                                                                                    <option value="">- Selec -</option>
-                                                                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
-                                                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
-                                                                                    ))}
-                                                                                </select>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                                {calibres.length === 0 && (
-                                                                    <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>Sin calibres definidos</td></tr>
-                                                                )}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                                {filteredProducts.length === 0 && (
-                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                                        No hay productos definidos para esta Materia Prima.
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            
+                            {/* PASO 1: Selección Inicial */}
+                            <div className="popup-section" style={{ marginBottom: 0, padding: '24px' }}>
+                                <h3 className="popup-section-title">
+                                    <span style={{ color: '#003366', marginRight: '8px' }}>•</span>
+                                    Contexto de Producción
+                                </h3>
+                                <div className="popup-grid-2">
+                                    <div>
+                                        <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Lote de Origen</label>
+                                        <select
+                                            value={loteSeleccionado}
+                                            onChange={(e) => setLoteSeleccionado(e.target.value)}
+                                            style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
+                                        >
+                                            <option value="">-- Seleccione Lote --</option>
+                                            {(lotes || []).map(l => (
+                                                <option key={l.id} value={l.id}>
+                                                    {l.codigo} | {l.materiaPrimaNombre}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                )}
+                                    <div>
+                                        <label style={{ fontWeight: '600', fontSize: '0.9rem', color: '#444', display: 'block', marginBottom: '6px' }}>Cámara Global Destino</label>
+                                        <select
+                                            value={camaraGlobal}
+                                            onChange={(e) => handleCamaraGlobalChange(e.target.value)}
+                                            style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.95rem' }}
+                                        >
+                                            <option value="">-- Asignación Manual por Producto --</option>
+                                            {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                                <option key={u.id} value={u.id}>{u.nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* PASO 3: Catálogo */}
+                            {loteSeleccionado && (
+                            <div className="popup-section" style={{ marginBottom: 0, padding: '24px' }}>
+                                <h3 className="popup-section-title">
+                                    <span style={{ color: '#003366', marginRight: '8px' }}>•</span>
+                                    Desglose de Calibres
+                                </h3>
+                                <div className="table-container-native" style={{ width: '100%', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: '#ffffff', marginTop: '15px' }}>
+                                    <table className="samar-table" style={{ width: '100%', borderCollapse: 'collapse', margin: 0 }}>
+                                        <thead>
+                                            <tr style={{ background: '#f8fafc', color: '#003366', borderBottom: '2px solid #e2e8f0', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: '700', width: '25%', color: '#003366' }}>Producto</th>
+                                                <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: '700', width: '20%', color: '#003366' }}>Calibre</th>
+                                                <th style={{ padding: '16px 20px', textAlign: 'center', fontWeight: '700', width: '15%', color: '#003366' }}>Cant. (Envases)</th>
+                                                <th style={{ padding: '16px 20px', textAlign: 'center', fontWeight: '700', width: '15%', color: '#003366' }}>Peso Total (Kg)</th>
+                                                <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: '700', width: '25%', color: '#003366' }}>Ubicación</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredProducts.flatMap((prod, prodIdx) => {
+                                                const calibres = Array.isArray(prod.calibres)
+                                                    ? prod.calibres
+                                                    : (typeof prod.calibres === 'string'
+                                                        ? prod.calibres.split(',').map(c => c.trim()).filter(c => c !== '')
+                                                        : []);
+                                                
+                                                if (calibres.length === 0) {
+                                                    return [(
+                                                        <tr key={`empty-${prod.id}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                            <td style={{ padding: '20px', fontWeight: '700', color: '#1e293b', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc' }}>{prod.nombre}</td>
+                                                            <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px', fontStyle: 'italic' }}>Sin calibres definidos</td>
+                                                        </tr>
+                                                    )];
+                                                }
+
+                                                return calibres.map((cal, idx) => {
+                                                    const key = `${prod.id}-${cal}`;
+                                                    const data = formData[key] || {};
+                                                    const rowErrors = errors[key] || {};
+                                                    const gramaje = obtenerGramaje(cal);
+                                                    
+                                                    const isCarne = prod.origen === 'carne_blanca';
+                                                    const isPinza = prod.origen === 'pinza';
+                                                    const isOverdrawn = (isCarne && saldoRestanteCarne < 0) || (isPinza && saldoRestantePinzas < 0);
+                                                    const hasQtyError = rowErrors.cantidad || (isOverdrawn && (data.cantidad > 0 || data.pesoTotal > 0));
+
+                                                    // Estilos para inputs modernos (Option 1)
+                                                    const inputStyle = {
+                                                        width: '100%',
+                                                        padding: '10px 12px',
+                                                        textAlign: 'center',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid transparent',
+                                                        backgroundColor: hasQtyError ? '#fee2e2' : '#f1f5f9',
+                                                        boxShadow: hasQtyError ? '0 0 0 1px #ef4444' : 'inset 0 1px 2px rgba(0,0,0,0.05)',
+                                                        transition: 'all 0.2s',
+                                                        outline: 'none',
+                                                        fontSize: '0.95rem'
+                                                    };
+                                                    const inputStylePeso = {
+                                                        ...inputStyle,
+                                                        backgroundColor: gramaje > 0 ? '#e2e8f0' : (hasQtyError ? '#fee2e2' : '#f1f5f9'),
+                                                    };
+
+                                                    return (
+                                                        <tr key={`${prod.id}-${idx}`} style={{ borderBottom: idx === calibres.length - 1 ? '2px solid #e2e8f0' : '1px solid #f8fafc' }}>
+                                                            {idx === 0 && (
+                                                                <td rowSpan={calibres.length} style={{ padding: '20px', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '1.05rem' }}>
+                                                                    {prod.nombre}
+                                                                </td>
+                                                            )}
+                                                            <td style={{ fontWeight: '600', padding: '16px 20px', whiteSpace: 'nowrap', color: '#475569', fontSize: '0.95rem' }}>{cal}</td>
+                                                            <td style={{ padding: '12px 20px' }}>
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0"
+                                                                    value={data.cantidad || ''}
+                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
+                                                                    style={inputStyle}
+                                                                    onFocus={(e) => e.target.style.border = '1px solid #3b82f6'}
+                                                                    onBlur={(e) => e.target.style.border = '1px solid transparent'}
+                                                                />
+                                                            </td>
+                                                            <td style={{ padding: '12px 20px' }}>
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0.00"
+                                                                    value={data.pesoTotal || ''}
+                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
+                                                                    disabled={gramaje > 0}
+                                                                    style={inputStylePeso}
+                                                                    onFocus={(e) => e.target.style.border = gramaje > 0 ? '1px solid transparent' : '1px solid #3b82f6'}
+                                                                    onBlur={(e) => e.target.style.border = '1px solid transparent'}
+                                                                />
+                                                            </td>
+                                                            <td style={{ padding: '12px 20px' }}>
+                                                                <select
+                                                                    value={data.ubicacion || camaraGlobal}
+                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        padding: '10px 12px',
+                                                                        borderRadius: '6px',
+                                                                        border: rowErrors.ubicacion ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                                                        backgroundColor: '#ffffff',
+                                                                        outline: 'none',
+                                                                        fontSize: '0.95rem'
+                                                                    }}
+                                                                >
+                                                                    <option value="">- Selec -</option>
+                                                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
+                                            })}
+                                            {filteredProducts.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '1.1rem' }}>
+                                                        No hay productos definidos para esta Materia Prima.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
 
-                        <div style={{ marginTop: '28px', textAlign: 'right', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-                            <button className="btn-new" onClick={handleConfirmar} style={{ padding: '12px 28px', fontSize: '1rem' }}>
-                                Confirmar y Guardar Todos
+                        {loteSeleccionado && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                marginTop: '20px',
+                                padding: '12px 16px',
+                                background: cerrarLote ? '#fff7ed' : '#f8fafc',
+                                border: cerrarLote ? '1px solid #ffedd5' : '1px solid #e2e8f0',
+                                borderRadius: '10px',
+                                transition: 'all 0.2s ease-in-out',
+                                opacity: saldoRestante > 0 ? 1 : 0.6
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    id="cerrarLoteCheckbox"
+                                    checked={cerrarLote}
+                                    onChange={(e) => setCerrarLote(e.target.checked)}
+                                    disabled={saldoRestante <= 0}
+                                    style={{ width: '18px', height: '18px', cursor: saldoRestante > 0 ? 'pointer' : 'not-allowed', accentColor: '#ea580c' }}
+                                />
+                                <label
+                                    htmlFor="cerrarLoteCheckbox"
+                                    style={{
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        color: cerrarLote ? '#c2410c' : '#334155',
+                                        cursor: saldoRestante > 0 ? 'pointer' : 'not-allowed',
+                                        margin: 0
+                                    }}
+                                >
+                                    Ingreso Final: Cerrar lote y registrar saldo restante ({saldoRestante > 0 ? saldoRestante.toFixed(2) : '0.00'} kg) como merma
+                                </label>
+                            </div>
+                        )}
+
+                        <div className="popup-actions" style={{ marginTop: '20px' }}>
+                            <button className="btn-cancel" onClick={cerrarPopup} disabled={isSubmitting}>
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn-save"
+                                onClick={handleConfirmar}
+                                disabled={isExceeded || isSubmitting}
+                                style={{
+                                    backgroundColor: (isExceeded || isSubmitting) ? '#cbd5e1' : '#10b981',
+                                    color: (isExceeded || isSubmitting) ? '#64748b' : '#ffffff',
+                                    cursor: (isExceeded || isSubmitting) ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {isSubmitting ? 'Guardando...' : 'Confirmar y Guardar Todos'}
                             </button>
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
+
+            {/* TARJETA FLOTANTE DE RENDIMIENTO (Fuera del popup principal) */}
+            {loteSeleccionado && !loading && (
+                <div className="popup-side-panel" style={{ 
+                    flex: '0 0 320px', 
+                    background: '#ffffff', 
+                    borderRadius: '12px', 
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', 
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex', 
+                    flexDirection: 'column'
+                }}>
+                    <div style={{ padding: '24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 10 }}>
+                        <h3 className="popup-section-title" style={{ margin: 0 }}>
+                            <span style={{ color: '#003366', marginRight: '8px' }}>•</span>
+                            Rendimiento en Tiempo Real
+                        </h3>
+                    </div>
+                    <div style={{ padding: '24px' }}>
+                        <ProductionSummaryBar 
+                            isExceeded={isExceeded}
+                            totalProducido={totalProducido}
+                            totalCarneProducido={totalCarneProducido}
+                            totalPinzasProducido={totalPinzasProducido}
+                            yaIngresados={yaIngresados}
+                            yaIngresadosCarne={yaIngresadosCarne}
+                            yaIngresadosPinzas={yaIngresadosPinzas}
+                            ingresoActual={ingresoActual}
+                            ingresoActualCarne={ingresoActualCarne}
+                            ingresoActualPinzas={ingresoActualPinzas}
+                            saldoRestante={saldoRestante}
+                            saldoRestanteCarne={saldoRestanteCarne}
+                            saldoRestantePinzas={saldoRestantePinzas}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

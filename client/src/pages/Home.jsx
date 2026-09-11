@@ -87,13 +87,18 @@ const Home = () => {
 
           {/* 1. ÚLTIMO INGRESO */}
           <div className="stat-card">
+            <div className="stat-card__icon" style={{ background: 'var(--success-bg, #dcfce7)', color: 'var(--success-color, #10b981)' }}>
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <div className="stat-card__content">
               <h3>Último Ingreso</h3>
               <p className="stat-card__value" style={{ fontSize: '1.2rem' }}>
                 {ultimoLote ? (
                   <>
                     {ultimoLote.codigo} <br />
-                    <span style={{ fontSize: '0.9rem', fontWeight: 'normal', color: '#64748b' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'normal', color: 'var(--text-secondary, #64748b)' }}>
                       {Number(ultimoLote.peso_bruto_kg).toLocaleString('es-CL')} kg ({ultimoLote.materiaPrima?.nombre})
                     </span>
                   </>
@@ -104,17 +109,27 @@ const Home = () => {
 
           {/* 2. STOCK EN CÁMARAS */}
           <div className="stat-card">
+            <div className="stat-card__icon" style={{ background: 'var(--info-bg, #dbeafe)', color: 'var(--info-color, #3b82f6)' }}>
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
             <div className="stat-card__content">
               <h3>Stock en Cámaras</h3>
-              <p className="stat-card__value">{totalStockCamaras.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: '#64748b' }}>kg</span></p>
+              <p className="stat-card__value">{totalStockCamaras.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: 'var(--text-secondary, #64748b)' }}>kg</span></p>
             </div>
           </div>
 
           {/* 3. STOCK EN CONTENEDORES */}
           <div className="stat-card">
+            <div className="stat-card__icon" style={{ background: 'var(--warning-bg, #fef3c7)', color: 'var(--warning-color, #f59e0b)' }}>
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
             <div className="stat-card__content">
               <h3>Stock en Contenedores</h3>
-              <p className="stat-card__value">{totalStockContenedores.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: '#64748b' }}>kg</span></p>
+              <p className="stat-card__value">{totalStockContenedores.toLocaleString('es-CL')} <span style={{ fontSize: '1rem', color: 'var(--text-secondary, #64748b)' }}>kg</span></p>
             </div>
           </div>
         </div>

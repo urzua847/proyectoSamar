@@ -5,6 +5,7 @@ import useGetProducciones from '../hooks/produccion/useGetProducciones';
 import PopupEnvasado from '../components/produccion/PopupEnvasado';
 import PopupTraslado from '../components/produccion/PopupTraslado';
 import { deleteManyProduccion, deleteProduccion } from '../services/envasado.service';
+import usePolling from '../hooks/usePolling';
 import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 import '../styles/users.css';
 
@@ -71,7 +72,6 @@ const Produccion = () => {
         if (selectedIds.length === 0) return;
 
         const newSelection = {};
-
         const rows = producciones.filter(p => selectedIds.includes(p.id));
 
         rows.forEach(row => {
@@ -82,9 +82,19 @@ const Produccion = () => {
         setIsTrasladoOpen(true);
     };
 
+    const [transferSelection, setTransferSelection] = useState({});
+
     useEffect(() => {
         actualizarTodo();
     }, []);
+
+    // Actualización automática cada 30 segundos
+    usePolling(() => {
+        // Solo actualizamos si no hay un modal abierto ni selecciones activas para evitar que los datos salten mientras el usuario opera.
+        if (!isEnvasadoOpen && !isTrasladoOpen && selectedIds.length === 0) {
+            actualizarTodo();
+        }
+    }, 30000);
 
     const [filtersStock, setFiltersStock] = useState({
         loteCodigo: '',
@@ -99,36 +109,7 @@ const Produccion = () => {
         setFiltersStock(prev => ({ ...prev, [name]: value }));
     };
 
-    const [isTransferMode, setIsTransferMode] = useState(false);
-    const [transferSelection, setTransferSelection] = useState({});
 
-    const handleTransferModeToggle = () => {
-        setIsTransferMode(!isTransferMode);
-        setTransferSelection({});
-    };
-
-    const handleTransferChange = (row, qty) => {
-        const val = parseInt(qty);
-        if (isNaN(val) || val < 0) return;
-        if (val > row.cantidad) return;
-
-        setTransferSelection(prev => {
-            const copy = { ...prev };
-            if (val === 0) {
-                delete copy[row.id];
-            } else {
-                copy[row.id] = { qty: val, row: row };
-            }
-            return copy;
-        });
-    };
-
-    const handleOpenTransferPopup = () => {
-        if (Object.keys(transferSelection).length === 0) {
-            return showErrorAlert('Error', 'Seleccione al menos un ítem para trasladar');
-        }
-        setIsTrasladoOpen(true);
-    };
 
     const columnsProduccion = [
         { header: "Lote", accessor: "loteCodigo" },
@@ -139,27 +120,21 @@ const Produccion = () => {
         { header: "Kilos Totales", accessor: "peso_neto_kg" },
         { header: "Cámara", accessor: "ubicacionNombre" },
         { header: "Hora Ingreso", accessor: "horaIngreso" },
-        ...(isTransferMode ? [{
-            header: "Traslado (Cant.)",
-            width: "140px",
+        { 
+            header: "Tiempo en Cámara", 
             render: (row) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <input
-                        type="number"
-                        min="0"
-                        max={row.cantidad}
-                        placeholder="0"
-                        style={{
-                            width: "80px",
-                            padding: "5px",
-                            border: transferSelection[row.id] ? "2px solid #ffc107" : "1px solid #ccc",
-                            fontWeight: transferSelection[row.id] ? "bold" : "normal"
-                        }}
-                        onChange={(e) => handleTransferChange(row, e.target.value)}
-                    />
-                </div>
+                <span style={{ 
+                    padding: '4px 8px', 
+                    borderRadius: '4px', 
+                    backgroundColor: row.horasEnCamara > 48 ? '#fee2e2' : '#f1f5f9', 
+                    color: row.horasEnCamara > 48 ? '#ef4444' : '#475569',
+                    fontWeight: row.horasEnCamara > 48 ? 'bold' : 'normal'
+                }}>
+                    {row.horasEnCamara} hrs
+                </span>
             )
-        }] : []),
+        },
+
         {
             header: "Acciones",
             render: (row) => (
@@ -257,46 +232,7 @@ const Produccion = () => {
                                 </div>
                             )}
 
-                            {!isTransferMode && selectedIds.length === 0 && (
-                                <button
-                                    onClick={handleTransferModeToggle}
-                                    className="btn-new"
-                                    title="Modo Manual de Traslado (Cantidades parciales)"
-                                    style={{
-                                        backgroundColor: '#e0a800', color: '#000',
-                                        padding: '10px 20px', borderRadius: '4px',
-                                        border: 'none', fontWeight: 'bold'
-                                    }}
-                                >
-                                    Traslado Manual
-                                </button>
-                            )}
-                            {isTransferMode && (
-                                <div style={{ display: 'flex', gap: '5px' }}>
-                                    <button
-                                        onClick={handleTransferModeToggle}
-                                        className="btn-edit"
-                                        style={{
-                                            backgroundColor: '#6c757d', color: 'white',
-                                            padding: '10px 20px', borderRadius: '4px',
-                                            border: 'none', fontWeight: 'bold'
-                                        }}
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        onClick={handleOpenTransferPopup}
-                                        className="btn-new"
-                                        style={{
-                                            backgroundColor: '#ffc107', color: '#000',
-                                            padding: '10px 20px', borderRadius: '4px',
-                                            border: 'none', fontWeight: 'bold'
-                                        }}
-                                    >
-                                        Confirmar
-                                    </button>
-                                </div>
-                            )}
+
                         </div>
                     </div>
                 </div>
@@ -397,7 +333,6 @@ const Produccion = () => {
                 onClose={() => setIsTrasladoOpen(false)}
                 onTrasladoSuccess={() => {
                     actualizarTodo();
-                    setIsTransferMode(false);
                     setTransferSelection({});
                     setSelectedIds([]);
                 }}

@@ -55,7 +55,7 @@ const useProduccion = () => {
         }));
     };
 
-    const handleGuardarEnvasado = async (customItems = null) => {
+    const handleGuardarEnvasado = async (customItems = null, options = {}) => {
         if (!loteSeleccionado) {
             showErrorAlert('Atención', 'Seleccione un Lote de Origen.');
             return;
@@ -106,13 +106,16 @@ const useProduccion = () => {
         try {
             const payload = {
                 loteRecepcionId: Number(loteSeleccionado),
-                items: itemsParaGuardar
+                items: itemsParaGuardar,
+                cerrar_lote: !!options.cerrar_lote,
+                merma_kg: Number(options.merma_kg || 0)
             };
 
             const response = await createProduccion(payload);
 
             if (response && response.status === 'Success') {
-                showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos.`);
+                const msgExtra = options.cerrar_lote ? ' y se cerró el lote registrando la merma.' : '.';
+                showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos${msgExtra}`);
                 setPlanilla({});
                 await fetchStock();
                 return true;

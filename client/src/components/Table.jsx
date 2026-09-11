@@ -1,6 +1,23 @@
 import '../styles/table.css';
+import EmptyState from './EmptyState';
 
-const Table = ({ columns, data, onRowClick, onRowDoubleClick, selectedId, selectedIds = [], onSelectionChange, multiSelect = false, filters, onFilterChange }) => {
+const Table = ({
+    columns,
+    data,
+    onRowClick,
+    onRowDoubleClick,
+    selectedId,
+    selectedIds = [],
+    onSelectionChange,
+    multiSelect = false,
+    filters,
+    onFilterChange,
+    emptyTitle,
+    emptyDescription,
+    emptyActionLabel,
+    onEmptyAction,
+    pagination
+}) => {
 
     // Validación de seguridad
     const safeData = data || [];
@@ -107,15 +124,73 @@ const Table = ({ columns, data, onRowClick, onRowDoubleClick, selectedId, select
                         })
                     ) : (
                         <tr>
-                            <td colSpan={columns.length + (multiSelect ? 1 : 0)} className="no-data">
-                                No se encontraron datos.
+                            <td colSpan={columns.length + (multiSelect ? 1 : 0)} style={{ padding: 0 }}>
+                                <EmptyState
+                                    title={emptyTitle || "No se encontraron registros"}
+                                    description={emptyDescription || "No hay datos para mostrar con los criterios actuales."}
+                                    actionLabel={emptyActionLabel}
+                                    onAction={onEmptyAction}
+                                />
                             </td>
                         </tr>
                     )}
                 </tbody>
             </table>
+            
+            {/* Pagination Controls */}
+            {pagination && pagination.totalPages > 1 && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    borderTop: '1px solid #e2e8f0',
+                    backgroundColor: '#fff',
+                    gap: '15px'
+                }}>
+                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        Página {pagination.currentPage} de {pagination.totalPages}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                            disabled={pagination.currentPage <= 1}
+                            onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                            style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #e2e8f0',
+                                backgroundColor: pagination.currentPage <= 1 ? '#f8fafc' : '#fff',
+                                color: pagination.currentPage <= 1 ? '#cbd5e1' : '#334155',
+                                cursor: pagination.currentPage <= 1 ? 'not-allowed' : 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: '500',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Anterior
+                        </button>
+                        <button 
+                            disabled={pagination.currentPage >= pagination.totalPages}
+                            onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                            style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #e2e8f0',
+                                backgroundColor: pagination.currentPage >= pagination.totalPages ? '#f8fafc' : '#fff',
+                                color: pagination.currentPage >= pagination.totalPages ? '#cbd5e1' : '#334155',
+                                cursor: pagination.currentPage >= pagination.totalPages ? 'not-allowed' : 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: '500',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-export default Table;
+export default Table;

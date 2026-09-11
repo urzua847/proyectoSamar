@@ -3,13 +3,16 @@ import Navbar from '../components/Navbar';
 import { AuthProvider } from '../context/AuthContext';
 
 import Footer from '../components/Footer';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 function Root() {
   return (
     <AuthProvider>
       <Navbar />
       <main style={{ flex: 1 }}>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
       <Footer />
     </AuthProvider>

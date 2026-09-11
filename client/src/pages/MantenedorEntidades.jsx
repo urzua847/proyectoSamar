@@ -99,7 +99,7 @@ const MantenedorEntidades = () => {
         return matchesType && matchesName;
     });
 
-    const getBadgeColor = (tipo) => tipo === 'cliente' ? '#17a2b8' : '#28a745';
+
 
     const columns = [
         { header: "Nombre", accessor: "nombre" },
@@ -110,12 +110,14 @@ const MantenedorEntidades = () => {
             accessor: "tipo",
             render: (row) => (
                 <span style={{
-                    backgroundColor: getBadgeColor(row.tipo),
-                    color: 'white',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.8rem',
-                    textTransform: 'uppercase'
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
                 }}>
                     {row.tipo}
                 </span>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLotesActivos, updateLote } from '../../services/recepcion.service';
+import { showToastSuccess, showToastError } from '../../helpers/sweetAlert';
 import '../../styles/popup.css';
 
 export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
@@ -27,33 +28,31 @@ export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
                 en_proceso_produccion: true,
                 fecha_inicio_produccion: new Date().toISOString()
             });
+            showToastSuccess("Proceso iniciado exitosamente");
             onSuccess();
         } catch (error) {
             console.error(error);
-            alert("Error al iniciar proceso");
+            showToastError("Error al iniciar proceso");
         }
     };
 
     if (!show) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ width: '500px' }}>
-                <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
-                <h2 style={{ color: '#003366', marginBottom: '20px' }}>Iniciar Nuevo Proceso</h2>
+        <div className="bg" onClick={() => setShow(false)}>
+            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                <button className='btn-close-x' onClick={() => setShow(false)}>✕</button>
+                <h2>Iniciar Nuevo Proceso</h2>
 
                 {loading ? (
-                    <div style={{ textAlign: 'center' }}>Cargando lotes...</div>
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#64748b' }}>Cargando lotes...</div>
                 ) : (
                     <>
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                                Seleccione Lote para Producción
-                            </label>
+                        <div className="container_inputs">
+                            <label>Seleccione Lote para Producción</label>
                             <select
                                 value={selectedLoteId}
                                 onChange={(e) => setSelectedLoteId(e.target.value)}
-                                style={{ width: '100%', padding: '10px', fontSize: '1rem' }}
                             >
                                 <option value="">-- Seleccione Lote --</option>
                                 {lotes.map(l => (
@@ -63,12 +62,13 @@ export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
                                 ))}
                             </select>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
+                        <div className="popup-actions">
+                            <button type="button" className="btn-cancel" onClick={() => setShow(false)}>Cancelar</button>
                             <button
                                 onClick={handleConfirm}
                                 className="btn-save"
                                 disabled={!selectedLoteId}
-                                style={{ opacity: selectedLoteId ? 1 : 0.6 }}
+                                style={{ opacity: selectedLoteId ? 1 : 0.5, cursor: selectedLoteId ? 'pointer' : 'not-allowed' }}
                             >
                                 Iniciar Proceso
                             </button>
@@ -79,3 +79,4 @@ export default function PopupSeleccionLote({ show, setShow, onSuccess }) {
         </div>
     );
 }
+

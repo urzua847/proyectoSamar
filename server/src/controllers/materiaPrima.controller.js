@@ -6,7 +6,10 @@ import {
   updateMateriaPrimaService,
   deleteMateriaPrimaService
 } from "../services/materiaPrima.service.js";
-import { createMateriaPrimaValidation } from "../validations/materiaPrima.validation.js";
+import {
+  createMateriaPrimaValidation,
+  updateMateriaPrimaValidation
+} from "../validations/materiaPrima.validation.js";
 import {
   handleErrorClient,
   handleErrorServer,
@@ -32,6 +35,12 @@ export async function createMateriaPrima(req, res) {
       return handleErrorClient(res, 400, "Error de validación", validationError.message);
     }
 
+    if (body.rendimiento_teorico_global === "" || body.rendimiento_teorico_global === undefined) {
+      body.rendimiento_teorico_global = null;
+    } else if (body.rendimiento_teorico_global !== null) {
+      body.rendimiento_teorico_global = Number(body.rendimiento_teorico_global);
+    }
+
     const [newMateriaPrima, error] = await createMateriaPrimaService(body);
     if (error) return handleErrorClient(res, 400, "Error al crear materia prima", error);
 
@@ -44,7 +53,20 @@ export async function createMateriaPrima(req, res) {
 export async function updateMateriaPrima(req, res) {
   try {
     const { id } = req.params;
-    const [updatedMp, error] = await updateMateriaPrimaService(id, req.body);
+    const { body } = req;
+
+    const { error: validationError } = updateMateriaPrimaValidation.validate(body);
+    if (validationError) {
+      return handleErrorClient(res, 400, "Error de validación", validationError.message);
+    }
+
+    if (body.rendimiento_teorico_global === "" || body.rendimiento_teorico_global === undefined) {
+      body.rendimiento_teorico_global = null;
+    } else if (body.rendimiento_teorico_global !== null) {
+      body.rendimiento_teorico_global = Number(body.rendimiento_teorico_global);
+    }
+
+    const [updatedMp, error] = await updateMateriaPrimaService(id, body);
     if (error) return handleErrorClient(res, 400, "Error al actualizar materia prima", error);
     handleSuccess(res, 200, "Materia prima actualizada", updatedMp);
   } catch (error) {
