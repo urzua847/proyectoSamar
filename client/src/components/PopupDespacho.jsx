@@ -4,7 +4,7 @@ import '../styles/popup.css';
 const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) => {
     const [clientData, setClientData] = useState({
         cliente: '',
-        n_guia_despacho: '', // Will be ignored by backend but kept for UI if needed or read-only
+        n_guia_despacho: '',
         tipo_venta: 'Nacional'
     });
 
@@ -18,7 +18,7 @@ const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) 
     return (
         <div className="bg" onClick={onClose}>
             <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '700px', maxWidth: '95%' }}>
-                <button className="close" onClick={onClose}>&times;</button>
+                <button className="btn-close-x" onClick={onClose}>&times;</button>
                 <h2 style={{ color: '#003366', marginTop: 0 }}>Planilla de Despacho</h2>
 
                 <form onSubmit={handleSubmit}>
@@ -78,7 +78,7 @@ const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) 
                                             <button
                                                 type="button"
                                                 onClick={() => onRemoveItem(idx)}
-                                                style={{ background: 'none', border: 'none', color: '#dc3545', fontWeight: 'bold', cursor: 'pointer', fontSize: '1.2rem' }}
+                                                className="btn-icon-circle btn-icon-delete"
                                                 title="Eliminar"
                                             >
                                                 &times;
@@ -94,7 +94,7 @@ const PopupDespacho = ({ isOpen, onClose, cart, onRemoveItem, onConfirmVenta }) 
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
-                        <button type="submit" className="btn-new" disabled={cart.length === 0} style={{ color: 'white' }}>
+                        <button type="submit" className="btn-save" disabled={cart.length === 0}>
                             Confirmar Pedido
                         </button>
                     </div>

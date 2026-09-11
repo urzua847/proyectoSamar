@@ -12,7 +12,8 @@ const itemProduccionSchema = Joi.object({
 export const createProduccionValidation = Joi.object({
   loteRecepcionId: Joi.number().integer().positive().required()
     .messages({ "any.required": "El Lote de Origen es obligatorio." }),
-  
+  cerrar_lote: Joi.boolean().optional(),
+  merma_kg: Joi.number().min(0).optional().allow(null),
   items: Joi.array().items(itemProduccionSchema).min(1).required()
     .messages({ "array.min": "Debes registrar al menos un producto." })
 }).unknown(false);

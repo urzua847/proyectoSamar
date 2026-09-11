@@ -4,8 +4,10 @@ import { AppDataSource } from "../config/configDb.js";
 import Pedido from "../entity/pedido.entity.js";
 import DetallePedido from "../entity/detallePedido.entity.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
+import { logCreate } from "./audit.service.js";
 
-export async function createPedidoService(data) {
+export async function createPedidoService(data, user = null) {
+    console.log('[DEBUG] User in createPedidoService:', user);
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -133,6 +135,27 @@ export async function createPedidoService(data) {
             }
         }
 
+        // Obtener detalles completos del pedido para auditoría
+        const detallesCompletos = await queryRunner.manager.find(DetallePedido, {
+            where: { pedido: { id: nuevoPedido.id } },
+            relations: ['producto', 'producto.definicion']
+        });
+
+        // Registrar en auditoría con detalle completo
+        await logCreate('Pedido', nuevoPedido.id, {
+            cliente: nuevoPedido.cliente,
+            numero_guia: nuevoPedido.numero_guia,
+            fecha: nuevoPedido.fecha,
+            total_items: items.length,
+            kilos_totales: detallesCompletos.reduce((acc, d) => acc + Number(d.kilos_totales), 0).toFixed(2),
+            detalle_productos: detallesCompletos.map(d => ({
+                producto: d.producto?.definicion?.nombre || 'N/A',
+                cantidad_bultos: d.cantidad_bultos,
+                kilos: Number(d.kilos_totales).toFixed(2),
+                formato: d.tipo_formato || 'N/A'
+            }))
+        }, user);
+
         await queryRunner.commitTransaction();
         return [nuevoPedido, null];
 
@@ -145,22 +168,123 @@ export async function createPedidoService(data) {
     }
 }
 
-export async function getPedidosService() {
+export async function getPedidosService(options = {}) {
     try {
-        const pedidos = await AppDataSource.getRepository(Pedido).find({
-            relations: {
-                detalles: {
-                    producto: {
-                        definicion: true
-                    }
-                }
-            },
-            order: {
-                fecha: "DESC"
+        // Pagination parameters with defaults
+        const page = parseInt(options.page) || 1;
+        const limit = parseInt(options.limit) || 50;
+        const offset = (page - 1) * limit;
+
+        const pedidoRepo = AppDataSource.getRepository(Pedido);
+
+        // Build query
+        let query = pedidoRepo.createQueryBuilder('pedido')
+            .leftJoinAndSelect('pedido.detalles', 'detalles')
+            .leftJoinAndSelect('detalles.producto', 'producto')
+            .leftJoinAndSelect('producto.definicion', 'definicion');
+
+        // Apply filters
+        if (options.cliente) {
+            query = query.andWhere('LOWER(pedido.cliente) LIKE LOWER(:cliente)', {
+                cliente: `%${options.cliente}%`
+            });
+        }
+
+        if (options.fecha_desde) {
+            query = query.andWhere('pedido.fecha >= :desde', { 
+                desde: options.fecha_desde 
+            });
+        }
+
+        if (options.fecha_hasta) {
+            query = query.andWhere('pedido.fecha <= :hasta', { 
+                hasta: options.fecha_hasta 
+            });
+        }
+
+        if (options.numero_guia) {
+            query = query.andWhere('pedido.numero_guia LIKE :guia', {
+                guia: `%${options.numero_guia}%`
+            });
+        }
+
+        // Get total count
+        const totalCount = await query.getCount();
+
+        // Get paginated pedidos
+        const pedidos = await query
+            .orderBy('pedido.fecha', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getMany();
+
+        // Return with pagination metadata
+        return [{
+            data: pedidos,
+            pagination: {
+                currentPage: page,
+                pageSize: limit,
+                totalItems: totalCount,
+                totalPages: Math.ceil(totalCount / limit),
+                hasNextPage: page < Math.ceil(totalCount / limit),
+                hasPreviousPage: page > 1
             }
-        });
-        return [pedidos, null];
+        }, null];
     } catch (error) {
+        console.error('[ERROR] getPedidosService:', error);
         return [null, error.message];
     }
 }
+
+/**
+ * Obtener pedidos para exportación (sin paginación, con todos los detalles)
+ */
+export async function getPedidosForExport(filters = {}) {
+    try {
+        const pedidoRepo = AppDataSource.getRepository(Pedido);
+
+        // Build query
+        let query = pedidoRepo.createQueryBuilder('pedido')
+            .leftJoinAndSelect('pedido.detalles', 'detalles')
+            .leftJoinAndSelect('detalles.producto', 'producto')
+            .leftJoinAndSelect('producto.definicion', 'definicion');
+
+        // Apply filters (same as getPedidosService)
+        if (filters.cliente) {
+            query = query.andWhere('LOWER(pedido.cliente) LIKE LOWER(:cliente)', {
+                cliente: `%${filters.cliente}%`
+            });
+        }
+
+        if (filters.fecha_desde) {
+            query = query.andWhere('pedido.fecha >= :desde', { 
+                desde: filters.fecha_desde 
+            });
+        }
+
+        if (filters.fecha_hasta) {
+            query = query.andWhere('pedido.fecha <= :hasta', { 
+                hasta: filters.fecha_hasta 
+            });
+        }
+
+        if (filters.numero_guia) {
+            query = query.andWhere('pedido.numero_guia LIKE :guia', {
+                guia: `%${filters.numero_guia}%`
+            });
+        }
+
+        // Get ALL pedidos matching filters (no pagination)
+        const pedidos = await query
+            .orderBy('pedido.fecha', 'DESC')
+            .getMany();
+
+        console.log(`📊 [PedidoService] Pedidos para export: ${pedidos.length} registros`);
+
+        return [pedidos, null];
+    } catch (error) {
+        console.error('[ERROR] getPedidosForExport:', error);
+        return [null, error.message];
+    }
+}
+

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { updateLote } from '../../services/recepcion.service';
+import { showToastSuccess, showToastError } from '../../helpers/sweetAlert';
 import '../../styles/popup.css';
 
 export default function PopupInputKilos({ show, setShow, onSuccess, initialData }) {
@@ -30,42 +31,44 @@ export default function PopupInputKilos({ show, setShow, onSuccess, initialData 
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const maxWeight = initialData ? Number(initialData.peso_neto || initialData.peso_bruto_kg || initialData.peso_neto_kg || 99999) : 99999;
+    const currentTotal = Number(formData.peso_carne_blanca || 0) + Number(formData.peso_pinzas || 0);
+    const hasWeightError = maxWeight > 0 && currentTotal > maxWeight * 1.5; // Margen razonable de tolerancia si aplica
+
     const handleSave = async () => {
-        if (!initialData) return;
+        if (!initialData || hasWeightError) return;
 
         try {
             await updateLote(initialData.id, {
-                peso_carne_blanca: Number(formData.peso_carne_blanca),
-                peso_pinzas: Number(formData.peso_pinzas),
-                peso_total_producido: Number(formData.peso_carne_blanca) + Number(formData.peso_pinzas),
+                peso_carne_blanca: Number(formData.peso_carne_blanca || 0),
+                peso_pinzas: Number(formData.peso_pinzas || 0),
+                peso_total_producido: currentTotal,
                 observacion_produccion: formData.observacion
             });
+            showToastSuccess('Producción de lote actualizada exitosamente');
             onSuccess();
         } catch (error) {
             console.error(error);
-            alert("Error al guardar datos");
+            showToastError("Error al guardar datos de producción");
         }
     };
 
     if (!show || !initialData) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ width: '500px', borderRadius: '12px', padding: '30px' }}>
-                <button className='close' onClick={() => setShow(false)}>X</button>
+        <div className="bg" onClick={() => setShow(false)}>
+            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+                <button className='btn-close-x' onClick={() => setShow(false)}>✕</button>
 
-                <h2 style={{ color: '#003366', marginBottom: '10px', textAlign: 'center' }}>
-                    Ingreso de Producción
-                </h2>
-                <h4 style={{ color: '#666', textAlign: 'center', marginBottom: '25px', marginTop: '0' }}>
-                    Lote: <span style={{ color: '#003366' }}>{initialData.codigo}</span> | {initialData.materiaPrimaNombre}
-                </h4>
+                <h2>Ingreso de Producción</h2>
+                <p className="popup-subtitle">
+                    Lote: <span style={{ color: '#003366', fontWeight: 'bold' }}>{initialData.codigo}</span> | {initialData.materiaPrimaNombre}
+                </p>
 
-                <div className="form-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                    <div style={{ display: 'flex', gap: '20px' }}>
+                <div className="form-container">
+                    <div style={{ display: 'flex', gap: '16px' }}>
                         <div className="container_inputs" style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Carne Blanca (Kg)</label>
+                            <label>Carne Blanca (Kg)</label>
                             <input
                                 type="number"
                                 name="peso_carne_blanca"
@@ -74,16 +77,13 @@ export default function PopupInputKilos({ show, setShow, onSuccess, initialData 
                                 step="0.01"
                                 placeholder="0.00"
                                 style={{
-                                    padding: '12px 15px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '8px',
-                                    fontSize: '1rem',
+                                    border: hasWeightError ? '2px solid #ef4444' : '1px solid #d1d5db',
                                     textAlign: 'center'
                                 }}
                             />
                         </div>
                         <div className="container_inputs" style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Pinzas (Kg)</label>
+                            <label>Pinzas (Kg)</label>
                             <input
                                 type="number"
                                 name="peso_pinzas"
@@ -92,50 +92,43 @@ export default function PopupInputKilos({ show, setShow, onSuccess, initialData 
                                 step="0.01"
                                 placeholder="0.00"
                                 style={{
-                                    padding: '12px 15px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '8px',
-                                    fontSize: '1rem',
+                                    border: hasWeightError ? '2px solid #ef4444' : '1px solid #d1d5db',
                                     textAlign: 'center'
                                 }}
                             />
                         </div>
                     </div>
 
+                    {hasWeightError && (
+                        <span style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', fontWeight: 600 }}>
+                            ⚠️ La suma ingresada ({currentTotal.toFixed(2)} Kg) excede el peso del lote ({maxWeight.toFixed(2)} Kg).
+                        </span>
+                    )}
+
                     <div className="container_inputs">
-                        <label style={{ fontSize: '0.9rem' }}>Observación</label>
+                        <label>Observación</label>
                         <textarea
                             name="observacion"
                             value={formData.observacion}
                             onChange={handleChange}
                             rows="3"
-                            placeholder="Comentarios adicionales..."
+                            placeholder="Comentarios adicionales de producción..."
                             style={{
                                 width: '100%',
-                                padding: '12px',
-                                border: '1px solid #ddd',
-                                borderRadius: '8px',
-                                resize: 'none',
-                                fontFamily: 'inherit',
-                                fontSize: '0.95rem'
+                                resize: 'none'
                             }}
                         />
                     </div>
 
-                    <div style={{ paddingTop: '10px' }}>
+                    <div className="popup-actions">
+                        <button type="button" className="btn-cancel" onClick={() => setShow(false)}>Cancelar</button>
                         <button
                             onClick={handleSave}
-                            className="btn-new"
+                            className="btn-save"
+                            disabled={hasWeightError}
                             style={{
-                                width: '100%',
-                                background: '#003366',
-                                color: 'white',
-                                padding: '15px',
-                                fontSize: '1rem',
-                                borderRadius: '25px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                cursor: 'pointer',
-                                border: 'none'
+                                opacity: hasWeightError ? 0.5 : 1,
+                                cursor: hasWeightError ? 'not-allowed' : 'pointer'
                             }}
                         >
                             Guardar Producción
@@ -146,3 +139,5 @@ export default function PopupInputKilos({ show, setShow, onSuccess, initialData 
         </div>
     );
 }
+
+

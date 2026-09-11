@@ -44,9 +44,7 @@ async function createMateriasPrimas() {
   const repo = AppDataSource.getRepository(MateriaPrima);
   
   const mps = [
-      { nombre: "Jaiba" },
-      { nombre: "Pulpo" },
-      { nombre: "Almeja" }
+      { nombre: "Jaiba" }
   ];
 
   for (const mpData of mps) {

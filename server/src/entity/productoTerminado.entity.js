@@ -31,6 +31,12 @@ const ProductoTerminadoSchema = new EntitySchema({
       length: 50,
       default: "En Stock", // "En Stock", "Despachado"
     },
+    deletedAt: {
+      type: "timestamp with time zone",
+      nullable: true,
+      default: null,
+      comment: "Soft delete - Fecha de eliminación lógica"
+    },
   },
   relations: {
     loteDeOrigen: {

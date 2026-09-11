@@ -11,40 +11,28 @@ const useGetProducciones = () => {
     const fetchProducciones = async () => {
         try {
             const data = await getProducciones();
-            const formatted = (Array.isArray(data) ? data : []).map(p => ({
-                ...p,
-                horaIngreso: p.fecha_produccion ? formatTempo(p.fecha_produccion, "HH:mm DD-MM") : '-',
-            }));
-
-            const groups = {};
-            formatted.forEach(item => {
-                const key = `${item.loteId}-${item.productoFinalNombre}-${item.calibre}-${item.horaIngreso}`;
-
-                if (!groups[key]) {
-                    groups[key] = {
-                        ...item,
-                        cantidad: 1,
-                        peso_neto_kg: Number(item.peso_neto_kg),
-                        ids: [item.id]
-                    };
-                } else {
-                    groups[key].cantidad += 1;
-                    groups[key].peso_neto_kg += Number(item.peso_neto_kg);
-                    groups[key].ids.push(item.id);
+            // Backend now returns data already grouped
+            const rawProducciones = Array.isArray(data) ? data : [];
+            const now = new Date();
+            
+            const formattedProducciones = rawProducciones.map(p => {
+                let horaIngreso = '-';
+                let horasEnCamara = 0;
+                
+                if (p.fechaReal) {
+                    const date = new Date(p.fechaReal);
+                    horaIngreso = formatTempo(date, "HH:mm DD-MM");
+                    horasEnCamara = Math.floor((now - date) / (1000 * 60 * 60));
                 }
+                
+                return {
+                    ...p,
+                    horaIngreso,
+                    horasEnCamara: horasEnCamara >= 0 ? horasEnCamara : 0
+                };
             });
-
-            const groupedArray = Object.values(groups).map(g => ({
-                ...g,
-                peso_neto_kg: g.peso_neto_kg.toFixed(2),
-                cantidad: g.cantidad
-            })).sort((a, b) => {
-                if (a.loteCodigo > b.loteCodigo) return -1;
-                if (a.loteCodigo < b.loteCodigo) return 1;
-                return b.id - a.id;
-            });
-
-            setProducciones(groupedArray);
+            
+            setProducciones(formattedProducciones);
         } catch (error) {
             console.error(error);
             setProducciones([]);

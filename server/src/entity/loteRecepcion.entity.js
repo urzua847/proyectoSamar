@@ -61,6 +61,13 @@ const LoteRecepcionSchema = new EntitySchema({
         nullable: true,
         default: 0
     },
+    merma_kg: {
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        default: 0
+    },
     observacion_produccion: {
         type: "text",
         nullable: true,
@@ -81,6 +88,12 @@ const LoteRecepcionSchema = new EntitySchema({
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
       onUpdate: "CURRENT_TIMESTAMP",
+    },
+    deletedAt: {
+      type: "timestamp with time zone",
+      nullable: true,
+      default: null,
+      comment: "Soft delete - Fecha de eliminación lógica"
     },
   },
   relations: {

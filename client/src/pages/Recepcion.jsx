@@ -1,15 +1,21 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Table from '../components/Table';
 import useGetRecepciones from '../hooks/recepcion/useGetRecepciones';
 import useEditRecepcion from '../hooks/recepcion/useEditRecepcion';
 import useRecepcion from '../hooks/recepcion/useRecepcion';
 import PopupRecepcion from '../components/PopupRecepcion';
 import PopupNuevaProduccion from '../components/produccion/PopupNuevaProduccion';
+import PopupEditarProduccion from '../components/produccion/PopupEditarProduccion';
 import { updateLote } from '../services/recepcion.service';
-import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+import { showSuccessAlert, showErrorAlert, confirmStrictDelete, showToastSuccess, showToastError, showToastWarning, confirmActionAlert } from '../helpers/sweetAlert';
+import TouchButton from '../components/TouchButton';
+import Badge from '../components/Badge';
+import ActionButton from '../components/ActionButton';
 import '../styles/users.css';
 
 const Recepcion = () => {
+    const navigate = useNavigate();
     const { lotes, fetchLotes, setLotes } = useGetRecepciones();
     const { handleCreateLote } = useRecepcion();
 
@@ -22,6 +28,7 @@ const Recepcion = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     const [isInputKilosOpen, setIsInputKilosOpen] = useState(false);
+    const [isEditProduccionOpen, setIsEditProduccionOpen] = useState(false);
 
     const [selectedLote, setSelectedLote] = useState(null);
 
@@ -39,25 +46,37 @@ const Recepcion = () => {
 
     const handleToggleEstado = async (lote) => {
         if (!lote) return;
-        if (!isAdmin) return;
 
         const nuevoEstado = !lote.estado;
         const accion = nuevoEstado ? "Reabrir" : "Cerrar";
 
-        if (!window.confirm(`¿Seguro que deseas ${accion} el lote ${lote.codigo}?`)) return;
+        // Operario solo puede cerrar, no reabrir
+        if (!isAdmin && nuevoEstado === true) {
+            showToastError('Solo un administrador puede reabrir un lote.');
+            return;
+        }
+
+        const confirm = await confirmActionAlert(
+            `Lote ${lote.codigo}`,
+            `¿Seguro que deseas ${accion.toLowerCase()} este lote?`,
+            `Sí, ${accion}`,
+            nuevoEstado ? "#10b981" : "#f59e0b",
+            "warning"
+        );
+        if (!confirm.isConfirmed) return;
 
         try {
             const response = await updateLote(lote.id, { estado: nuevoEstado });
 
             if (response.status === 'Success') {
-                showSuccessAlert('¡Estado Actualizado!', `El lote ha sido ${nuevoEstado ? 'abierto' : 'cerrado'} correctamente.`);
+                showToastSuccess(`El lote ${lote.codigo} ha sido ${nuevoEstado ? 'abierto' : 'cerrado'}.`);
                 fetchLotes();
             } else {
-                showErrorAlert('Error', response.message || "No se pudo cambiar el estado.");
+                showToastError(response.message || "No se pudo cambiar el estado.");
             }
         } catch (error) {
             console.error(error);
-            showErrorAlert('Error', "Ocurrió un error inesperado.");
+            showToastError("Ocurrió un error inesperado al actualizar estado.");
         }
     };
 
@@ -75,7 +94,24 @@ const Recepcion = () => {
     };
 
     const columns = [
-        { header: "Lote", accessor: "codigo" },
+        {
+            header: "Lote",
+            render: (row) => (
+                <span
+                    onClick={(e) => { e.stopPropagation(); navigate(`/recepcion/${row.id}`); }}
+                    style={{
+                        color: '#1a6bbf',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap'
+                    }}
+                    title="Ver detalle del lote"
+                >
+                    {row.codigo}
+                </span>
+            )
+        },
         { header: "Recepción", accessor: "fechaFormateada" },
         { header: "Proveedor", accessor: "proveedorNombre" },
         { header: "Especie", accessor: "materiaPrimaNombre" },
@@ -92,71 +128,52 @@ const Recepcion = () => {
             header: "Estado Lote",
             accessor: "estadoTexto",
             render: (row) => (
-                <span style={{
-                    color: row.estado ? '#155724' : '#721c24',
-                    backgroundColor: row.estado ? '#d4edda' : '#f8d7da',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    fontSize: '0.85rem'
-                }}>
+                <Badge status={row.estado ? 'success' : 'danger'} variant="solid">
                     {row.estadoTexto}
-                </span>
+                </Badge>
             )
         },
-        ...(isAdmin ? [{
+        {
             header: "Acciones",
             render: (row) => (
-                <div style={{ display: 'flex', gap: '5px' }}>
-                    {/* EDIT */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
-                        className='btn-edit'
-                        title="Editar"
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: '#003366', border: 'none', color: 'white', fontSize: '0.9rem'
-                        }}
-                    >
-                        ✎
-                    </button>
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                    {/* EDIT - Solo admin */}
+                    {isAdmin && (
+                        <ActionButton
+                            variant="edit"
+                            title="Editar Lote"
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
+                        />
+                    )}
 
                     {/* TOGGLE STATE */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
-                        title={row.estado ? "Cerrar Lote" : "Reabrir Lote"}
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: row.estado ? '#ffc107' : '#17a2b8',
-                            border: 'none', color: row.estado ? '#000' : '#fff', fontSize: '0.9rem'
-                        }}
-                    >
-                        {row.estado ? "🔒" : "🔓"}
-                    </button>
+                    {(isAdmin || row.estado) && (
+                        <ActionButton
+                            variant={row.estado ? "transfer" : "custom"}
+                            title={row.estado ? (isAdmin ? "Cerrar Lote" : "Bloquear Lote") : "Reabrir Lote (admin)"}
+                            onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
+                            disabled={!isAdmin && !row.estado}
+                            icon={row.estado ? "🔒" : "🔓"}
+                        />
+                    )}
 
-                    {/* DELETE */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setDataLote(row);
-                            handleDelete();
-                        }}
-                        className='btn-delete'
-                        title="Eliminar"
-                        style={{
-                            padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: '#dc3545', border: 'none', color: 'white', fontSize: '1rem'
-                        }}
-                    >
-                        🗑
-                    </button>
+                    {/* DELETE - Solo admin */}
+                    {isAdmin && (
+                        <ActionButton
+                            variant="delete"
+                            title="Eliminar Lote"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setDataLote(row);
+                                handleDelete();
+                            }}
+                        />
+                    )}
                 </div>
             )
-        }] : [])
+        }
     ];
+
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -168,8 +185,15 @@ const Recepcion = () => {
         return lotes.filter(item => {
             return Object.keys(filters).every(key => {
                 if (!filters[key]) return true;
+                
+                let filterValue = filters[key].toLowerCase();
+                // Si el filtro es de fecha y viene en formato YYYY-MM-DD (del input type date), lo convertimos a DD-MM-YYYY
+                if (key === 'fechaFormateada' && filterValue.includes('-') && filterValue.split('-')[0].length === 4) {
+                     const [year, month, day] = filterValue.split('-');
+                     filterValue = `${day}-${month}-${year}`;
+                }
+
                 const itemValue = String(item[key] || '').toLowerCase();
-                const filterValue = filters[key].toLowerCase();
                 return itemValue.includes(filterValue);
             });
         });
@@ -187,110 +211,113 @@ const Recepcion = () => {
         <div className='main-container'>
             <div className='table-wrapper'>
 
-                <div className='top-table'>
-                    <h1 className='title-table'>Recepción de Materia Prima</h1>
+                <div className='top-table' style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <h1 className='title-table' style={{ margin: 0, fontSize: '1.5rem' }}>Recepción de Materia Prima</h1>
 
-                    <div className='action-buttons' style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            onClick={() => setIsCreateOpen(true)}
-                            style={{
-                                backgroundColor: '#4caf50',
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                            }}
-                        >
-                            <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Nuevo Ingreso
-                        </button>
+                        <div className='action-buttons' style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <TouchButton
+                                onClick={() => setIsCreateOpen(true)}
+                                variant="success"
+                                size="medium"
+                            >
+                                + Nuevo Ingreso
+                            </TouchButton>
 
-                        {/* New Production Button */}
-                        <button
-                            onClick={() => {
-                                if (selectedLote) {
-                                    if (Number(selectedLote.peso_total_producido) > 0 || Number(selectedLote.peso_carne_blanca) > 0) {
-                                        showErrorAlert("Aviso", "Este lote ya tiene producción registrada.");
-                                        return;
+                            <button
+                                onClick={() => {
+                                    if (selectedLote) {
+                                        if (Number(selectedLote.peso_total_producido) > 0 || Number(selectedLote.peso_carne_blanca) > 0) {
+                                            showToastWarning("Este lote ya tiene producción registrada.");
+                                            return;
+                                        }
+                                        setIsInputKilosOpen(true);
                                     }
-                                    setIsInputKilosOpen(true);
-                                }
-                                else showErrorAlert("Atención", "Selecciona un lote de la tabla primero.");
-                            }}
-                            className="btn-new"
-                            disabled={!selectedLote}
-                            style={{
-                                backgroundColor: selectedLote ? '#003366' : '#ccc',
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '4px',
-                                cursor: selectedLote ? 'pointer' : 'not-allowed',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                            }}
-                        >
-                            Nueva Producción
-                        </button>
+                                    else showToastWarning("Selecciona un lote de la tabla primero.");
+                                }}
+                                className="btn-new"
+                                disabled={!selectedLote}
+                            >
+                                Ingresar Producción
+                            </button>
+                        </div>
+
+                        {/* Botón Corregir Producción - solo si el lote tiene un registro real en producciones */}
+                        {selectedLote && selectedLote.en_proceso_produccion === true && (
+                            <button
+                                onClick={() => setIsEditProduccionOpen(true)}
+                                className="btn-new"
+                                style={{ padding: '10px 18px' }}
+                                title="Corregir los kilos de producción (solo una vez permitido)"
+                            >
+                                ✏️ Corregir Producción
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    <input
-                        name="codigo"
-                        placeholder="Código..."
-                        value={filters.codigo}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="proveedorNombre"
-                        placeholder="Proveedor..."
-                        value={filters.proveedorNombre}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="materiaPrimaNombre"
-                        placeholder="Producto..."
-                        value={filters.materiaPrimaNombre}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <input
-                        name="fechaFormateada"
-                        placeholder="Fecha (dd-mm-yyyy)..."
-                        value={filters.fechaFormateada}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                    />
-                    <select
-                        name="estadoTexto"
-                        value={filters.estadoTexto}
-                        onChange={handleFilterChange}
-                        className="search-input"
-                        style={{ width: 'auto' }}
-                    >
-                        <option value="">Todos</option>
-                        <option value="Abierto">Abierto</option>
-                        <option value="Cerrado">Cerrado</option>
-                    </select>
-                </div>
+                <div className="table-container-box">
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input
+                            name="codigo"
+                            placeholder="Código..."
+                            value={filters.codigo}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        />
+                        <input
+                            name="proveedorNombre"
+                            placeholder="Proveedor..."
+                            value={filters.proveedorNombre}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        />
+                        <input
+                            name="materiaPrimaNombre"
+                            placeholder="Especie / Producto..."
+                            value={filters.materiaPrimaNombre}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        />
+                        <input
+                            type="date"
+                            name="fechaFormateada"
+                            placeholder="Fecha..."
+                            value={filters.fechaFormateada}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        />
+                        <select
+                            name="estadoTexto"
+                            value={filters.estadoTexto}
+                            onChange={handleFilterChange}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        >
+                            <option value="">-- Todos los Estados --</option>
+                            <option value="Abierto">Abierto</option>
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+                        <button
+                            onClick={() => setFilters({ codigo: '', proveedorNombre: '', materiaPrimaNombre: '', fechaFormateada: '', estadoTexto: '' })}
+                            className="btn-cancel"
+                            style={{ height: '38px', padding: '0 14px', whiteSpace: 'nowrap' }}
+                        >
+                            Limpiar
+                        </button>
+                    </div>
 
-                <Table
-                    columns={columns}
-                    data={filteredLotes}
-                    onRowClick={handleRowClick}
-                    selectedId={selectedLote?.id}
-                />
+                    <Table
+                        columns={columns}
+                        data={filteredLotes}
+                        onRowClick={handleRowClick}
+                        selectedId={selectedLote?.id}
+                    />
+                </div>
             </div>
 
             <PopupRecepcion show={isCreateOpen} setShow={setIsCreateOpen} action={handleCreateSubmit} />
@@ -299,6 +326,16 @@ const Recepcion = () => {
             <PopupNuevaProduccion
                 show={isInputKilosOpen}
                 setShow={setIsInputKilosOpen}
+                selectedLote={selectedLote}
+                onSuccess={() => {
+                    fetchLotes();
+                    setSelectedLote(null);
+                }}
+            />
+
+            <PopupEditarProduccion
+                show={isEditProduccionOpen}
+                setShow={setIsEditProduccionOpen}
                 selectedLote={selectedLote}
                 onSuccess={() => {
                     fetchLotes();

@@ -11,10 +11,14 @@ import './styles/styles.css';
 import Users from './pages/User';
 import Recepcion from './pages/Recepcion';
 import Produccion from './pages/Produccion';
-import Pedidos from './pages/Pedidos';
+import Contenedores from './pages/Contenedores';
+import Despachos from './pages/Despachos';
 import MantenedorProductos from './pages/MantenedorProductos';
 import PanelControl from './pages/PanelControl';
 import MantenedorEntidades from './pages/MantenedorEntidades';
+import LoteDetail from './pages/LoteDetail';
+import EntityDetail from './pages/EntityDetail';
+import Auditoria from './pages/Auditoria';
 
 const router = createBrowserRouter([
   {
@@ -58,7 +62,15 @@ const router = createBrowserRouter([
         path: '/contenedores',
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
-            <Pedidos />
+            <Contenedores />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/despachos',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <Despachos />
           </ProtectedRoute>
         )
       },
@@ -85,6 +97,30 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['administrador']}>
             <MantenedorEntidades />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/auditoria',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador']}>
+            <Auditoria />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/recepcion/:id',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <LoteDetail />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/entidades/:id',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador']}>
+            <EntityDetail />
           </ProtectedRoute>
         )
       }

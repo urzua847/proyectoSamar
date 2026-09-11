@@ -57,8 +57,8 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
 
     return (
         <div className="bg">
-            <div className="popup" style={{ width: '500px', borderRadius: '12px', padding: '30px' }}>
-                <button className='close' onClick={() => setShow(false)}>X</button>
+            <div className="popup" style={{ padding: '30px' }}>
+                <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
 
                 <h2 style={{ color: '#003366', marginBottom: '10px', textAlign: 'center' }}>
                     Nueva Producción (Rendimiento)
@@ -134,18 +134,8 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
                     <div style={{ paddingTop: '10px' }}>
                         <button
                             onClick={handleSave}
-                            className="btn-new"
-                            style={{
-                                width: '100%',
-                                background: '#003366',
-                                color: 'white',
-                                padding: '15px',
-                                fontSize: '1rem',
-                                borderRadius: '25px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                cursor: 'pointer',
-                                border: 'none'
-                            }}
+                            className="btn-save"
+                            style={{ width: '100%' }}
                         >
                             Guardar
                         </button>

@@ -1,25 +1,32 @@
-
 import { useState, useEffect } from 'react';
 import { getProductos, createProducto, updateProducto, deleteProducto } from '../services/producto.service';
 import { getMateriasPrimas, createMateriaPrima, updateMateriaPrima, deleteMateriaPrima } from '../services/materiaPrima.service';
-import { showSuccessAlert, showErrorAlert, deleteDataAlert } from '../helpers/sweetAlert';
-import Swal from 'sweetalert2';
+import { showToastSuccess, showToastError, confirmStrictDelete } from '../helpers/sweetAlert';
+import Badge from '../components/Badge';
+import ActionButton from '../components/ActionButton';
+import EmptyState from '../components/EmptyState';
 import '../styles/users.css';
 import '../styles/popup.css';
+import '../styles/mantenedorProductos.css';
 
 const MantenedorProductos = () => {
-
     const [materiasPrimas, setMateriasPrimas] = useState([]);
     const [productos, setProductos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [selectedMPId, setSelectedMPId] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const [expandedMP, setExpandedMP] = useState([]);
     const [expandedProd, setExpandedProd] = useState([]);
 
     const [isCreateMPOpen, setIsCreateMPOpen] = useState(false);
     const [isCreateProdOpen, setIsCreateProdOpen] = useState(false);
 
     const [newMPName, setNewMPName] = useState('');
+    const [newMPRendimiento, setNewMPRendimiento] = useState('');
+
+    const [isEditMPOpen, setIsEditMPOpen] = useState(false);
+    const [editMPForm, setEditMPForm] = useState({ id: null, nombre: '', rendimiento_teorico_global: '' });
+
     const [prodForm, setProdForm] = useState({
         nombre: '', materiaPrimaId: '', tipo: 'elaborado', origen: '', calibresStr: '',
         parentId: null
@@ -29,12 +36,17 @@ const MantenedorProductos = () => {
         setLoading(true);
         try {
             const [mpsRes, prodsRes] = await Promise.all([getMateriasPrimas(), getProductos()]);
-            if (mpsRes.status === 'Success') setMateriasPrimas(mpsRes.data);
+            if (mpsRes.status === 'Success') {
+                setMateriasPrimas(mpsRes.data);
+                if (mpsRes.data.length > 0 && !selectedMPId) {
+                    setSelectedMPId(mpsRes.data[0].id);
+                }
+            }
             if (prodsRes.status === 'Success') setProductos(prodsRes.data);
             else if (prodsRes.data) setProductos(prodsRes.data);
         } catch (error) {
             console.error(error);
-            showErrorAlert('Error', 'Error cargando datos');
+            showToastError('Error cargando catálogo de productos');
         } finally {
             setLoading(false);
         }
@@ -46,32 +58,70 @@ const MantenedorProductos = () => {
 
     const handleCreateMP = async (e) => {
         e.preventDefault();
-        const res = await createMateriaPrima({ nombre: newMPName });
+        if (!newMPName.trim()) return;
+        const payload = {
+            nombre: newMPName.trim(),
+            rendimiento_teorico_global: newMPRendimiento !== '' ? Number(newMPRendimiento) : null
+        };
+        const res = await createMateriaPrima(payload);
         if (res.status === 'Success') {
-            showSuccessAlert('Creado', 'Materia Prima creada');
+            showToastSuccess('Materia Prima creada exitosamente');
             setNewMPName('');
+            setNewMPRendimiento('');
             setIsCreateMPOpen(false);
+            if (res.data && res.data.id) setSelectedMPId(res.data.id);
             fetchData();
         } else {
-            showErrorAlert('Error', res.message);
+            showToastError(res.message || 'Error al crear Materia Prima');
         }
     };
 
-    const handleDeleteMP = async (id) => {
-        const confirm = await deleteDataAlert();
+    const openEditMP = (mp) => {
+        setEditMPForm({
+            id: mp.id,
+            nombre: mp.nombre || '',
+            rendimiento_teorico_global: mp.rendimiento_teorico_global !== null && mp.rendimiento_teorico_global !== undefined ? String(mp.rendimiento_teorico_global) : ''
+        });
+        setIsEditMPOpen(true);
+    };
+
+    const handleUpdateMP = async (e) => {
+        e.preventDefault();
+        if (!editMPForm.nombre.trim()) return;
+        const payload = {
+            nombre: editMPForm.nombre.trim(),
+            rendimiento_teorico_global: editMPForm.rendimiento_teorico_global !== '' ? Number(editMPForm.rendimiento_teorico_global) : null
+        };
+        const res = await updateMateriaPrima(editMPForm.id, payload);
+        if (res.status === 'Success') {
+            showToastSuccess('Materia Prima actualizada');
+            setIsEditMPOpen(false);
+            fetchData();
+        } else {
+            showToastError(res.message || 'Error al actualizar Materia Prima');
+        }
+    };
+
+    const handleDeleteMP = async (mp) => {
+        const confirm = await confirmStrictDelete(
+            mp.nombre,
+            'Se eliminarán también las asociaciones de sus productos si no tienen stock activo.'
+        );
         if (confirm.isConfirmed) {
-            const res = await deleteMateriaPrima(id);
+            const res = await deleteMateriaPrima(mp.id);
             if (res.status === 'Success' || res.data) {
-                showSuccessAlert('Eliminado', 'Materia Prima eliminada');
+                showToastSuccess(`Materia Prima "${mp.nombre}" eliminada`);
+                const remaining = materiasPrimas.filter(m => m.id !== mp.id);
+                setSelectedMPId(remaining.length > 0 ? remaining[0].id : null);
                 fetchData();
             } else {
-                showErrorAlert('Error', res.message || 'No se puede eliminar si tiene productos');
+                showToastError(res.message || 'No se puede eliminar si tiene productos vinculados');
             }
         }
     };
 
     const openCreateProduct = (mpId) => {
-        setProdForm({ ...prodForm, materiaPrimaId: mpId, parentId: mpId, nombre: '', calibresStr: '' });
+        setProdForm({ ...prodForm, materiaPrimaId: mpId, parentId: mpId, nombre: '', calibresStr: '', origen: '' });
         setIsCreateProdOpen(true);
     };
 
@@ -86,23 +136,23 @@ const MantenedorProductos = () => {
         };
         const res = await createProducto(payload);
         if (res.status === 'Success') {
-            showSuccessAlert('Creado', 'Producto Sub-derivado creado');
+            showToastSuccess('Producto derivado creado exitosamente');
             setIsCreateProdOpen(false);
             fetchData();
         } else {
-            showErrorAlert('Error', res.message);
+            showToastError(res.message || 'Error al crear producto');
         }
     };
 
-    const handleDeleteProduct = async (id) => {
-        const confirm = await deleteDataAlert();
+    const handleDeleteProduct = async (prod) => {
+        const confirm = await confirmStrictDelete(prod.nombre);
         if (confirm.isConfirmed) {
-            const res = await deleteProducto(id);
+            const res = await deleteProducto(prod.id);
             if (res.status === 'Success') {
-                showSuccessAlert('Eliminado', 'Producto eliminado');
+                showToastSuccess(`Producto "${prod.nombre}" eliminado`);
                 fetchData();
             } else {
-                showErrorAlert('Error', res.message);
+                showToastError(res.message || 'Error al eliminar producto');
             }
         }
     };
@@ -110,11 +160,17 @@ const MantenedorProductos = () => {
     const handleAddCalibre = async (prod, val) => {
         if (!val.trim()) return;
         const current = prod.calibres || [];
-        if (current.includes(val.trim())) return;
+        if (current.includes(val.trim())) {
+            showToastError('El calibre ya existe para este producto');
+            return;
+        }
         const updated = [...current, val.trim()];
         const res = await updateProducto(prod.id, { calibres: updated });
         if (res.status === 'Success') {
+            showToastSuccess(`Calibre "${val.trim()}" agregado`);
             setProductos(prev => prev.map(p => p.id === prod.id ? { ...p, calibres: updated } : p));
+        } else {
+            showToastError('Error al actualizar calibres');
         }
     };
 
@@ -122,175 +178,374 @@ const MantenedorProductos = () => {
         const updated = (prod.calibres || []).filter(c => c !== val);
         const res = await updateProducto(prod.id, { calibres: updated });
         if (res.status === 'Success') {
+            showToastSuccess(`Calibre "${val}" eliminado`);
             setProductos(prev => prev.map(p => p.id === prod.id ? { ...p, calibres: updated } : p));
+        } else {
+            showToastError('Error al eliminar calibre');
         }
     };
 
-    const toggleMP = (id) => setExpandedMP(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     const toggleProd = (id) => setExpandedProd(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+    // Filtrado de materias primas por búsqueda
+    const filteredMPs = materiasPrimas.filter(mp =>
+        mp.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const selectedMP = materiasPrimas.find(m => String(m.id) === String(selectedMPId));
+
+    const selectedMPProducts = selectedMP ? productos.filter(p => {
+        const pMpId = p.materiaPrima?.id || p.materiaPrimaId;
+        return String(pMpId) === String(selectedMP.id);
+    }) : [];
+
+    const primarios = selectedMPProducts.filter(p => p.tipo === 'primario');
+    const elaborados = selectedMPProducts.filter(p => p.tipo === 'elaborado');
+
     return (
-        <div className="main-container" style={{ marginTop: '60px', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '20px', flexWrap: 'wrap' }}>
-                <h1 style={{ color: '#003366', margin: 0 }}>Gestión de Productos</h1>
-                <button className="btn-new" onClick={() => setIsCreateMPOpen(true)}>
-                    + Nueva Materia Prima (Origen)
-                </button>
-            </div>
+        <div className="main-container">
+            <div className="table-wrapper">
+                <div className="top-table">
+                    <h1 className="title-table" style={{ fontSize: '1.5rem', margin: 0 }}>Gestión de Catálogo de Productos</h1>
+                    <div className="action-buttons">
+                        <button className="btn-new" onClick={() => setIsCreateMPOpen(true)}>
+                            <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Nueva Materia Prima
+                        </button>
+                    </div>
+                </div>
 
-            {loading ? <p>Cargando...</p> : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {materiasPrimas.length === 0 && <p style={{ fontStyle: 'italic', color: '#666' }}>No hay materias primas definidas. Comienza creando una.</p>}
-
-                    {materiasPrimas.map(mp => {
-                        const mpProducts = productos.filter(p => {
-                            const pMpId = p.materiaPrima?.id || p.materiaPrimaId;
-                            return String(pMpId) === String(mp.id);
-                        });
-
-                        const primarios = mpProducts.filter(p => p.tipo === 'primario');
-                        const elaborados = mpProducts.filter(p => p.tipo === 'elaborado');
-                        const isExpanded = expandedMP.includes(mp.id);
-
-                        return (
-                            <div key={mp.id} style={{ border: '2px solid #003366', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8f9fa' }}>
-                                <div
-                                    style={{
-                                        padding: '15px', background: '#003366', color: 'white',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
-                                    }}
-                                    onClick={() => toggleMP(mp.id)}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{mp.nombre}</span>
-                                        <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>({mpProducts.length} items)</span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteMP(mp.id); }} style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '1.2rem' }}>🗑</button>
-                                        <span>{isExpanded ? '▲' : '▼'}</span>
-                                    </div>
+                {loading && materiasPrimas.length === 0 ? (
+                    <p style={{ padding: '20px', color: '#666' }}>Cargando catálogo...</p>
+                ) : (
+                    <div className="master-detail-container">
+                        {/* Panel Izquierdo: Lista Maestro */}
+                        <div className="master-panel">
+                            <div className="master-panel__header">
+                                <div className="master-panel__title">
+                                    <span>Materias Primas</span>
+                                    <Badge status="info" variant="subtle">{filteredMPs.length}</Badge>
                                 </div>
+                                <input
+                                    type="text"
+                                    className="master-panel__search"
+                                    placeholder="Buscar categoría..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                />
+                            </div>
 
-                                {isExpanded && (
-                                    <div style={{ padding: '20px', backgroundColor: 'white' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                            <h3 style={{ margin: 0, color: '#003366' }}>Catálogo de Productos</h3>
-                                            <button
-                                                onClick={() => openCreateProduct(mp.id)}
-                                                className="btn-new"
-                                                style={{ padding: '5px 15px', fontSize: '0.9rem' }}
+                            <div className="master-panel__list">
+                                {filteredMPs.length > 0 ? (
+                                    filteredMPs.map(mp => {
+                                        const count = productos.filter(p => {
+                                            const pMpId = p.materiaPrima?.id || p.materiaPrimaId;
+                                            return String(pMpId) === String(mp.id);
+                                        }).length;
+                                        const isActive = String(mp.id) === String(selectedMPId);
+
+                                        return (
+                                            <div
+                                                key={mp.id}
+                                                className={`master-item ${isActive ? 'master-item--active' : ''}`}
+                                                onClick={() => setSelectedMPId(mp.id)}
                                             >
-                                                + Nuevo Producto
-                                            </button>
-                                        </div>
-
-                                        {mpProducts.length === 0 && <p style={{ color: '#888' }}>No hay productos definidos.</p>}
-
-                                        {primarios.length > 0 && (
-                                            <div style={{ marginBottom: '20px' }}>
-                                                <h4 style={{ borderBottom: '2px solid #17a2b8', color: '#17a2b8', paddingBottom: '5px' }}>🔵 Productos Primarios (Origen / Rendimiento)</h4>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    {primarios.map(prod => (
-                                                        <ProductItem
-                                                            key={prod.id} prod={prod}
-                                                            expandedProd={expandedProd} toggleProd={toggleProd}
-                                                            handleDeleteProduct={handleDeleteProduct}
-                                                            handleRemoveCalibre={handleRemoveCalibre}
-                                                            handleAddCalibre={handleAddCalibre}
-                                                        />
-                                                    ))}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <span className="master-item__name">{mp.nombre}</span>
+                                                    <span style={{ fontSize: '0.75rem', color: isActive ? '#e0f2fe' : '#64748b' }}>
+                                                        {mp.rendimiento_teorico_global !== null && mp.rendimiento_teorico_global !== undefined && mp.rendimiento_teorico_global !== '' ? (
+                                                            <span>Meta: <strong>{Number(mp.rendimiento_teorico_global).toFixed(1)}%</strong></span>
+                                                        ) : (
+                                                            <span style={{ fontStyle: 'italic', opacity: 0.8 }}>Meta: No definido (-)</span>
+                                                        )}
+                                                    </span>
                                                 </div>
+                                                <span className="master-item__count">{count} items</span>
                                             </div>
-                                        )}
-
-                                        {elaborados.length > 0 && (
-                                            <div style={{ marginBottom: '20px' }}>
-                                                <h4 style={{ borderBottom: '2px solid #28a745', color: '#28a745', paddingBottom: '5px' }}>🟢 Productos Elaborados (Envasados)</h4>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    {elaborados.map(prod => (
-                                                        <ProductItem
-                                                            key={prod.id} prod={prod}
-                                                            expandedProd={expandedProd} toggleProd={toggleProd}
-                                                            handleDeleteProduct={handleDeleteProduct}
-                                                            handleRemoveCalibre={handleRemoveCalibre}
-                                                            handleAddCalibre={handleAddCalibre}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                        );
+                                    })
+                                ) : (
+                                    <div style={{ padding: '20px 10px', textAlign: 'center', color: '#888', fontSize: '0.875rem' }}>
+                                        No se encontraron categorías.
                                     </div>
                                 )}
                             </div>
-                        );
-                    })}
 
-                    {productos.filter(p => !p.materiaPrima && !p.materiaPrimaId).length > 0 && (
-                        <div style={{ marginTop: '40px', borderTop: '2px dashed #ccc', paddingTop: '20px' }}>
-                            <h3 style={{ color: '#d9534f' }}>Productos Sin Clasificar</h3>
-                            <p>Estos productos no tienen una Materia Prima asignada. Por favor elimínalos y créalos nuevamente dentro de su categoría.</p>
-                            {productos.filter(p => !p.materiaPrima && !p.materiaPrimaId).map(p => (
-                                <div key={p.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px', background: '#fff', border: '1px solid #ddd', marginBottom: '5px' }}>
-                                    <strong>{p.nombre}</strong>
-                                    <button onClick={() => handleDeleteProduct(p.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>🗑 Eliminar</button>
-                                </div>
-                            ))}
+                            <div className="master-panel__footer">
+                                <button
+                                    className="btn-new"
+                                    onClick={() => setIsCreateMPOpen(true)}
+                                    style={{ width: '100%', justifyContent: 'center' }}
+                                >
+                                    + Crear Materia Prima
+                                </button>
+                            </div>
                         </div>
-                    )}
-                </div>
-            )}
+
+                        {/* Panel Derecho: Detalle y Gestión de Productos */}
+                        <div className="detail-panel">
+                            {selectedMP ? (
+                                <>
+                                    <div className="detail-panel__header">
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <h2 className="detail-panel__title" style={{ margin: 0 }}>{selectedMP.nombre}</h2>
+                                                {selectedMP.rendimiento_teorico_global !== null && selectedMP.rendimiento_teorico_global !== undefined && selectedMP.rendimiento_teorico_global !== '' ? (
+                                                    <Badge status="success" variant="solid" size="medium">
+                                                        Meta: {Number(selectedMP.rendimiento_teorico_global).toFixed(1)}%
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge status="neutral" variant="subtle" size="medium">
+                                                        No definido (-)
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <p style={{ margin: '6px 0 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+                                                {selectedMPProducts.length} productos derivados registrados
+                                            </p>
+                                        </div>
+
+                                        <div className="detail-panel__actions">
+                                            <button
+                                                className="btn-new"
+                                                onClick={() => openCreateProduct(selectedMP.id)}
+                                                style={{ padding: '8px 16px', fontSize: '0.875rem' }}
+                                            >
+                                                + Nuevo Producto
+                                            </button>
+                                            <ActionButton
+                                                variant="edit"
+                                                title="Editar Materia Prima"
+                                                onClick={() => openEditMP(selectedMP)}
+                                            />
+                                            <ActionButton
+                                                variant="delete"
+                                                title="Eliminar Materia Prima"
+                                                onClick={() => handleDeleteMP(selectedMP)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {selectedMPProducts.length === 0 ? (
+                                        <EmptyState
+                                            title="Catálogo Vacío"
+                                            description={`La Materia Prima "${selectedMP.nombre}" aún no tiene productos derivados.`}
+                                            actionLabel="Crear Primer Producto"
+                                            onAction={() => openCreateProduct(selectedMP.id)}
+                                        />
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                            {/* Productos Primarios */}
+                                            {primarios.length > 0 && (
+                                                <div>
+                                                    <h3 style={{
+                                                        margin: '0 0 12px 0',
+                                                        fontSize: '1rem',
+                                                        fontWeight: '700',
+                                                        color: '#0284c7',
+                                                        borderBottom: '2px solid #bae6fd',
+                                                        paddingBottom: '6px'
+                                                    }}>
+                                                        Productos Primarios (Origen / Rendimiento)
+                                                    </h3>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {primarios.map(prod => (
+                                                            <ProductItem
+                                                                key={prod.id}
+                                                                prod={prod}
+                                                                expandedProd={expandedProd}
+                                                                toggleProd={toggleProd}
+                                                                handleDeleteProduct={handleDeleteProduct}
+                                                                handleRemoveCalibre={handleRemoveCalibre}
+                                                                handleAddCalibre={handleAddCalibre}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Productos Elaborados */}
+                                            {elaborados.length > 0 && (
+                                                <div>
+                                                    <h3 style={{
+                                                        margin: '0 0 12px 0',
+                                                        fontSize: '1rem',
+                                                        fontWeight: '700',
+                                                        color: '#16a34a',
+                                                        borderBottom: '2px solid #bbf7d0',
+                                                        paddingBottom: '6px'
+                                                    }}>
+                                                        Productos Elaborados (Envasados)
+                                                    </h3>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {elaborados.map(prod => (
+                                                            <ProductItem
+                                                                key={prod.id}
+                                                                prod={prod}
+                                                                expandedProd={expandedProd}
+                                                                toggleProd={toggleProd}
+                                                                handleDeleteProduct={handleDeleteProduct}
+                                                                handleRemoveCalibre={handleRemoveCalibre}
+                                                                handleAddCalibre={handleAddCalibre}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <EmptyState
+                                    title="Selecciona una Materia Prima"
+                                    description="Haz clic en cualquier materia prima del panel izquierdo para ver y gestionar su catálogo de productos."
+                                    actionLabel="Crear Materia Prima"
+                                    onAction={() => setIsCreateMPOpen(true)}
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal Crear Materia Prima */}
             {isCreateMPOpen && (
-                <div className="bg">
-                    <div className="popup">
-                        <button className="close" onClick={() => setIsCreateMPOpen(false)}>X</button>
+                <div className="bg" onClick={() => setIsCreateMPOpen(false)}>
+                    <div className="popup" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+                        <button className="btn-close-x" onClick={() => setIsCreateMPOpen(false)}>✕</button>
                         <h2>Nueva Materia Prima</h2>
                         <form onSubmit={handleCreateMP}>
-                            <input autoFocus placeholder="Nombre (ej: Salmón, Jibia)" className="form-control" value={newMPName} onChange={e => setNewMPName(e.target.value)} required />
-                            <button type="submit" className="btn-save" style={{ marginTop: '15px' }}>Guardar</button>
+                            <div className="container_inputs">
+                                <label>Nombre Categoría</label>
+                                <input
+                                    autoFocus
+                                    placeholder="Ej: Salmón, Jibia, Jaiba, Pulpo"
+                                    value={newMPName}
+                                    onChange={e => setNewMPName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="container_inputs" style={{ marginTop: '14px' }}>
+                                <label>Rendimiento Teórico Esperado (%)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    placeholder="Ej: 45.00"
+                                    value={newMPRendimiento}
+                                    onChange={e => setNewMPRendimiento(e.target.value)}
+                                />
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                                    Porcentaje meta tras proceso y empaque. Déjalo en blanco si la empresa aún no lo define.
+                                </span>
+                            </div>
+                            <div className="popup-actions" style={{ marginTop: '20px' }}>
+                                <button type="button" className="btn-cancel" onClick={() => setIsCreateMPOpen(false)}>Cancelar</button>
+                                <button type="submit" className="btn-save">Guardar Categoría</button>
+                            </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {isCreateProdOpen && (
-                <div className="bg">
-                    <div className="popup">
-                        <button className="close" onClick={() => setIsCreateProdOpen(false)}>X</button>
-                        <h2>Nuevo Producto Derivado</h2>
-                        <p style={{ fontSize: '0.9rem', color: '#666' }}>Materia Prima: {materiasPrimas.find(m => m.id === prodForm.materiaPrimaId)?.nombre}</p>
-                        <form onSubmit={handleCreateProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <label>Nombre Producto Final</label>
-                            <input className="form-control" value={prodForm.nombre} onChange={e => setProdForm({ ...prodForm, nombre: e.target.value })} required />
+            {/* Modal Editar Materia Prima */}
+            {isEditMPOpen && (
+                <div className="bg" onClick={() => setIsEditMPOpen(false)}>
+                    <div className="popup" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+                        <button className="btn-close-x" onClick={() => setIsEditMPOpen(false)}>✕</button>
+                        <h2>Editar Materia Prima</h2>
+                        <form onSubmit={handleUpdateMP}>
+                            <div className="container_inputs">
+                                <label>Nombre Categoría</label>
+                                <input
+                                    autoFocus
+                                    placeholder="Ej: Salmón, Jibia, Jaiba, Pulpo"
+                                    value={editMPForm.nombre}
+                                    onChange={e => setEditMPForm({ ...editMPForm, nombre: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="container_inputs" style={{ marginTop: '14px' }}>
+                                <label>Rendimiento Teórico Esperado (%)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    placeholder="Ej: 45.00"
+                                    value={editMPForm.rendimiento_teorico_global}
+                                    onChange={e => setEditMPForm({ ...editMPForm, rendimiento_teorico_global: e.target.value })}
+                                />
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                                    Porcentaje meta tras proceso y empaque. Déjalo en blanco si la empresa aún no lo define.
+                                </span>
+                            </div>
+                            <div className="popup-actions" style={{ marginTop: '20px' }}>
+                                <button type="button" className="btn-cancel" onClick={() => setIsEditMPOpen(false)}>Cancelar</button>
+                                <button type="submit" className="btn-save">Actualizar Categoría</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
-                            <label>Tipo</label>
-                            <select className="form-control" value={prodForm.tipo} onChange={e => setProdForm({ ...prodForm, tipo: e.target.value })}>
-                                <option value="elaborado">Elaborado</option>
-                                <option value="primario">Primario</option>
-                            </select>
+            {/* Modal Crear Producto */}
+            {isCreateProdOpen && (
+                <div className="bg" onClick={() => setIsCreateProdOpen(false)}>
+                    <div className="popup" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+                        <button className="btn-close-x" onClick={() => setIsCreateProdOpen(false)}>✕</button>
+                        <h2>Nuevo Producto Derivado</h2>
+                        <p className="popup-subtitle">
+                            Materia Prima: <strong>{materiasPrimas.find(m => String(m.id) === String(prodForm.materiaPrimaId))?.nombre}</strong>
+                        </p>
+
+                        <form onSubmit={handleCreateProduct}>
+                            <div className="container_inputs">
+                                <label>Nombre del Producto</label>
+                                <input
+                                    placeholder="Ej: Filete Trim D, Carne Picada"
+                                    value={prodForm.nombre}
+                                    onChange={e => setProdForm({ ...prodForm, nombre: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="container_inputs">
+                                <label>Tipo de Producto</label>
+                                <select value={prodForm.tipo} onChange={e => setProdForm({ ...prodForm, tipo: e.target.value })}>
+                                    <option value="elaborado">Elaborado (Envasado)</option>
+                                    <option value="primario">Primario (Procesado)</option>
+                                </select>
+                            </div>
 
                             {prodForm.tipo === 'elaborado' && (
-                                <>
-                                    <label>Origen (Rendimiento)</label>
-                                    <p style={{ fontSize: '0.8rem', color: '#666', margin: 0 }}>
-                                        Indica qué saldo descuenta este producto (Carne o Pinzas).
-                                    </p>
+                                <div className="container_inputs">
+                                    <label>Origen de Rendimiento</label>
                                     <select
-                                        className="form-control"
                                         value={prodForm.origen}
                                         onChange={e => setProdForm({ ...prodForm, origen: e.target.value })}
                                         required
                                     >
-                                        <option value="">-- Seleccione Categoría Rendimiento --</option>
+                                        <option value="">-- Seleccione Rendimiento --</option>
                                         <option value="carne_blanca">Carne Blanca</option>
                                         <option value="pinza">Pinzas</option>
                                     </select>
-                                </>
+                                </div>
                             )}
 
-                            <label>Calibres Iniciales (separados por coma)</label>
-                            <input className="form-control" value={prodForm.calibresStr} onChange={e => setProdForm({ ...prodForm, calibresStr: e.target.value })} placeholder="Ej: 100g, 200g, Standard" />
+                            <div className="container_inputs">
+                                <label>Calibres / Variantes (opcional, separados por coma)</label>
+                                <input
+                                    value={prodForm.calibresStr}
+                                    onChange={e => setProdForm({ ...prodForm, calibresStr: e.target.value })}
+                                    placeholder="Ej: 100g, 200g, Standard"
+                                />
+                            </div>
 
-                            <button type="submit" className="btn-save" style={{ marginTop: '10px' }}>Crear</button>
+                            <div className="popup-actions">
+                                <button type="button" className="btn-cancel" onClick={() => setIsCreateProdOpen(false)}>Cancelar</button>
+                                <button type="submit" className="btn-save">Crear Producto</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -299,70 +554,131 @@ const MantenedorProductos = () => {
     );
 };
 
-
 const ProductItem = ({ prod, expandedProd, toggleProd, handleDeleteProduct, handleRemoveCalibre, handleAddCalibre }) => {
     const isProdExpanded = expandedProd.includes(prod.id);
+    const [newCalibre, setNewCalibre] = useState('');
+
+    const handleAdd = () => {
+        if (newCalibre.trim()) {
+            handleAddCalibre(prod, newCalibre.trim());
+            setNewCalibre('');
+        }
+    };
+
     return (
-        <div style={{ border: '1px solid #ddd', borderRadius: '5px' }}>
+        <div style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
             <div
-                style={{ padding: '10px', background: '#e9ecef', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
+                style={{
+                    padding: '12px 16px',
+                    background: '#f9fafb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                }}
                 onClick={() => toggleProd(prod.id)}
             >
-                <div>
-                    <strong>{prod.nombre}</strong>
-                    {prod.origen && prod.tipo === 'elaborado' && <span className="badge" style={{ marginLeft: '10px', background: '#6c757d', color: 'white', padding: '2px 5px', borderRadius: '3px', fontSize: '0.8rem' }}>Origen: {prod.origen}</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <strong style={{ color: '#1f2937', fontSize: '0.95rem' }}>{prod.nombre}</strong>
+                    {prod.origen && prod.tipo === 'elaborado' && (
+                        <Badge status="info" variant="subtle">Origen: {prod.origen}</Badge>
+                    )}
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteProduct(prod.id); }} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>🗑</button>
-                    <span>{isProdExpanded ? '▲' : '▼'}</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                    <ActionButton
+                        variant="delete"
+                        title="Eliminar Producto"
+                        onClick={() => handleDeleteProduct(prod)}
+                    />
+                    <span style={{ color: '#6b7280', fontSize: '0.8rem', padding: '0 4px', cursor: 'pointer' }} onClick={() => toggleProd(prod.id)}>
+                        {isProdExpanded ? '▲' : '▼'}
+                    </span>
                 </div>
             </div>
 
             {isProdExpanded && (
-                <div style={{ padding: '15px' }}>
-                    <h4 style={{ marginTop: 0, fontSize: '0.9rem', color: '#666' }}>Tabla de Calibres / Variantes</h4>
+                <div style={{ padding: '16px', borderTop: '1px solid #f3f4f6', backgroundColor: '#ffffff' }}>
+                    <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Calibres / Variantes Disponibles
+                    </h4>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                         <thead>
-                            <tr style={{ background: '#f1f1f1', textAlign: 'left' }}>
-                                <th style={{ padding: '8px', borderBottom: '2px solid #ddd' }}>Nombre Variedad / Calibre</th>
-                                <th style={{ padding: '8px', borderBottom: '2px solid #ddd', width: '100px', textAlign: 'center' }}>Acción</th>
+                            <tr style={{ background: '#f8fafc', textAlign: 'left', color: '#475569' }}>
+                                <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>Calibre / Nombre</th>
+                                <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', width: '90px', textAlign: 'center', fontWeight: 600 }}>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                             {(prod.calibres || []).map((cal, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: '8px' }}>{cal}</td>
-                                    <td style={{ padding: '8px', textAlign: 'center' }}>
+                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '8px 12px', color: '#334155' }}>{cal}</td>
+                                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                                         <button
+                                            type="button"
                                             onClick={() => handleRemoveCalibre(prod, cal)}
-                                            style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}
+                                            style={{
+                                                color: '#ef4444',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 600
+                                            }}
                                         >
                                             Eliminar
                                         </button>
                                     </td>
                                 </tr>
                             ))}
+
                             {(!prod.calibres || prod.calibres.length === 0) && (
                                 <tr>
-                                    <td colSpan="2" style={{ padding: '10px', textAlign: 'center', color: '#999' }}>Sin calibres definidos</td>
+                                    <td colSpan="2" style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                        Sin calibres configurados
+                                    </td>
                                 </tr>
                             )}
-                            <tr style={{ background: '#fafafa' }}>
-                                <td style={{ padding: '5px' }}>
+
+                            <tr style={{ background: '#f8fafc' }}>
+                                <td style={{ padding: '6px 12px' }}>
                                     <input
-                                        id={`add-cal-${prod.id}`}
-                                        placeholder="Nuevo Calibre..."
-                                        style={{ width: '100%', padding: '5px', border: '1px solid #ddd', borderRadius: '3px' }}
+                                        placeholder="Agregar nuevo calibre (ej: 100g, Standard)..."
+                                        value={newCalibre}
+                                        onChange={e => setNewCalibre(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '6px 10px',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '4px',
+                                            fontSize: '0.85rem',
+                                            outline: 'none'
+                                        }}
                                     />
                                 </td>
-                                <td style={{ padding: '5px', textAlign: 'center' }}>
+                                <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                                     <button
-                                        onClick={() => {
-                                            const el = document.getElementById(`add-cal-${prod.id}`);
-                                            if (el && el.value) { handleAddCalibre(prod, el.value); el.value = ''; }
+                                        type="button"
+                                        onClick={handleAdd}
+                                        style={{
+                                            background: '#003366',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '6px 12px',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600
                                         }}
-                                        style={{ background: '#007bff', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
                                     >
                                         Agregar
                                     </button>
@@ -376,4 +692,4 @@ const ProductItem = ({ prod, expandedProd, toggleProd, handleDeleteProduct, hand
     );
 };
 
-export default MantenedorProductos;
+export default MantenedorProductos;

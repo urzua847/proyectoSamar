@@ -62,14 +62,10 @@ const Users = () => {
   return (
     <div className='main-container'>
       <div className='table-wrapper'>
-        <div className='top-table'>
-          <div>
-            <h1 className='title-table'>Usuarios</h1>
-            <p className='subtitle-table' style={{ margin: '5px 0 0 0', color: '#666' }}>Aqui gestionaremos todo con el perfil de administrador</p>
-          </div>
-          <div className='filter-actions'>
-            <Search value={filterRut} onChange={(e) => setFilterRut(e.target.value)} placeholder={'Filtrar por RUT'} />
-
+        {/* Header Section */}
+        <div className="top-table">
+          <h1 className="title-table">Gestión de Usuarios</h1>
+          <div className='action-buttons'>
             {/* --- BOTÓN CREAR --- */}
             <button onClick={handleClickCreate} className='btn-new'>
               + Nuevo Usuario
@@ -86,13 +82,20 @@ const Users = () => {
             <button className='btn-delete' disabled={!selectedUserId} onClick={() => handleDelete(dataUser)}>Eliminar</button>
           </div>
         </div>
+        <div className="table-container-box">
+          <div style={{ marginBottom: '10px' }}>
+            <div className='filter-actions' style={{ width: '100%', justifyContent: 'flex-start' }}>
+              <Search value={filterRut} onChange={(e) => setFilterRut(e.target.value)} placeholder={'Filtrar por RUT'} />
+            </div>
+          </div>
 
-        <Table
-          columns={columns}
-          data={filteredUsers}
-          onRowClick={handleRowClick}
-          selectedId={selectedUserId}
-        />
+          <Table
+            columns={columns}
+            data={filteredUsers}
+            onRowClick={handleRowClick}
+            selectedId={selectedUserId}
+          />
+        </div>
 
       </div>
 

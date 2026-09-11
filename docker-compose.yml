@@ -10,6 +10,11 @@ services:
       POSTGRES_DB: ${DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DATABASE}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     # NOTA: En producción, NO exponemos ports: "5432:5432" por seguridad.
     # Solo el backend podrá ver la base de datos internamente.
 
@@ -18,9 +23,13 @@ services:
     build: ./server
     container_name: samar_backend
     restart: always
-    # No exponemos puertos del backend directamente a internet, Nginx lo hará.
+    ports:
+      # En desarrollo: exponemos el backend en puerto 5000
+      # En producción: usar Nginx como reverse proxy
+      - "5000:3000"
     environment:
-      - DOCKER_DB_HOST=samar_db
+      - NODE_ENV=${NODE_ENV:-development}
+      - DOCKER_DB_HOST=db
       - DB_USERNAME=${DB_USERNAME}
       - PASSWORD=${PASSWORD}
       - DATABASE=${DATABASE}
@@ -28,7 +37,11 @@ services:
       - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
       - cookieKey=${cookieKey}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - /app/node_modules
 
   # 3. Frontend (Nginx + React)
   client:
@@ -38,6 +51,9 @@ services:
     ports:
       # Aquí mapeamos el puerto del servidor (80) al puerto de Nginx (80)
       - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
     depends_on:
       - server
 

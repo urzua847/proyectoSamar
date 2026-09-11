@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useState } from 'react';
 import '../styles/form.css';
 
-const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
+const Form = ({ title, fields, buttonText, onSubmit, footerContent, onCancel }) => {
     const { register, handleSubmit, formState: { errors } } = useForm();
     const [showPassword, setShowPassword] = useState(false);
 
@@ -13,7 +13,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
             onSubmit={handleSubmit(onSubmit)}
             autoComplete="off"
         >
-            <h1>{title}</h1>
+            {title && <h1>{title}</h1>}
             {fields.map((field, index) => (
                 <div className="container_inputs" key={index}>
                     {field.label && <label htmlFor={field.name}>{field.label}</label>}
@@ -28,7 +28,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                             name={field.name}
                             placeholder={field.placeholder}
                             type={field.type === 'password' ? (showPassword ? 'text' : 'password') : field.type}
-                            defaultValue={field.defaultValue || ''} 
+                            defaultValue={field.defaultValue || ''}
                             onChange={field.onChange}
                         />
                     )}
@@ -39,7 +39,7 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                                 required: field.required ? 'Este campo es obligatorio' : false,
                             })}
                             name={field.name}
-                            defaultValue={field.defaultValue || ''} 
+                            defaultValue={field.defaultValue || ''}
                             onChange={field.onChange}
                         >
                             <option value="">Seleccionar opción</option>
@@ -56,7 +56,18 @@ const Form = ({ title, fields, buttonText, onSubmit, footerContent }) => {
                     </div>
                 </div>
             ))}
-            {buttonText && <button type="submit">{buttonText}</button>}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '4px', width: '100%' }}>
+                {onCancel && (
+                    <button type="button" className="btn-cancel" onClick={onCancel} style={{ flex: 1, padding: '10px' }}>
+                        Cancelar
+                    </button>
+                )}
+                {buttonText && (
+                    <button type="submit" className="btn-save" style={{ flex: 1, margin: 0, padding: '10px' }}>
+                        {buttonText}
+                    </button>
+                )}
+            </div>
             {footerContent && <div className="footerContent">{footerContent}</div>}
         </form>
     );

@@ -4,6 +4,7 @@ import Form from "../components/Form";
 import useRegister from '../hooks/auth/useRegister.jsx';
 import Swal from 'sweetalert2';
 import '../styles/form.css';
+import Footer from '../components/Footer';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -26,20 +27,23 @@ const Register = () => {
     const patternRut = /^(?:(?:[1-9]\d{0}|[1-2]\d{1})(\.\d{3}){2}|[1-9]\d{6}|[1-2]\d{7})-[\dkK]$/;
 
     return (
-        <main className="container">
-            <Form
-                title="Crea tu usuario"
-                fields={[
-                    { name: "nombreCompleto", label: "Nombre completo", placeholder: "Juan Pérez", type: "text", required: true },
-                    { name: "email", label: "Correo electrónico", placeholder: "example@gmail.cl", type: "email", required: true, errorMessageData: errorEmail, onChange: (e) => handleInputChange('email', e.target.value) },
-                    { name: "rut", label: "Rut", placeholder: "12345678-9", type: "text", required: true, pattern: patternRut, patternMessage: "Formato de RUT no válido (sin puntos).", errorMessageData: errorRut, onChange: (e) => handleInputChange('rut', e.target.value) },
-                    { name: "password", label: "Contraseña", placeholder: "**********", type: "password", required: true, minLength: 8 }
-                ]}
-                buttonText="Registrarse"
-                onSubmit={registerSubmit}
-                footerContent={<p>¿Ya tienes cuenta? <a href="/auth">¡Inicia sesión aquí!</a></p>}
-            />
-        </main>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <main className="container" style={{ flex: 1 }}>
+                <Form
+                    title="Crea tu usuario"
+                    fields={[
+                        { name: "nombreCompleto", label: "Nombre completo", placeholder: "Juan Pérez", type: "text", required: true },
+                        { name: "email", label: "Correo electrónico", placeholder: "example@gmail.cl", type: "email", required: true, errorMessageData: errorEmail, onChange: (e) => handleInputChange('email', e.target.value) },
+                        { name: "rut", label: "Rut", placeholder: "12345678-9", type: "text", required: true, pattern: patternRut, patternMessage: "Formato de RUT no válido (sin puntos).", errorMessageData: errorRut, onChange: (e) => handleInputChange('rut', e.target.value) },
+                        { name: "password", label: "Contraseña", placeholder: "**********", type: "password", required: true, minLength: 8 }
+                    ]}
+                    buttonText="Registrarse"
+                    onSubmit={registerSubmit}
+                    footerContent={<p>¿Ya tienes cuenta? <a href="/auth">¡Inicia sesión aquí!</a></p>}
+                />
+            </main>
+            <Footer />
+        </div>
     );
 };
 
