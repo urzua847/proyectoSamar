@@ -1,6 +1,6 @@
 # Proyecto SAMAR - ERP de Trazabilidad e Inventario
 
-Sistema ERP para la gestión, trazabilidad e inventario de plantas de procesamiento de salmones.
+Sistema ERP para la gestión, trazabilidad e inventario de plantas de procesamiento de productos marinos.
 
 ---
 
