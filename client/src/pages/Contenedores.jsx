@@ -7,20 +7,21 @@ import '../styles/pedidos.css';
 import { deleteManyProduccion } from '../services/envasado.service';
 import { getClientes } from '../services/catalogos.service';
 import { deleteDataAlert, showSuccessAlert, showErrorAlert, showToastWarning, showToastSuccess, showToastError, confirmActionAlert } from '../helpers/sweetAlert';
+import Swal from 'sweetalert2';
 
 const Contenedores = () => {
     const { user } = useAuth();
     const [availableStock, setAvailableStock] = useState([]);
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const [selectedIds, setSelectedIds] = useState([]);
-
+    const [isSubmitting, setIsSubmitting] = useState(false);
     // Filtros Stock
     const [filters, setFilters] = useState({
         lote: '',
         producto: '',
         ubicacion: ''
     });
+    const [sortOrder, setSortOrder] = useState('desc');
 
     // Clientes List
     const [clientesList, setClientesList] = useState([]);
@@ -59,48 +60,39 @@ const Contenedores = () => {
         }
     };
 
-    const handleBulkDelete = async () => {
-        if (selectedIds.length === 0) return;
-
-        const rows = availableStock.filter(item => selectedIds.includes(item.id));
-        const allIdsToDelete = rows.flatMap(r => r.ids || []);
-
-        if (allIdsToDelete.length === 0) return;
-
-        const result = await confirmActionAlert(
-            "¿Devolver a Cámara?",
-            "Esta acción retirará los bultos seleccionados del contenedor y los devolverá a la cámara original.",
-            "Sí, Devolver",
-            "#eab308"
-        );
-        if (result.isConfirmed) {
-            const response = await deleteManyProduccion(allIdsToDelete);
-            if (response.status === 'Success') {
-                showSuccessAlert('Devuelto', 'Registros devueltos a la cámara correctamente.');
-                fetchContenedorStock();
-                setSelectedIds([]);
-            } else {
-                showErrorAlert('Error', response.message || 'No se pudo eliminar.');
-            }
-        }
-    };
-
     const handleDeleteRow = async (row) => {
         const idsToDelete = row.ids || [row.id];
+        const maxQty = idsToDelete.length;
 
-        const result = await confirmActionAlert(
-            "¿Devolver a Cámara?",
-            "Esta acción retirará los bultos del contenedor y los devolverá a la cámara original.",
-            "Sí, Devolver",
-            "#eab308"
-        );
-        if (result.isConfirmed) {
-            const response = await deleteManyProduccion(idsToDelete);
-            if (response.status === 'Success') {
-                showSuccessAlert('Devuelto', 'Registro devuelto a la cámara correctamente.');
-                fetchContenedorStock();
+        const { value: qty } = await Swal.fire({
+            title: '¿Cuántas cajas desea devolver?',
+            text: `Máximo disponible: ${maxQty}`,
+            input: 'number',
+            inputAttributes: {
+                min: 1,
+                max: maxQty,
+                step: 1
+            },
+            inputValue: maxQty,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Devolver',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#eab308'
+        });
+
+        if (qty) {
+            const quantity = parseInt(qty);
+            if (quantity > 0 && quantity <= maxQty) {
+                const selectedIds = idsToDelete.slice(0, quantity);
+                const response = await deleteManyProduccion(selectedIds);
+                if (response.status === 'Success') {
+                    showSuccessAlert('Devuelto', `${quantity} caja(s) devuelta(s) a la cámara correctamente.`);
+                    fetchContenedorStock();
+                } else {
+                    showErrorAlert('Error', response.message || 'No se pudo eliminar el registro.');
+                }
             } else {
-                showErrorAlert('Error', response.message || 'No se pudo eliminar el registro.');
+                showToastError('Cantidad inválida.');
             }
         }
     };
@@ -120,7 +112,7 @@ const Contenedores = () => {
             render: (row) => (
                 <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                     <StockActionCell item={row} onAdd={(qty) => handleAddToCart(row, qty)} />
-                    {user?.rol === 'administrador' && (
+                    {(user?.rol === 'administrador' || user?.rol === 'operador' || user?.rol === 'operario') && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -198,6 +190,8 @@ const Contenedores = () => {
         e.preventDefault();
         if (cart.length === 0) return showToastWarning("El carrito está vacío");
         if (!header.cliente || !header.numero_guia) return showToastWarning("Complete Cliente y N° Guía");
+        
+        setIsSubmitting(true);
         try {
             const payload = {
                 ...header,
@@ -217,18 +211,40 @@ const Contenedores = () => {
         } catch (error) {
             console.error(error);
             showToastError("Error al registrar: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const filteredStock = useMemo(() => {
-        return availableStock.filter(item => {
+        let filtered = availableStock.filter(item => {
             return (
                 (item.loteCodigo || '').toLowerCase().includes(filters.lote.toLowerCase()) &&
                 (item.productoNombre || '').toLowerCase().includes(filters.producto.toLowerCase()) &&
                 (item.ubicacionNombre || '').toLowerCase().includes(filters.ubicacion.toLowerCase())
             );
         });
-    }, [availableStock, filters]);
+
+        filtered.sort((a, b) => {
+            const loteA = Number(a.loteId) || 0;
+            const loteB = Number(b.loteId) || 0;
+            
+            if (loteA !== loteB) {
+                return sortOrder === 'desc' ? loteB - loteA : loteA - loteB;
+            }
+            
+            // Criterio secundario: por contenedor
+            const contA = Number(a.contenedorId) || 0;
+            const contB = Number(b.contenedorId) || 0;
+            if (contA !== contB) {
+                return sortOrder === 'desc' ? contB - contA : contA - contB;
+            }
+            
+            return 0;
+        });
+
+        return filtered;
+    }, [availableStock, filters, sortOrder]);
 
     const totalKilosGlobal = cart.reduce((acc, curr) => acc + parseFloat(curr.subtotalKilos), 0).toFixed(2);
     const totalBultosGlobal = cart.reduce((acc, curr) => acc + parseInt(curr.cantidadBultos), 0);
@@ -240,17 +256,6 @@ const Contenedores = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                         <h1 className="title-table" style={{ margin: 0 }}>Gestión de Contenedores</h1>
                     </div>
-
-                    {selectedIds.length > 0 && user?.rol === 'administrador' && (
-                        <button
-                            onClick={handleBulkDelete}
-                            className="btn-delete"
-                            style={{ alignSelf: 'flex-end', backgroundColor: '#eab308' }}
-                            title="Devuelve los bultos seleccionados a la Cámara origen"
-                        >
-                            Devolver a Cámara ({selectedIds.length})
-                        </button>
-                    )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: isCartOpen ? '1.2fr 0.8fr' : '1fr', gap: '20px', marginTop: '20px', transition: 'grid-template-columns 0.3s ease' }}>
@@ -294,18 +299,24 @@ const Contenedores = () => {
                                     onChange={e => setFilters({ ...filters, producto: e.target.value })}
                                     className="search-input"
                                 />
-                                <input
-                                    placeholder="Filtrar Contenedor..."
+                                <select
                                     value={filters.ubicacion}
                                     onChange={e => setFilters({ ...filters, ubicacion: e.target.value })}
                                     className="search-input"
-                                    list="ubicaciones-list"
-                                />
-                                <datalist id="ubicaciones-list">
+                                >
+                                    <option value="">Todas las ubicaciones...</option>
                                     {[...new Set(availableStock.map(i => i.ubicacionNombre).filter(Boolean))].sort().map(u => (
-                                        <option key={u} value={u} />
+                                        <option key={u} value={u}>{u}</option>
                                     ))}
-                                </datalist>
+                                </select>
+                                <select
+                                    value={sortOrder}
+                                    onChange={e => setSortOrder(e.target.value)}
+                                    className="search-input"
+                                >
+                                    <option value="desc">Más recientes</option>
+                                    <option value="asc">Más antiguos</option>
+                                </select>
                                 <button
                                     onClick={() => setFilters({ lote: '', producto: '', ubicacion: '' })}
                                     className="btn-cancel"
@@ -318,9 +329,6 @@ const Contenedores = () => {
                             <Table
                                 columns={columnsStock}
                                 data={filteredStock}
-                                multiSelect={true}
-                                selectedIds={selectedIds}
-                                onSelectionChange={setSelectedIds}
                             />
                         </div>
                     </div>
@@ -404,8 +412,8 @@ const Contenedores = () => {
                                         />
                                     </div>
 
-                                    <button type="submit" disabled={cart.length === 0} className="btn-save" style={{ marginTop: '10px', padding: '12px' }}>
-                                        Confirmar Pedido
+                                    <button type="submit" disabled={cart.length === 0 || isSubmitting} className="btn-save" style={{ marginTop: '10px', padding: '12px' }}>
+                                        {isSubmitting ? 'Confirmando...' : 'Confirmar Pedido'}
                                     </button>
                                 </form>
                             </div>

@@ -37,6 +37,11 @@ const ProductoTerminadoSchema = new EntitySchema({
       default: null,
       comment: "Soft delete - Fecha de eliminación lógica"
     },
+    piezas_internas: {
+      type: "int",
+      default: 1,
+      comment: "Lleva el conteo de moldes agrupados en este ítem (para cajas de contenedor)"
+    },
   },
   relations: {
     loteDeOrigen: {

@@ -57,6 +57,17 @@ export default function PopupEditarProduccion({ show, setShow, onSuccess, select
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleKeyDown = (e, nextFieldId) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (nextFieldId === 'submit') {
+                handleSave();
+            } else {
+                document.getElementById(nextFieldId)?.focus();
+            }
+        }
+    };
+
     const handleSave = async () => {
         if (!selectedLote || bloqueado) return;
 
@@ -82,8 +93,8 @@ export default function PopupEditarProduccion({ show, setShow, onSuccess, select
     if (!show || !selectedLote) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ padding: '30px' }}>
+        <div className="bg" onClick={() => setShow(false)}>
+            <div className="popup" onClick={e => e.stopPropagation()} style={{ padding: '30px', width: '500px', maxWidth: '95%' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
 
                 <h2 style={{ color: '#003366', marginBottom: '8px', textAlign: 'center' }}>
@@ -134,10 +145,12 @@ export default function PopupEditarProduccion({ show, setShow, onSuccess, select
                                         Carne Blanca (Kg)
                                     </label>
                                     <input
+                                        id="edit-input-carne"
                                         type="number"
                                         name="peso_carne_blanca"
                                         value={formData.peso_carne_blanca}
                                         onChange={handleChange}
+                                        onKeyDown={(e) => handleKeyDown(e, 'edit-input-pinzas')}
                                         step="0.01"
                                         min="0"
                                         style={{
@@ -154,10 +167,12 @@ export default function PopupEditarProduccion({ show, setShow, onSuccess, select
                                         Pinzas (Kg)
                                     </label>
                                     <input
+                                        id="edit-input-pinzas"
                                         type="number"
                                         name="peso_pinzas"
                                         value={formData.peso_pinzas}
                                         onChange={handleChange}
+                                        onKeyDown={(e) => handleKeyDown(e, 'submit')}
                                         step="0.01"
                                         min="0"
                                         style={{

@@ -21,9 +21,9 @@ export async function createProduccion(req, res) {
 export async function deleteProduccion(req, res) {
   try {
     const { id } = req.params;
-    const [result, error] = await deleteProduccionService(id);
+    const [result, error] = await deleteProduccionService(id, req.user);
     if (error) return handleErrorClient(res, 404, error);
-    handleSuccess(res, 200, "Producto eliminado exitosamente");
+    handleSuccess(res, 200, "Producto devuelto exitosamente");
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }
@@ -32,9 +32,9 @@ export async function deleteProduccion(req, res) {
 export async function deleteManyProduccion(req, res) {
   try {
     const { ids } = req.body;
-    const [result, error] = await deleteManyProduccionService(ids);
+    const [result, error] = await deleteManyProduccionService(ids, req.user);
     if (error) return handleErrorClient(res, 404, error);
-    handleSuccess(res, 200, "Productos eliminados exitosamente");
+    handleSuccess(res, 200, "Productos devueltos exitosamente");
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }

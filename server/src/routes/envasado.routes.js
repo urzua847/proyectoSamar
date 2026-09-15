@@ -1,14 +1,16 @@
 "use strict";
 
 import { Router } from "express";
-import { createProduccion, deleteProduccion, deleteManyProduccion, getProducciones, getStockCamaras, getStockContenedores, getResumenProduccionByLote } from "../controllers/envasado.controller.js";
+import { getProducciones, getStockCamaras, getStockContenedores, getResumenProduccionByLote, createProduccion, deleteProduccion, deleteManyProduccion } from "../controllers/envasado.controller.js";
 import { isOperarioOrAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
+import { validateRequest } from "../middlewares/validation.middleware.js";
+import { createProduccionSchema } from "../validations/produccion.schema.js";
 
 const router = Router();
 router.use(authenticateJwt);
 
-router.post("/", isOperarioOrAdmin, createProduccion);
+router.post("/", authenticateJwt, isOperarioOrAdmin, validateRequest(createProduccionSchema), createProduccion);
 router.post("/delete-batch", isOperarioOrAdmin, deleteManyProduccion);
 router.delete("/:id", isOperarioOrAdmin, deleteProduccion);
 router.get("/", isOperarioOrAdmin, getProducciones);

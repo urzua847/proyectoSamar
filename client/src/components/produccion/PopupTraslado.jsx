@@ -12,6 +12,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
     const [isPacking, setIsPacking] = useState(false);
     const [boxWeight, setBoxWeight] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Ref para prevenir doble clic en submit
     const isSubmittingRef = useRef(false);
@@ -77,6 +78,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         if (hasExceededStock) return showToastError("La cantidad ingresada supera el stock disponible en uno o más productos.");
 
         isSubmittingRef.current = true;
+        setIsSubmitting(true);
 
         let itemsToMove = [];
 
@@ -123,15 +125,18 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
 
         if (itemsToMove.length === 0) return showToastWarning("Ingrese cantidad a mover en al menos un producto.");
 
+        if (!boxWeight || Number(boxWeight) <= 0) {
+            setIsSubmitting(false);
+            isSubmittingRef.current = false;
+            return showToastWarning("Debe indicar el Kilos por Caja obligatoriamente.");
+        }
+
         try {
             const payload = {
                 destinoId: parseInt(selectedContenedor),
-                items: itemsToMove
+                items: itemsToMove,
+                peso_caja: Number(boxWeight)
             };
-
-            if (isPacking && Number(boxWeight) > 0) {
-                payload.peso_caja = Number(boxWeight);
-            }
 
             await axios.post('/traslado', payload);
             showToastSuccess("Traslado realizado con éxito");
@@ -144,6 +149,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
             // Resetear el flag después de un delay
             setTimeout(() => {
                 isSubmittingRef.current = false;
+                setIsSubmitting(false);
             }, 500);
         }
     };
@@ -205,8 +211,8 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     {isSelectionMode ? 'Confirmar Empaque y Traslado' : 'Mover Stock a Contenedor'}
                 </h2>
                 <div style={{ marginBottom: '20px', background: '#e3f2fd', padding: '12px 16px', borderRadius: '8px', color: '#0d47a1', fontSize: '0.9rem', border: '1px solid #bbdefb' }}>
-                    ℹ️ <strong>Módulo de Traslados:</strong> Mueva productos desde una Cámara hacia un Contenedor de destino.
-                    Indique la cantidad de <strong>Unidades a Mover</strong> y, opcionalmente, empaquételas en cajas usando el Paso 2.
+                    ℹ️ <strong>Módulo de Traslados:</strong> Mueva productos a granel desde una Cámara hacia un Contenedor de destino.
+                    Indique la cantidad de <strong>Kilos a Mover</strong> y empáquelos obligatoriamente en cajas usando el Paso 2.
                 </div>
 
                 {/* PASO 1: Destino */}
@@ -230,44 +236,35 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     </select>
                 </div>
 
-                {/* PASO 2: Empaque Automático */}
+                {/* PASO 2: Empaque Obligatorio */}
                 {showPackingOption && (
                     <div className="popup-section" style={{ padding: '20px', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
                         <h3 className="popup-section-title" style={{ color: '#166534', borderBottomColor: '#bbf7d0' }}>
                             <span className="popup-step-badge" style={{ background: '#16a34a' }}>2</span>
-                            Empaque Automático (Opcional)
+                            Empaque Obligatorio
                         </h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#15803d' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <label style={{ fontWeight: '600', color: '#334155' }}>Kilos por Caja:</label>
                                 <input
-                                    type="checkbox"
-                                    style={{ width: '20px', height: '20px', accentColor: '#16a34a' }}
-                                    checked={isPacking}
-                                    onChange={e => setIsPacking(e.target.checked)}
+                                    type="number"
+                                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '110px', textAlign: 'right' }}
+                                    placeholder="Ej: 10"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={boxWeight}
+                                    onChange={e => {
+                                        setBoxWeight(e.target.value);
+                                        setIsPacking(true); // Force isPacking to true
+                                    }}
                                 />
-                                <span>Activar Empaque Automático</span>
-                            </label>
-
-                            {isPacking && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <label style={{ fontWeight: '600', color: '#334155' }}>Kilos por Caja:</label>
-                                    <input
-                                        type="number"
-                                        style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '110px', textAlign: 'right' }}
-                                        placeholder="Ej: 10"
-                                        min="0.01"
-                                        step="0.01"
-                                        value={boxWeight}
-                                        onChange={e => setBoxWeight(e.target.value)}
-                                    />
-                                    
-                                    {totalKilosToMove > 0 && Number(boxWeight) > 0 && (
-                                        <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '6px', fontWeight: '500', fontSize: '0.9rem', marginLeft: '10px' }}>
-                                            Moverás <strong>{totalKilosToMove.toFixed(2)} kg</strong> en total ➡️ Se crearán <strong>{projectedBoxes} cajas</strong> de {boxWeight} kg en el destino.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                
+                                {totalKilosToMove > 0 && Number(boxWeight) > 0 && (
+                                    <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '6px', fontWeight: '500', fontSize: '0.9rem', marginLeft: '10px' }}>
+                                        Moverás <strong>{totalKilosToMove.toFixed(2)} kg</strong> a granel ➡️ Se armarán <strong>{projectedBoxes} cajas</strong> de {boxWeight} kg.
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -288,12 +285,12 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                 {isSelectionMode ? (
                                     <>
                                         <th>Lote</th>
-                                        <th style={{ textAlign: 'right' }}>Unidades a Mover</th>
+                                        <th style={{ textAlign: 'right' }}>CANTIDAD (UNIDADES)</th>
                                     </>
                                 ) : (
                                     <>
-                                        <th style={{ textAlign: 'right' }}>Disponible (Unid)</th>
-                                        <th style={{ width: '160px', textAlign: 'right' }}>Unidades a Mover</th>
+                                        <th style={{ textAlign: 'right' }}>Disponible (kg)</th>
+                                        <th style={{ width: '160px', textAlign: 'right' }}>CANTIDAD (UNIDADES)</th>
                                     </>
                                 )}
                             </tr>
@@ -384,13 +381,13 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                         type="button"
                         onClick={handleSubmit}
                         className="btn-save"
-                        disabled={hasExceededStock || hasSelectionExceededStock}
+                        disabled={hasExceededStock || hasSelectionExceededStock || isSubmitting}
                         style={{
-                            opacity: (hasExceededStock || hasSelectionExceededStock) ? 0.5 : 1,
-                            cursor: (hasExceededStock || hasSelectionExceededStock) ? 'not-allowed' : 'pointer'
+                            opacity: (hasExceededStock || hasSelectionExceededStock || isSubmitting) ? 0.5 : 1,
+                            cursor: (hasExceededStock || hasSelectionExceededStock || isSubmitting) ? 'not-allowed' : 'pointer'
                         }}
                     >
-                        Confirmar Traslado
+                        {isSubmitting ? 'Procesando...' : 'Confirmar Traslado'}
                     </button>
                 </div>
             </div>

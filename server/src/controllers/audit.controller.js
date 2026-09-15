@@ -29,6 +29,7 @@ export async function getAuditLogs(req, res) {
             userName: log.userName,
             userEmail: log.userName, // userName actualmente contiene el email
             details: log.newData || {}, // AQUÍ está la clave: newData → details
+            summary: generateSummary(log),
             previousData: log.previousData,
             ipAddress: log.metadata?.ipAddress || null,
             userAgent: log.metadata?.userAgent || null,
@@ -108,10 +109,12 @@ function generateSummary(log) {
     // Construcción narrativa según entidad y datos disponibles
     switch (log.entityType) {
         case 'LoteRecepcion':
-            summary = `Lote ${data.codigo || 'N/A'} creado`;
-            if (data.peso_bruto_kg) summary += `: ${data.peso_bruto_kg}kg`;
-            if (data.numero_bandejas) summary += `, ${data.numero_bandejas} bandejas`;
-            if (data.materia_prima) summary += `, MP: ${data.materia_prima}`;
+            const loteCodigo = data.codigo || data.lote_codigo || (log.previousData ? log.previousData.codigo : null);
+            summary = `Lote ${loteCodigo ? loteCodigo : '#' + log.entityId}`;
+            if (data.peso_bruto_kg !== undefined) summary += `\nPeso Bruto: ${data.peso_bruto_kg}kg`;
+            if (data.materiaPrima !== undefined) summary += `, MP: ${data.materiaPrima}`;
+            if (data.estado !== undefined) summary += ` (Estado: ${data.estado ? 'Activo' : 'Inactivo'})`;
+            if (data.en_proceso_produccion !== undefined) summary += ` (En Producción: ${data.en_proceso_produccion ? 'Sí' : 'No'})`;
             if (data.detalle_pesadas && Array.isArray(data.detalle_pesadas)) {
                 const pesadas = data.detalle_pesadas.map(p => `${p.peso}kg`).join(', ');
                 summary += `\n${data.detalle_pesadas.length} pesadas (${pesadas})`;
@@ -153,12 +156,14 @@ function generateSummary(log) {
             break;
 
         case 'Traslado':
+            summary = `Traslado hacia ${data.destino_nombre || 'N/A'}`;
             if (data.detalle_items && Array.isArray(data.detalle_items)) {
-                summary = `Traslado: ${data.detalle_items.length} items`;
-                const totalKg = data.detalle_items.reduce((sum, i) => sum + (parseFloat(i.cantidad_solicitada) || 0), 0);
-                if (totalKg) summary += `\n${totalKg.toFixed(2)}kg solicitados`;
+                const totalKg = data.detalle_items.reduce((sum, item) => sum + (parseFloat(item.cantidad_kg) || parseFloat(item.cantidad_solicitada) || 0), 0);
+                const pesoCaja = parseFloat(data.peso_caja) || 0;
+                const cajasStr = pesoCaja > 0 ? ` (${Math.round(totalKg / pesoCaja)} cajas)` : '';
+                summary += `\nTotal: ${totalKg.toFixed(2)}kg${cajasStr}`;
             } else {
-                summary = 'Traslado creado';
+                summary = 'Traslado registrado';
             }
             break;
 

@@ -15,7 +15,7 @@ const EntityDetail = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 15;
+    const itemsPerPage = 30;
 
     useEffect(() => {
         const fetchData = async () => {

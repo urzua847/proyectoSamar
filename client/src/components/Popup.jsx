@@ -17,8 +17,8 @@ export default function Popup({ show, setShow, data, action, title }) {
     return (
         <div>
             {show && (
-                <div className="bg">
-                    <div className="popup" style={{ padding: '0', overflow: 'hidden', maxWidth: '520px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                <div className="bg" onClick={() => setShow(false)}>
+                    <div className="popup" onClick={e => e.stopPropagation()} style={{ padding: '0', overflow: 'hidden', maxWidth: '520px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
 
                         {/* Header bar azul */}
                         <div style={{

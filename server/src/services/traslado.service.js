@@ -17,12 +17,16 @@ export async function trasladoStockService(data, user = null) {
     try {
         const { items, destinoId, peso_caja } = data;
 
+        if (!peso_caja || parseFloat(peso_caja) <= 0) {
+            throw new Error("El peso por caja es OBLIGATORIO al trasladar stock a un contenedor.");
+        }
+
         // 1. Validar Destino
         const destino = await ubicacionRepository.findOne({ where: { id: destinoId, tipo: "contenedor" } });
         if (!destino) throw new Error("Ubicación de destino inválida o no es un contenedor.");
 
         const movimientos = [];
-        const boxWeight = peso_caja ? parseFloat(peso_caja) : null;
+        const boxWeight = parseFloat(peso_caja);
 
         for (const item of items) {
             let kilosPorMover = parseFloat(item.cantidad);
@@ -43,6 +47,26 @@ export async function trasladoStockService(data, user = null) {
             }
 
             const stockDisponible = await queryBuild.orderBy("prod.fecha_produccion", "ASC").getMany();
+            
+            // Si hay stock, lo bloqueamos explícitamente sin JOINS para evitar errores de PostgreSQL
+            if (stockDisponible.length > 0) {
+                const idsToLock = stockDisponible.map(i => i.id);
+                // Bloqueo explícito usando SQL puro para asegurar que TypeORM no intente inyectar LEFT JOINS
+                const lockedRaw = await queryRunner.query(
+                    `SELECT id, peso_neto_kg FROM productos_terminados WHERE id = ANY($1) FOR UPDATE`,
+                    [idsToLock]
+                );
+                
+                // Actualizamos las cantidades con los datos frescos (en caso de que hayan cambiado)
+                for (const item of stockDisponible) {
+                    const freshItem = lockedRaw.find(l => l.id === item.id);
+                    if (freshItem) {
+                        item.peso_neto_kg = Number(freshItem.peso_neto_kg);
+                    } else {
+                        item.peso_neto_kg = 0; // Se consumió en otra transacción
+                    }
+                }
+            }
             
             const totalDisponible = stockDisponible.reduce((acc, curr) => acc + Number(curr.peso_neto_kg), 0);
             if (totalDisponible < kilosPorMover) {
@@ -76,18 +100,22 @@ export async function trasladoStockService(data, user = null) {
                    targetConsumption = numCajas * boxWeight;
                    
                    const refItem = itemsDelLote[0];
-                    for (let i = 0; i < numCajas; i++) {
+                   const unitWeight = Number(refItem.peso_neto_kg) / (refItem.piezas_internas || 1);
+                   const piezasPorCaja = Math.round(boxWeight / unitWeight);
+
+                   for (let i = 0; i < numCajas; i++) {
                         const nuevaCaja = queryRunner.manager.create(ProductoTerminado, {
                             calibre: refItem.calibre,
                             loteDeOrigen: refItem.loteDeOrigen,
                             definicion: refItem.definicion,
                             fecha_produccion: refItem.fecha_produccion,
                             peso_neto_kg: boxWeight,
+                            piezas_internas: piezasPorCaja,
                             ubicacion: destino,
                             estado: "En Stock"
                         });
                         await queryRunner.manager.save(ProductoTerminado, nuevaCaja);
-                    }
+                   }
 
                 } else {
                     targetConsumption = Math.min(totalPesoLote, kilosPorMover);

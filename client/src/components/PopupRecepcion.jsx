@@ -81,17 +81,17 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
 
     return (
         <div className="bg" onClick={() => setShow(false)}>
-            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '950px', maxWidth: '98%' }}>
+            <div className="popup" onClick={(e) => e.stopPropagation()} style={{ width: '950px', maxWidth: '98%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
-                <h2 style={{ color: '#003366', marginBottom: '20px' }}>
+                <h2 style={{ color: '#003366', marginBottom: '20px', flexShrink: 0 }}>
                     {dataToEdit ? `Editar Lote ${dataToEdit.codigo}` : "Nueva Recepción"}
                 </h2>
 
-                <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '20px' }}>
-                    <div className="popup-grid-2" style={{ flex: 1 }}>
+                <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                    <div className="popup-grid-2" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
                         {/* --- IZQUIERDA: DATOS DEL LOTE --- */}
-                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                             <h3 className="popup-section-title">
                                 <span className="popup-step-badge">1</span>
                                 Detalles Generales
@@ -159,7 +159,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                         </div>
 
                         {/* --- DERECHA: REGISTRO DE TANDAS (MEJORADO) --- */}
-                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '20px' }}>
+                        <div className="popup-section" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '20px', overflow: 'hidden' }}>
                             <h3 className="popup-section-title">
                                 <span className="popup-step-badge">2</span>
                                 Registro de Pesajes
@@ -217,7 +217,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                             </div>
 
                             {/* Tabla de Historial */}
-                            <div className="weight-history" style={{ flex: 1, maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px' }}>
+                            <div className="weight-history" style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead style={{ background: '#f8f9fa', position: 'sticky', top: 0 }}>
                                         <tr>
@@ -266,7 +266,7 @@ export default function PopupRecepcion({ show, setShow, action, dataToEdit }) {
                         </div>
                     </div>
                     {/* Footer Estándar */}
-                    <div className="popup-actions">
+                    <div className="popup-actions" style={{ flexShrink: 0, marginTop: '10px' }}>
                         <button type="button" className="btn-cancel" onClick={() => setShow(false)}>
                             Cancelar
                         </button>

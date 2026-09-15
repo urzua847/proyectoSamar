@@ -53,10 +53,23 @@ export async function createPedidoService(data, user = null) {
                      }
 
                      const currentId = productoIds[idIndex];
+                     // Fetch lock usando SQL puro para garantizar 0 LEFT JOINS inyectados
+                     const lockedRaw = await queryRunner.query(
+                         `SELECT id, peso_neto_kg FROM productos_terminados WHERE id = $1 FOR UPDATE`,
+                         [currentId]
+                     );
+                     
+                     if (lockedRaw.length === 0) throw new Error(`Producto ID ${currentId} no encontrado en stock.`);
+                     
+                     // Fetch de las relaciones separadamente si se necesita
                      const stockItem = await queryRunner.manager.findOne(ProductoTerminado, {
                          where: { id: currentId },
                          relations: ["definicion", "ubicacion"]
                      });
+                     
+                     if (stockItem) {
+                         stockItem.peso_neto_kg = Number(lockedRaw[0].peso_neto_kg); // Usar el peso bloqueado
+                     }
 
                      // Verify Availability
                      if (stockItem && stockItem.estado === 'En Stock' && stockItem.ubicacion.tipo === 'contenedor' && Number(stockItem.peso_neto_kg) > 0) {
@@ -84,12 +97,22 @@ export async function createPedidoService(data, user = null) {
 
             } else if (legacyId) {
                  // --- MODO LEGACY / GRANEL ---
+                 // Fetch lock usando SQL puro para garantizar 0 LEFT JOINS inyectados
+                 const lockedRaw = await queryRunner.query(
+                     `SELECT id, peso_neto_kg FROM productos_terminados WHERE id = $1 FOR UPDATE`,
+                     [legacyId]
+                 );
+
+                 if (lockedRaw.length === 0) throw new Error(`Producto ID ${legacyId} no encontrado.`);
+
                  const stockItem = await queryRunner.manager.findOne(ProductoTerminado, {
                      where: { id: legacyId },
                      relations: ["definicion", "ubicacion"]
                  });
-    
-                 if (!stockItem) throw new Error(`Producto ID ${legacyId} no encontrado.`);
+                 
+                 if (stockItem) {
+                     stockItem.peso_neto_kg = Number(lockedRaw[0].peso_neto_kg);
+                 }
                  
                  // Strict Container Check
                  if (stockItem.ubicacion.tipo !== 'contenedor') {
