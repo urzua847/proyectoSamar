@@ -117,9 +117,10 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
             total += kg;
 
             const prodDef = productosCatalogo.find(p => p.id === prodId);
-            if (prodDef) {
-                if (prodDef.origen === 'carne_blanca') carne += kg;
-                else if (prodDef.origen === 'pinza') pinzas += kg;
+            if (prodDef && prodDef.origen) {
+                const origenStr = prodDef.origen.toLowerCase();
+                if (origenStr === 'carne blanca' || origenStr === 'carne_blanca') carne += kg;
+                else if (origenStr === 'pinza') pinzas += kg;
             }
         });
 
@@ -249,9 +250,10 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
 
         itemsToSave.forEach(item => {
             const prodDef = productosCatalogo.find(p => p.id === item.definicionProductoId);
-            if (prodDef) {
-                if (prodDef.origen === 'carne_blanca') totalCarne += item.peso_neto_kg;
-                if (prodDef.origen === 'pinza') totalPinzas += item.peso_neto_kg;
+            if (prodDef && prodDef.origen) {
+                const origenStr = prodDef.origen.toLowerCase();
+                if (origenStr === 'carne blanca' || origenStr === 'carne_blanca') totalCarne += item.peso_neto_kg;
+                if (origenStr === 'pinza') totalPinzas += item.peso_neto_kg;
             }
         });
 
@@ -304,8 +306,8 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
     if (!show) return null;
 
     return (
-        <div className="bg" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div className="popup" style={{ width: '1100px', flex: loteSeleccionado ? '1 1 auto' : '0 1 auto', maxWidth: loteSeleccionado ? '1100px' : '98%', maxHeight: '90vh', overflowY: 'auto', padding: '32px', margin: 0 }}>
+        <div className="bg" style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={cerrarPopup}>
+            <div className="popup" onClick={e => e.stopPropagation()} style={{ width: '1100px', flex: loteSeleccionado ? '1 1 auto' : '0 1 auto', maxWidth: loteSeleccionado ? '1100px' : '98%', maxHeight: '90vh', overflowY: 'auto', padding: '32px', margin: 0 }}>
                 <button className='btn-close-x' onClick={cerrarPopup}>X</button>
                 <h2 style={{ color: '#003366', marginBottom: '24px', fontSize: '1.4rem' }}>Ingreso a Cámara (Envasado)</h2>
 
@@ -391,8 +393,9 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                                     const rowErrors = errors[key] || {};
                                                     const gramaje = obtenerGramaje(cal);
                                                     
-                                                    const isCarne = prod.origen === 'carne_blanca';
-                                                    const isPinza = prod.origen === 'pinza';
+                                                    const origenStr = prod.origen ? prod.origen.toLowerCase() : '';
+                                                    const isCarne = origenStr === 'carne blanca' || origenStr === 'carne_blanca';
+                                                    const isPinza = origenStr === 'pinza';
                                                     const isOverdrawn = (isCarne && saldoRestanteCarne < 0) || (isPinza && saldoRestantePinzas < 0);
                                                     const hasQtyError = rowErrors.cantidad || (isOverdrawn && (data.cantidad > 0 || data.pesoTotal > 0));
 
@@ -541,7 +544,7 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
 
             {/* TARJETA FLOTANTE DE RENDIMIENTO (Fuera del popup principal) */}
             {loteSeleccionado && !loading && (
-                <div className="popup-side-panel" style={{ 
+                <div className="popup-side-panel" onClick={e => e.stopPropagation()} style={{ 
                     flex: '0 0 320px', 
                     background: '#ffffff', 
                     borderRadius: '12px', 

@@ -25,6 +25,17 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleKeyDown = (e, nextFieldId) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (nextFieldId === 'submit') {
+                handleSave();
+            } else {
+                document.getElementById(nextFieldId)?.focus();
+            }
+        }
+    };
+
     const handleSave = async () => {
         if (!selectedLote) return;
 
@@ -56,8 +67,8 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
     if (!show || !selectedLote) return null;
 
     return (
-        <div className="bg">
-            <div className="popup" style={{ padding: '30px' }}>
+        <div className="bg" onClick={() => setShow(false)}>
+            <div className="popup" onClick={e => e.stopPropagation()} style={{ padding: '30px' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
 
                 <h2 style={{ color: '#003366', marginBottom: '10px', textAlign: 'center' }}>
@@ -76,10 +87,12 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
                         <div className="container_inputs" style={{ flex: 1 }}>
                             <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Carne Blanca (Kg)</label>
                             <input
+                                id="input-carne"
                                 type="number"
                                 name="peso_carne_blanca"
                                 value={formData.peso_carne_blanca}
                                 onChange={handleChange}
+                                onKeyDown={(e) => handleKeyDown(e, 'input-pinzas')}
                                 step="0.01"
                                 placeholder="0.00"
                                 style={{
@@ -94,10 +107,12 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
                         <div className="container_inputs" style={{ flex: 1 }}>
                             <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Pinzas (Kg)</label>
                             <input
+                                id="input-pinzas"
                                 type="number"
                                 name="peso_pinzas"
                                 value={formData.peso_pinzas}
                                 onChange={handleChange}
+                                onKeyDown={(e) => handleKeyDown(e, 'submit')}
                                 step="0.01"
                                 placeholder="0.00"
                                 style={{

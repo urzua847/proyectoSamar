@@ -492,18 +492,16 @@ const Pedidos = () => {
                                         onChange={e => setFilters({ ...filters, producto: e.target.value })}
                                         className="search-input"
                                     />
-                                    <input
-                                        placeholder="Filtrar Contenedor..."
+                                    <select
                                         value={filters.ubicacion}
                                         onChange={e => setFilters({ ...filters, ubicacion: e.target.value })}
                                         className="search-input"
-                                        list="ubicaciones-list"
-                                    />
-                                    <datalist id="ubicaciones-list">
+                                    >
+                                        <option value="">Todas las ubicaciones...</option>
                                         {[...new Set(availableStock.map(i => i.ubicacionNombre).filter(Boolean))].sort().map(u => (
-                                            <option key={u} value={u} />
+                                            <option key={u} value={u}>{u}</option>
                                         ))}
-                                    </datalist>
+                                    </select>
                                     <button
                                         onClick={() => setFilters({ lote: '', producto: '', ubicacion: '' })}
                                         className="btn-cancel"

@@ -3,11 +3,13 @@
 import { Router } from "express";
 import { createTraslado } from "../controllers/traslado.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
+import { validateRequest } from "../middlewares/validation.middleware.js";
+import { createTrasladoSchema } from "../validations/produccion.schema.js";
 
 const router = Router();
 
 router.use(authenticateJwt);
 
-router.post("/", createTraslado);
+router.post("/", validateRequest(createTrasladoSchema), createTraslado);
 
 export default router;

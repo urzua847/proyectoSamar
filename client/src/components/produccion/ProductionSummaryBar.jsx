@@ -1,5 +1,73 @@
 import React from 'react';
 
+const styleSheet = `
+@keyframes progress-bar-stripes {
+    from { background-position: 1rem 0; }
+    to { background-position: 0 0; }
+}
+`;
+
+const ProgressBar = ({ total, yaIngresados, actual, restante, label, isExceededLocal }) => {
+    const safeTotal = total > 0 ? total : 1; 
+    let percentYa = ((yaIngresados || 0) / safeTotal) * 100;
+    let percentActual = ((actual || 0) / safeTotal) * 100;
+    
+    if (percentYa > 100) percentYa = 100;
+    if (percentYa + percentActual > 100) {
+        percentActual = 100 - percentYa;
+    }
+
+    return (
+        <div style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-end' }}>
+                <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem', textTransform: 'uppercase' }}>{label}</span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>Total: {(total || 0).toFixed(2)} kg</span>
+            </div>
+            
+            {/* The Bar */}
+            <div style={{ 
+                height: '24px', 
+                backgroundColor: '#f1f5f9', 
+                borderRadius: '12px', 
+                display: 'flex', 
+                overflow: 'hidden',
+                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)'
+            }}>
+                {percentYa > 0 && (
+                    <div style={{ 
+                        width: `${percentYa}%`, 
+                        backgroundColor: '#475569',
+                        transition: 'width 0.4s ease'
+                    }} title={`Ya Ingresados: ${(yaIngresados || 0).toFixed(2)} kg`} />
+                )}
+                {percentActual > 0 && (
+                    <div style={{ 
+                        width: `${percentActual}%`, 
+                        backgroundColor: isExceededLocal ? '#ef4444' : '#3b82f6',
+                        backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.2) 50%, rgba(255,255,255,.2) 75%, transparent 75%, transparent)',
+                        backgroundSize: '1rem 1rem',
+                        animation: 'progress-bar-stripes 1s linear infinite',
+                        transition: 'width 0.4s ease'
+                    }} title={`Ingreso Actual: ${(actual || 0).toFixed(2)} kg`} />
+                )}
+            </div>
+
+            {/* Sub-labels */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.85rem', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Ya ingresado: {(yaIngresados || 0).toFixed(2)} kg</span>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <span style={{ color: '#0284c7', fontWeight: '700', background: '#f0f9ff', padding: '2px 8px', borderRadius: '6px' }}>
+                        + {(actual || 0).toFixed(2)} kg
+                    </span>
+                    <span style={{ color: isExceededLocal ? '#ef4444' : '#16a34a', fontWeight: '700' }}>
+                        Faltan: {(restante || 0).toFixed(2)} kg
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function ProductionSummaryBar({
     isExceeded,
     totalProducido,
@@ -15,112 +83,81 @@ export default function ProductionSummaryBar({
     saldoRestanteCarne,
     saldoRestantePinzas
 }) {
+    // Determine if we need to show breakdown bars or a generic one
+    const showBreakdown = totalCarneProducido > 0 || totalPinzasProducido > 0;
+
     return (
         <div style={{
-            background: '#f8fafc',
-            border: isExceeded ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+            background: '#ffffff',
+            border: isExceeded ? '1px solid #fca5a5' : '1px solid transparent',
             borderRadius: '12px',
-            padding: '16px 20px',
+            padding: '24px 20px',
             marginBottom: '24px',
-            boxShadow: isExceeded ? '0 4px 14px rgba(239, 68, 68, 0.08)' : '0 2px 4px rgba(0,0,0,0.02)',
             transition: 'all 0.2s ease-in-out'
         }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px 16px', alignItems: 'start' }}>
-                {/* Total Producido */}
-                <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '10px' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '4px' }}>
-                        Total Producido
-                    </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'Consolas, "Courier New", monospace', color: '#0f172a' }}>
-                        {(totalProducido || 0).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b', fontFamily: 'inherit' }}>kg</span>
-                    </div>
-                    {(totalCarneProducido > 0 || totalPinzasProducido > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'flex', gap: '4px', flexDirection: 'column' }}>
-                            {totalCarneProducido > 0 && <span style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px' }}>Blanca: {totalCarneProducido.toFixed(2)} kg</span>}
-                            {totalPinzasProducido > 0 && <span style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px' }}>Pinzas: {totalPinzasProducido.toFixed(2)} kg</span>}
-                        </div>
-                    )}
-                </div>
+            <style>{styleSheet}</style>
 
-                {/* Ya Ingresados */}
-                <div style={{ paddingLeft: '6px' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '4px' }}>
-                        Ya Ingresados
-                    </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'Consolas, "Courier New", monospace', color: '#475569' }}>
-                        {(yaIngresados || 0).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b', fontFamily: 'inherit' }}>kg</span>
-                    </div>
-                    {(yaIngresadosCarne > 0 || yaIngresadosPinzas > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'flex', gap: '4px', flexDirection: 'column' }}>
-                            {yaIngresadosCarne > 0 && <span style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px' }}>Blanca: {yaIngresadosCarne.toFixed(2)} kg</span>}
-                            {yaIngresadosPinzas > 0 && <span style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px' }}>Pinzas: {yaIngresadosPinzas.toFixed(2)} kg</span>}
-                        </div>
-                    )}
+            {/* Contexto General Arriba */}
+            <div style={{ marginBottom: '28px', paddingBottom: '20px', borderBottom: '2px dashed #e2e8f0', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '8px' }}>
+                    Total Producido (Lote Actual)
                 </div>
-
-                {/* Ingreso Actual */}
-                <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '10px' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '4px' }}>
-                        Ingreso Actual
-                    </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'Consolas, "Courier New", monospace', color: '#0284c7' }}>
-                        {(ingresoActual || 0).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b', fontFamily: 'inherit' }}>kg</span>
-                    </div>
-                    {(ingresoActualCarne > 0 || ingresoActualPinzas > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'flex', gap: '4px', flexDirection: 'column' }}>
-                            {ingresoActualCarne > 0 && <span style={{ background: '#f0f9ff', padding: '2px 4px', borderRadius: '4px' }}>Blanca: {ingresoActualCarne.toFixed(2)} kg</span>}
-                            {ingresoActualPinzas > 0 && <span style={{ background: '#f0f9ff', padding: '2px 4px', borderRadius: '4px' }}>Pinzas: {ingresoActualPinzas.toFixed(2)} kg</span>}
-                        </div>
-                    )}
-                </div>
-
-                {/* Saldo Restante */}
-                <div style={{ paddingLeft: '6px' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '4px' }}>
-                        Saldo Restante
-                    </div>
-                    <div style={{
-                        fontSize: '1.25rem',
-                        fontWeight: '800',
-                        fontFamily: 'Consolas, "Courier New", monospace',
-                        color: isExceeded ? '#ef4444' : '#16a34a',
-                        transition: 'color 0.2s ease-in-out'
-                    }}>
-                        {(saldoRestante || 0).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: '600', color: isExceeded ? '#ef4444' : '#64748b', fontFamily: 'inherit' }}>kg</span>
-                    </div>
-                    {(saldoRestanteCarne !== 0 || saldoRestantePinzas !== 0) && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'flex', gap: '4px', flexDirection: 'column' }}>
-                            {saldoRestanteCarne !== 0 && (
-                                <span style={{ background: saldoRestanteCarne < 0 ? '#fef2f2' : '#f0fdf4', color: saldoRestanteCarne < 0 ? '#dc2626' : '#166534', padding: '2px 4px', borderRadius: '4px' }}>
-                                    Blanca: {saldoRestanteCarne.toFixed(2)} kg
-                                </span>
-                            )}
-                            {saldoRestantePinzas !== 0 && (
-                                <span style={{ background: saldoRestantePinzas < 0 ? '#fef2f2' : '#f0fdf4', color: saldoRestantePinzas < 0 ? '#dc2626' : '#166534', padding: '2px 4px', borderRadius: '4px' }}>
-                                    Pinzas: {saldoRestantePinzas.toFixed(2)} kg
-                                </span>
-                            )}
-                        </div>
-                    )}
+                <div style={{ fontSize: '2.2rem', fontWeight: '800', fontFamily: 'Consolas, "Courier New", monospace', color: '#0f172a', lineHeight: '1' }}>
+                    {(totalProducido || 0).toFixed(2)} <span style={{ fontSize: '1.2rem', fontWeight: '600', color: '#64748b', fontFamily: 'inherit' }}>kg</span>
                 </div>
             </div>
 
+            {/* Barras de Progreso */}
+            {showBreakdown ? (
+                <>
+                    {totalCarneProducido > 0 && (
+                        <ProgressBar 
+                            label="Carne Blanca" 
+                            total={totalCarneProducido} 
+                            yaIngresados={yaIngresadosCarne} 
+                            actual={ingresoActualCarne} 
+                            restante={saldoRestanteCarne} 
+                            isExceededLocal={saldoRestanteCarne < 0}
+                        />
+                    )}
+                    {totalPinzasProducido > 0 && (
+                        <ProgressBar 
+                            label="Pinzas" 
+                            total={totalPinzasProducido} 
+                            yaIngresados={yaIngresadosPinzas} 
+                            actual={ingresoActualPinzas} 
+                            restante={saldoRestantePinzas} 
+                            isExceededLocal={saldoRestantePinzas < 0}
+                        />
+                    )}
+                </>
+            ) : (
+                <ProgressBar 
+                    label="Producción General" 
+                    total={totalProducido} 
+                    yaIngresados={yaIngresados} 
+                    actual={ingresoActual} 
+                    restante={saldoRestante} 
+                    isExceededLocal={saldoRestante < 0}
+                />
+            )}
+
             {isExceeded && (
                 <div style={{
-                    marginTop: '12px',
-                    padding: '8px 12px',
+                    marginTop: '24px',
+                    padding: '16px',
                     background: '#fef2f2',
                     border: '1px solid #fecaca',
                     borderRadius: '8px',
                     color: '#dc2626',
-                    fontSize: '0.825rem',
+                    fontSize: '0.85rem',
                     fontWeight: '600',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px'
+                    gap: '12px'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: '#dc2626', color: 'white', fontWeight: 'bold' }}>!</div>
-                    <span>Atención: El saldo restante es negativo ({(saldoRestante || 0).toFixed(2)} kg). Supera los kilos disponibles considerando ingresos previos.</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: '#dc2626', color: 'white', fontWeight: 'bold', flexShrink: 0 }}>!</div>
+                    <span>Atención: El saldo restante es negativo ({(saldoRestante || 0).toFixed(2)} kg). Estás ingresando más kilos de los que produjo el lote.</span>
                 </div>
             )}
         </div>

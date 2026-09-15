@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import '../styles/table.css';
 import EmptyState from './EmptyState';
 
@@ -22,10 +23,34 @@ const Table = ({
     // Validación de seguridad
     const safeData = data || [];
 
+    // Paginación local automática
+    const ITEMS_PER_PAGE = 30;
+    const [localPage, setLocalPage] = useState(1);
+
+    // Si la data cambia (ej. por filtros externos), reiniciamos la página local
+    useEffect(() => {
+        setLocalPage(1);
+    }, [data]);
+
+    const isLocalPagination = !pagination && safeData.length > ITEMS_PER_PAGE;
+    
+    let displayData = safeData;
+    let activePagination = pagination;
+
+    if (isLocalPagination) {
+        const totalPages = Math.ceil(safeData.length / ITEMS_PER_PAGE);
+        displayData = safeData.slice((localPage - 1) * ITEMS_PER_PAGE, localPage * ITEMS_PER_PAGE);
+        activePagination = {
+            currentPage: localPage,
+            totalPages: totalPages,
+            onPageChange: (page) => setLocalPage(page)
+        };
+    }
+
     const handleSelectAll = (e) => {
         if (!onSelectionChange) return;
         if (e.target.checked) {
-            const allIds = safeData.map(row => row.id);
+            const allIds = displayData.map(row => row.id);
             onSelectionChange(allIds);
         } else {
             onSelectionChange([]);
@@ -43,7 +68,7 @@ const Table = ({
         }
     };
 
-    const isAllSelected = safeData.length > 0 && selectedIds.length === safeData.length;
+    const isAllSelected = displayData.length > 0 && selectedIds.length === displayData.length;
 
     return (
         <div className="table-container-native">
@@ -90,8 +115,8 @@ const Table = ({
                     )}
                 </thead>
                 <tbody>
-                    {safeData.length > 0 ? (
-                        safeData.map((row, rowIndex) => {
+                    {displayData.length > 0 ? (
+                        displayData.map((row, rowIndex) => {
                             const isSingleSelected = selectedId && (row.id === selectedId);
                             const isMultiSelected = multiSelect && selectedIds.includes(row.id);
 
@@ -138,7 +163,7 @@ const Table = ({
             </table>
             
             {/* Pagination Controls */}
-            {pagination && pagination.totalPages > 1 && (
+            {activePagination && activePagination.totalPages > 1 && (
                 <div style={{
                     display: 'flex',
                     justifyContent: 'flex-end',
@@ -149,19 +174,19 @@ const Table = ({
                     gap: '15px'
                 }}>
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                        Página {pagination.currentPage} de {pagination.totalPages}
+                        Página {activePagination.currentPage} de {activePagination.totalPages}
                     </span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
-                            disabled={pagination.currentPage <= 1}
-                            onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                            disabled={activePagination.currentPage <= 1}
+                            onClick={() => activePagination.onPageChange(activePagination.currentPage - 1)}
                             style={{
                                 padding: '6px 12px',
                                 borderRadius: '6px',
                                 border: '1px solid #e2e8f0',
-                                backgroundColor: pagination.currentPage <= 1 ? '#f8fafc' : '#fff',
-                                color: pagination.currentPage <= 1 ? '#cbd5e1' : '#334155',
-                                cursor: pagination.currentPage <= 1 ? 'not-allowed' : 'pointer',
+                                backgroundColor: activePagination.currentPage <= 1 ? '#f8fafc' : '#fff',
+                                color: activePagination.currentPage <= 1 ? '#cbd5e1' : '#334155',
+                                cursor: activePagination.currentPage <= 1 ? 'not-allowed' : 'pointer',
                                 fontSize: '0.85rem',
                                 fontWeight: '500',
                                 transition: 'all 0.2s'
@@ -170,15 +195,15 @@ const Table = ({
                             Anterior
                         </button>
                         <button 
-                            disabled={pagination.currentPage >= pagination.totalPages}
-                            onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                            disabled={activePagination.currentPage >= activePagination.totalPages}
+                            onClick={() => activePagination.onPageChange(activePagination.currentPage + 1)}
                             style={{
                                 padding: '6px 12px',
                                 borderRadius: '6px',
                                 border: '1px solid #e2e8f0',
-                                backgroundColor: pagination.currentPage >= pagination.totalPages ? '#f8fafc' : '#fff',
-                                color: pagination.currentPage >= pagination.totalPages ? '#cbd5e1' : '#334155',
-                                cursor: pagination.currentPage >= pagination.totalPages ? 'not-allowed' : 'pointer',
+                                backgroundColor: activePagination.currentPage >= activePagination.totalPages ? '#f8fafc' : '#fff',
+                                color: activePagination.currentPage >= activePagination.totalPages ? '#cbd5e1' : '#334155',
+                                cursor: activePagination.currentPage >= activePagination.totalPages ? 'not-allowed' : 'pointer',
                                 fontSize: '0.85rem',
                                 fontWeight: '500',
                                 transition: 'all 0.2s'

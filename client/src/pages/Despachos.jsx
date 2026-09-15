@@ -20,6 +20,7 @@ const Despachos = () => {
         fecha_hasta: '',
         numero_guia: ''
     });
+    const [sortOrder, setSortOrder] = useState('desc');
 
     useEffect(() => {
         fetchHistory();
@@ -53,7 +54,7 @@ const Despachos = () => {
 
     // Filtrado local instantáneo con useMemo
     const filteredHistory = useMemo(() => {
-        return orderHistory.filter(item => {
+        let filtered = orderHistory.filter(item => {
             const matchCliente = !historialFilters.cliente ||
                 (item.cliente || '').toLowerCase().includes(historialFilters.cliente.toLowerCase());
 
@@ -66,7 +67,15 @@ const Despachos = () => {
 
             return matchCliente && matchGuia && matchDesde && matchHasta;
         });
-    }, [orderHistory, historialFilters]);
+
+        filtered.sort((a, b) => {
+            const timeA = a.fechaISO ? new Date(a.fechaISO).getTime() : 0;
+            const timeB = b.fechaISO ? new Date(b.fechaISO).getTime() : 0;
+            return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+        });
+
+        return filtered;
+    }, [orderHistory, historialFilters, sortOrder]);
 
     // Limpiar filtros
     const handleClearFilters = () => {
@@ -193,6 +202,15 @@ const Despachos = () => {
                             onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
                             className="search-input"
                         />
+                        <select
+                            value={sortOrder}
+                            onChange={e => setSortOrder(e.target.value)}
+                            className="search-input"
+                            style={{ height: '38px' }}
+                        >
+                            <option value="desc">Más recientes</option>
+                            <option value="asc">Más antiguos</option>
+                        </select>
                         <button onClick={handleClearFilters} className="btn-cancel" style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                             Limpiar
                         </button>

@@ -272,17 +272,17 @@ const Produccion = () => {
                             className="search-input"
                         />
 
-                        <input
-                            list="ubicaciones-list"
+                        <select
                             name="ubicacion"
-                            placeholder="Cámara..."
                             value={filtersStock.ubicacion}
                             onChange={handleFilterStockChange}
                             className="search-input"
-                        />
-                        <datalist id="ubicaciones-list">
-                            {uniqueUbicaciones.map(u => <option key={u} value={u} />)}
-                        </datalist>
+                        >
+                            <option value="">Todas las cámaras...</option>
+                            {uniqueUbicaciones.map(u => (
+                                <option key={u} value={u}>{u}</option>
+                            ))}
+                        </select>
 
                         <select
                             name="orderHora"

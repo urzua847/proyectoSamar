@@ -19,8 +19,11 @@ export async function createProduccionService(data, user = null) {
   try {
     const { loteRecepcionId, items, cerrar_lote, merma_kg } = data;
 
-    // 1. Validar existencia del lote de origen
-    const loteOrigen = await queryRunner.manager.findOne(LoteRecepcion, { where: { id: loteRecepcionId } });
+    // 1. Validar existencia del lote de origen (Pessimistic Locking para evitar cierres simultáneos)
+    const loteOrigen = await queryRunner.manager.findOne(LoteRecepcion, { 
+        where: { id: loteRecepcionId },
+        lock: { mode: "pessimistic_write" } 
+    });
     if (!loteOrigen) {
       await queryRunner.rollbackTransaction();
       return [null, "El Lote de Recepción no existe."];
@@ -178,82 +181,94 @@ export async function createProduccionService(data, user = null) {
   }
 }
 
-export async function deleteProduccionService(id) {
-    try {
-        const prod = await produccionRepository.findOne({ 
-            where: { id },
-            relations: ["ubicacion"] 
-        });
-        if (!prod) return [null, "Producto no encontrado"];
-
-        if (prod.ubicacion && prod.ubicacion.tipo !== "camara") {
-            let defaultCamera = await ubicacionRepository.findOne({ where: { nombre: "Cámara 0" } });
-            if (!defaultCamera) {
-                defaultCamera = await ubicacionRepository.findOne({ where: { tipo: "camara" } });
-            }
-            if (!defaultCamera) return [null, "No hay cámaras disponibles para recuperar el stock."];
-
-            prod.ubicacion = defaultCamera;
-            await produccionRepository.save(prod);
-            return [true, null];
-        }
-
-        await produccionRepository.remove(prod);
-        return [true, null];
-    } catch (error) {
-        console.error("Error deleteProduccionService:", error);
-        return [null, error.message];
-    }
+export async function deleteProduccionService(id, user = null) {
+    return await deleteManyProduccionService([id], user);
 }
 
-export async function deleteManyProduccionService(ids) {
+export async function deleteManyProduccionService(ids, user = null) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
         if (!ids || ids.length === 0) return [null, "No hay IDs para eliminar"];
 
-        const productos = await produccionRepository.createQueryBuilder("prod")
+        const productos = await queryRunner.manager.createQueryBuilder(ProductoTerminado, "prod")
             .leftJoinAndSelect("prod.ubicacion", "ubi")
+            .leftJoinAndSelect("prod.loteDeOrigen", "lote")
+            .leftJoinAndSelect("prod.definicion", "def")
             .where("prod.id IN (:...ids)", { ids })
             .getMany();
 
-        if (productos.length === 0) return [true, null];
+        if (productos.length === 0) {
+            await queryRunner.rollbackTransaction();
+            return [true, null];
+        }
 
-        let defaultCamera = null;
+        let defaultCamera = await queryRunner.manager.findOne(Ubicacion, { where: { nombre: "Cámara 0" } });
+        if (!defaultCamera) {
+            defaultCamera = await queryRunner.manager.findOne(Ubicacion, { where: { tipo: "camara" } });
+        }
 
-        const toDelete = [];
-        const toRecover = [];
+        const toDeleteIds = [];
+        const toUnpackBoxes = [];
 
         for (const prod of productos) {
-            if (prod.ubicacion && prod.ubicacion.tipo !== "camara") {
-                if (!defaultCamera) {
-                    defaultCamera = await ubicacionRepository.findOne({ where: { nombre: "Cámara 0" } });
-                    if (!defaultCamera) {
-                        defaultCamera = await ubicacionRepository.findOne({ where: { tipo: "camara" } });
-                    }
-                }
-                if (defaultCamera) {
-                    prod.ubicacion = defaultCamera;
-                    toRecover.push(prod);
-                } else {
-                    toDelete.push(prod);
-                }
-            } else {
-                toDelete.push(prod);
+            toDeleteIds.push(prod.id); // Todas se eliminan (sean de cámara o de contenedor)
+
+            if (prod.ubicacion && prod.ubicacion.tipo !== "camara" && defaultCamera) {
+                // Si estaba en contenedor, se debe desembalar (recrear) en la cámara
+                toUnpackBoxes.push(prod);
             }
         }
 
-        if (toRecover.length > 0) {
-            await produccionRepository.save(toRecover);
+        if (toUnpackBoxes.length > 0) {
+            const unpackedItems = [];
+            for (const box of toUnpackBoxes) {
+                const piezas = Number(box.piezas_internas) || 1;
+                const unitWeight = Number(box.peso_neto_kg) / piezas;
+
+                for (let i = 0; i < piezas; i++) {
+                    const unpackedItem = queryRunner.manager.create(ProductoTerminado, {
+                        calibre: box.calibre,
+                        loteDeOrigen: box.loteDeOrigen,
+                        definicion: box.definicion,
+                        fecha_produccion: box.fecha_produccion,
+                        peso_neto_kg: unitWeight,
+                        piezas_internas: 1,
+                        ubicacion: defaultCamera,
+                        estado: "En Stock"
+                    });
+                    unpackedItems.push(unpackedItem);
+                }
+            }
+            if (unpackedItems.length > 0) {
+                await queryRunner.manager.save(ProductoTerminado, unpackedItems);
+            }
         }
 
-        if (toDelete.length > 0) {
-            const deleteIds = toDelete.map(p => p.id);
-            await produccionRepository.delete(deleteIds);
+        if (toDeleteIds.length > 0) {
+            await queryRunner.manager.delete(ProductoTerminado, toDeleteIds);
         }
 
+        if (user && toUnpackBoxes.length > 0) {
+            const { logCreate } = await import('./audit.service.js');
+            const kilosRestaurados = toUnpackBoxes.reduce((acc, curr) => acc + Number(curr.peso_neto_kg || 0), 0);
+
+            await logCreate('DevolucionACamara', null, {
+                cajas_devueltas: toUnpackBoxes.length,
+                kilos_restaurados: kilosRestaurados.toFixed(2)
+            }, user);
+        }
+
+        await queryRunner.commitTransaction();
         return [true, null];
     } catch (error) {
+        await queryRunner.rollbackTransaction();
         console.error("Error deleteManyProduccionService:", error);
         return [null, error.message];
+    } finally {
+        await queryRunner.release();
     }
 }
 

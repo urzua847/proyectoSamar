@@ -1,0 +1,205 @@
+/* HomeDashboard.css - Premium & Modern Redesign */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.home-dashboard-container {
+    font-family: 'Outfit', sans-serif;
+    color: #1e293b;
+    padding: 20px;
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.home-header {
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.home-title {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.home-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 5px 0 0 0;
+    font-weight: 400;
+}
+
+/* Premium Stats Cards */
+.home-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.premium-stat-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.premium-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.premium-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.premium-stat-card:hover::before {
+    opacity: 1;
+}
+
+.premium-stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1;
+}
+
+.premium-stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+}
+
+.premium-stat-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #64748b;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.premium-stat-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.premium-stat-desc {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Icon Variations */
+.icon-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.icon-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.icon-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+/* Tables Grid */
+.home-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 30px;
+    width: 100%;
+}
+
+.premium-table-box {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    transition: box-shadow 0.3s ease;
+}
+
+.premium-table-box:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+.premium-table-header {
+    margin-top: 0;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.25rem;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.premium-table-header svg {
+    color: #3b82f6;
+}
+
+/* Make tables look a bit better */
+.premium-table-box table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 12px 16px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.premium-table-box table td {
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.premium-table-box table tr {
+    transition: background-color 0.2s ease;
+}
+
+.premium-table-box table tr:hover {
+    background-color: #f8fafc;
+}

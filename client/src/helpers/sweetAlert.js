@@ -3,10 +3,11 @@ import Swal from 'sweetalert2';
 // Toast Notification Mixin
 const Toast = Swal.mixin({
   toast: true,
-  position: 'top-end',
+  position: 'bottom-end',
   showConfirmButton: false,
   timer: 3500,
   timerProgressBar: true,
+  showCloseButton: true,
   didOpen: (toast) => {
     toast.addEventListener('mouseenter', Swal.stopTimer);
     toast.addEventListener('mouseleave', Swal.resumeTimer);

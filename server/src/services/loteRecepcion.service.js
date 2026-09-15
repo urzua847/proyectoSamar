@@ -151,6 +151,7 @@ export async function updateLoteService(id, data, user = null) {
 
         // Guardar estado previo para la auditoría
         const previousData = {
+            codigo: lote.codigo,
             peso_bruto_kg: Number(lote.peso_bruto_kg),
             estado: lote.estado,
             en_proceso_produccion: lote.en_proceso_produccion
@@ -194,6 +195,7 @@ export async function updateLoteService(id, data, user = null) {
         
         // Registrar en auditoría
         await logUpdate('LoteRecepcion', lote.id, previousData, {
+          codigo: loteActualizado.codigo,
           peso_bruto_kg: Number(loteActualizado.peso_bruto_kg),
           estado: loteActualizado.estado,
           en_proceso_produccion: loteActualizado.en_proceso_produccion

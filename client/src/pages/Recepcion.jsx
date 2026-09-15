@@ -40,6 +40,7 @@ const Recepcion = () => {
         fechaFormateada: '',
         estadoTexto: ''
     });
+    const [sortOrder, setSortOrder] = useState('desc');
 
     const user = JSON.parse(sessionStorage.getItem('usuario'));
     const isAdmin = user?.rol === 'administrador';
@@ -182,7 +183,7 @@ const Recepcion = () => {
 
     const filteredLotes = useMemo(() => {
         if (!lotes) return [];
-        return lotes.filter(item => {
+        let filtered = lotes.filter(item => {
             return Object.keys(filters).every(key => {
                 if (!filters[key]) return true;
                 
@@ -197,7 +198,15 @@ const Recepcion = () => {
                 return itemValue.includes(filterValue);
             });
         });
-    }, [lotes, filters]);
+
+        filtered.sort((a, b) => {
+            const valA = a.id || 0;
+            const valB = b.id || 0;
+            return sortOrder === 'desc' ? valB - valA : valA - valB;
+        });
+
+        return filtered;
+    }, [lotes, filters, sortOrder]);
 
     const handleCreateSubmit = async (data) => {
         const success = await handleCreateLote(data);
@@ -301,6 +310,15 @@ const Recepcion = () => {
                             <option value="">-- Todos los Estados --</option>
                             <option value="Abierto">Abierto</option>
                             <option value="Cerrado">Cerrado</option>
+                        </select>
+                        <select
+                            value={sortOrder}
+                            onChange={e => setSortOrder(e.target.value)}
+                            className="search-input"
+                            style={{ height: '38px', padding: '0 12px', borderRadius: '6px' }}
+                        >
+                            <option value="desc">Más recientes</option>
+                            <option value="asc">Más antiguos</option>
                         </select>
                         <button
                             onClick={() => setFilters({ codigo: '', proveedorNombre: '', materiaPrimaNombre: '', fechaFormateada: '', estadoTexto: '' })}
