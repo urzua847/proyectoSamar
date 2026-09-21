@@ -61,10 +61,10 @@ const PedidosPendientesTable = ({
                                         <td>{pedido.totalItems}</td>
                                         <td>{pedido.totalKilos}</td>
                                         <td style={{ textAlign: 'center' }}>
-                                            <ActionButton 
-                                                variant="delete" 
-                                                onClick={(e) => { e.stopPropagation(); handleDeletePedido(pedido.id); }} 
-                                                title="Eliminar Pedido" 
+                                            <ActionButton
+                                                variant="delete"
+                                                onClick={(e) => { e.stopPropagation(); handleDeletePedido(pedido.id); }}
+                                                title="Eliminar Pedido"
                                             />
                                         </td>
                                     </tr>
@@ -91,9 +91,9 @@ const PedidosPendientesTable = ({
                                                                         <td style={{ padding: '8px 12px' }}>{product.nombre}</td>
                                                                         <td style={{ padding: '8px 12px' }}>{product.calibre}</td>
                                                                         <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                                                                            <span style={{ 
+                                                                            <span style={{
                                                                                 color: product.cajasAsignadas >= product.totalCajas ? '#16a34a' : '#d97706',
-                                                                                fontWeight: 'bold' 
+                                                                                fontWeight: 'bold'
                                                                             }}>
                                                                                 {product.cajasAsignadas}
                                                                             </span> / {product.totalCajas}
@@ -114,7 +114,7 @@ const PedidosPendientesTable = ({
                                                                 {pedido.cajasFisicas.map(caja => (
                                                                     <span key={caja.id} style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '500' }}>
                                                                         PT-{caja.id}
-                                                                        <button 
+                                                                        <button
                                                                             onClick={(e) => { e.stopPropagation(); handleLiberarCaja(pedido.id, caja.id); }}
                                                                             style={{ marginLeft: '6px', background: 'transparent', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '0', fontSize: '1.2rem', lineHeight: '0.8', fontWeight: 'bold' }}
                                                                             title="Liberar caja (Devolver a stock)"
@@ -143,3 +143,8 @@ const PedidosPendientesTable = ({
 };
 
 export default PedidosPendientesTable;
+
+
+
+
+

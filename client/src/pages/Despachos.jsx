@@ -349,6 +349,32 @@ const Despachos = ({ isEmbedded = false }) => {
                                                                     </tbody>
                                                                 </table>
                                                             )}
+                                                            
+                                                            {pedido.cajasFisicas && pedido.cajasFisicas.length > 0 && (
+                                                                <div style={{ marginTop: '20px' }}>
+                                                                    <h4 style={{ color: '#334155', marginBottom: '10px', fontSize: '0.95rem' }}>Cajas Físicas Despachadas</h4>
+                                                                    <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                                                                        <thead style={{ backgroundColor: '#f8fafc' }}>
+                                                                            <tr>
+                                                                                <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Lote</th>
+                                                                                <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Producto</th>
+                                                                                <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Calibre</th>
+                                                                                <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Kilos Netos</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {pedido.cajasFisicas.map((caja, cIdx) => (
+                                                                                <tr key={cIdx} style={{ borderBottom: cIdx === pedido.cajasFisicas.length - 1 ? 'none' : '1px solid #e2e8f0' }}>
+                                                                                    <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.9rem', color: '#3b82f6' }}>{caja.loteDeOrigen?.codigo || 'N/A'}</td>
+                                                                                    <td style={{ padding: '8px 12px', fontSize: '0.9rem' }}>{caja.definicion?.nombre || caja.cajaDefinicion?.nombre || 'N/A'}</td>
+                                                                                    <td style={{ padding: '8px 12px', fontSize: '0.9rem' }}>{caja.calibre}</td>
+                                                                                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: '0.9rem', fontWeight: '500' }}>{caja.peso_neto_kg}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
