@@ -1,6 +1,6 @@
 "use strict";
 
-import { createPedidoService, getPedidosService, getPedidosForExport } from "../services/pedido.service.js";
+import { createPedidoService, getPedidosService, getPedidosForExport, deletePedidoService, completarDespachoPedidoService } from "../services/pedido.service.js";
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 import Joi from "joi";
 import ExcelJS from 'exceljs';
@@ -11,10 +11,11 @@ const pedidoSchema = Joi.object({
   fecha: Joi.date().optional(),
   items: Joi.array().items(
       Joi.object({
-          productoId: Joi.number().optional(),
-          productoIds: Joi.array().items(Joi.number()).optional(),
+          definicionProductoId: Joi.number().required(),
+          tipo_formato: Joi.string().allow('').optional(),
+          peso_caja: Joi.number().positive().required(),
           cantidad_bultos: Joi.number().positive().integer().required()
-      }).or('productoId', 'productoIds')
+      })
   ).min(1).required()
 });
 
@@ -236,4 +237,62 @@ export async function exportPedidosToPDF(req, res) {
     } catch (error) {
         handleErrorServer(res, 500, error.message);
     }
+}
+
+const completarDespachoSchema = Joi.object({
+  cajasIds: Joi.array().items(Joi.number()).optional(),
+  cajaId: Joi.alternatives().try(Joi.number(), Joi.string()).optional(),
+  cerrarPedido: Joi.boolean().optional()
+}).or('cajasIds', 'cajaId', 'cerrarPedido');
+
+export async function completarDespacho(req, res) {
+  try {
+    const { id } = req.params;
+    const { error } = completarDespachoSchema.validate(req.body);
+    if (error) return handleErrorClient(res, 400, "Error de validaci�n", error.message);
+
+    const [pedido, errorService] = await completarDespachoPedidoService(id, req.body.cajasIds || (req.body.cajaId ? [typeof req.body.cajaId === 'string' ? Number(req.body.cajaId.replace(/\D/g, '')) : req.body.cajaId] : []), req.user, req.body.cerrarPedido);
+    if (errorService) return handleErrorClient(res, 400, errorService);
+
+    handleSuccess(res, 200, "Despacho completado exitosamente", pedido);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function deletePedido(req, res) {
+  try {
+    const { id } = req.params;
+    const [result, error] = await deletePedidoService(id, req.user);
+    
+    if (error) return handleErrorClient(res, 400, error);
+    
+    handleSuccess(res, 200, "Pedido eliminado exitosamente", result);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+const liberarCajaSchema = Joi.object({
+  cajaId: Joi.alternatives().try(Joi.number(), Joi.string()).required()
+});
+
+export async function liberarCaja(req, res) {
+  try {
+    const { id } = req.params;
+    const { error } = liberarCajaSchema.validate(req.body);
+    if (error) return handleErrorClient(res, 400, "Error de validación", error.message);
+
+    let cajaIdToFree = req.body.cajaId;
+    if (typeof cajaIdToFree === 'string') {
+        cajaIdToFree = Number(cajaIdToFree.replace(/\D/g, ''));
+    }
+
+    const [result, errorService] = await liberarCajaDePedidoService(id, cajaIdToFree, req.user);
+    if (errorService) return handleErrorClient(res, 400, errorService);
+
+    handleSuccess(res, 200, "Caja liberada exitosamente", result);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
 }

@@ -73,8 +73,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
             return;
         }
 
-        if (!selectedContenedor) return showToastWarning("Seleccione un contenedor de destino");
-
+        // Validación de selectedContenedor eliminada porque el destino es automático (Tránsito)
         if (hasExceededStock) return showToastError("La cantidad ingresada supera el stock disponible en uno o más productos.");
 
         isSubmittingRef.current = true;
@@ -132,8 +131,23 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
         }
 
         try {
+            // Buscar el contenedor de destino
+            const response = await axios.get('/ubicaciones');
+            const ubicaciones = response.data?.data || [];
+            
+            // Buscar "En Tránsito" explícitamente, sino el primer contenedor disponible
+            let transit = ubicaciones.find(u => u.tipo === 'contenedor' && u.nombre === 'En Tránsito');
+            if (!transit) {
+                transit = ubicaciones.find(u => u.tipo === 'contenedor');
+            }
+            if (!transit) {
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
+                return showToastWarning("No hay contenedores creados en el sistema. Debe crear una ubicación de tipo contenedor (ej: 'En Tránsito').");
+            }
+
             const payload = {
-                destinoId: parseInt(selectedContenedor),
+                destinoId: parseInt(transit.id),
                 items: itemsToMove,
                 peso_caja: Number(boxWeight)
             };
@@ -212,39 +226,24 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                 </h2>
                 <div style={{ marginBottom: '20px', background: '#e3f2fd', padding: '12px 16px', borderRadius: '8px', color: '#0d47a1', fontSize: '0.9rem', border: '1px solid #bbdefb' }}>
                     ℹ️ <strong>Módulo de Traslados:</strong> Mueva productos a granel desde una Cámara hacia un Contenedor de destino.
-                    Indique la cantidad de <strong>Kilos a Mover</strong> y empáquelos obligatoriamente en cajas usando el Paso 2.
+                    Indique la cantidad de <strong>Kilos a Mover</strong> y empáquelos obligatoriamente en cajas usando el Paso 1.
                 </div>
 
-                {/* PASO 1: Destino */}
-                <div className="popup-section" style={{ padding: '20px' }}>
-                    <h3 className="popup-section-title">
-                        <span className="popup-step-badge">1</span>
-                        Seleccionar Destino
-                    </h3>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155' }}>
-                        Contenedor de Destino
-                    </label>
-                    <select
-                        value={selectedContenedor}
-                        onChange={handleContenedorChange}
-                        style={{ width: '100%', padding: '12px', fontSize: '1rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                    >
-                        <option value="">-- Seleccionar --</option>
-                        {contenedores.map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
+                {/* PASO 1: Destino - ELIMINADO SEGÚN NUEVO FLUJO */}
+                <div style={{ display: 'none' }}>
+                    <select value={selectedContenedor} readOnly>
+                        <option value="">-- Automático --</option>
                     </select>
                 </div>
 
-                {/* PASO 2: Empaque Obligatorio */}
-                {showPackingOption && (
-                    <div className="popup-section" style={{ padding: '20px', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                        <h3 className="popup-section-title" style={{ color: '#166534', borderBottomColor: '#bbf7d0' }}>
-                            <span className="popup-step-badge" style={{ background: '#16a34a' }}>2</span>
-                            Empaque Obligatorio
-                        </h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* PASO 1: Empaque Obligatorio */}
+                <div className="popup-section" style={{ padding: '20px', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <h3 className="popup-section-title" style={{ color: '#166534', borderBottomColor: '#bbf7d0' }}>
+                        <span className="popup-step-badge" style={{ background: '#16a34a' }}>1</span>
+                        Empaque Obligatorio
+                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <label style={{ fontWeight: '600', color: '#334155' }}>Kilos por Caja:</label>
                                 <input
                                     type="number"
@@ -266,10 +265,8 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                                 )}
                             </div>
                         </div>
-                    </div>
-                )}
 
-                {/* PASO 3: Selección de Productos */}
+                    {/* PASO 3: Selección de Productos */}
                 <div className="popup-section" style={{ padding: 0, overflow: 'hidden' }}>
                     <h3 className="popup-section-title" style={{ padding: '20px', margin: 0, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                         <span className="popup-step-badge">3</span>
@@ -391,6 +388,7 @@ const PopupTraslado = ({ isOpen, onClose, onTrasladoSuccess, initialSelection })
                     </button>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

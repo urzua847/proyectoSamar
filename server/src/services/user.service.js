@@ -6,10 +6,10 @@ import { encryptPassword } from "../helpers/bcrypt.helper.js";
 export async function createUserService(body) {
   try {
     const userRepository = AppDataSource.getRepository(User);
-    const { rut, email, password } = body;
+    const { rut, username, password } = body;
 
-    const existingUser = await userRepository.findOne({ where: [{ rut }, { email }] });
-    if (existingUser) return [null, "El usuario ya existe (RUT o Email duplicado)"];
+    const existingUser = await userRepository.findOne({ where: [{ rut }, { username }] });
+    if (existingUser) return [null, "El usuario ya existe (RUT o Username duplicado)"];
 
     const newUser = userRepository.create({
       ...body,
@@ -26,10 +26,10 @@ export async function createUserService(body) {
 
 export async function getUserService(query) {
   try {
-    const { rut, id, email } = query;
+    const { rut, id, username } = query;
     const userRepository = AppDataSource.getRepository(User);
     const userFound = await userRepository.findOne({
-      where: [{ id: id }, { rut: rut }, { email: email }],
+      where: [{ id: id }, { rut: rut }, { username: username }],
     });
 
     if (!userFound) return [null, "Usuario no encontrado"];

@@ -2,13 +2,11 @@
 import Joi from "joi";
 
 export const authValidation = Joi.object({
-  email: Joi.string()
-    .email()
+  username: Joi.string()
     .required()
     .messages({
-      "string.empty": "El correo electrónico no puede estar vacío.",
-      "any.required": "El correo electrónico es obligatorio.",
-      "string.email": "El formato del correo no es válido.",
+      "string.empty": "El nombre de usuario no puede estar vacío.",
+      "any.required": "El nombre de usuario es obligatorio.",
     }),
   password: Joi.string()
     .required()
@@ -36,13 +34,13 @@ export const registerValidation = Joi.object({
     .messages({
       "string.empty": "El rut no puede estar vacío.",
     }),
-  email: Joi.string()
-    .email() 
+  username: Joi.string()
+    .min(3)
     .required()
     .messages({
-      "string.empty": "El correo electrónico no puede estar vacío.",
-      "any.required": "El correo electrónico es obligatorio.",
-      "string.email": "El formato del correo no es válido.",
+      "string.empty": "El nombre de usuario no puede estar vacío.",
+      "any.required": "El nombre de usuario es obligatorio.",
+      "string.min": "El nombre de usuario debe tener al menos 3 caracteres.",
     }),
   password: Joi.string()
     .min(5) 

@@ -203,7 +203,7 @@ describe('Lote Recepcion Service', () => {
       const [result, error] = await deleteLoteService(1, 'administrador', true);
       expect(error).toBeNull();
       expect(result).toBeDefined();
-      expect(mockQueryRunner.manager.save).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.update).toHaveBeenCalled();
     });
   });
 

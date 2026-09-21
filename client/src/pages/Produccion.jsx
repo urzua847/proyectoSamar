@@ -1,65 +1,139 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import axios from '../services/root.service.js';
 import Table from '../components/Table';
 import useGetProducciones from '../hooks/produccion/useGetProducciones';
 import PopupEnvasado from '../components/produccion/PopupEnvasado';
 import PopupTraslado from '../components/produccion/PopupTraslado';
+import ModalPrintQR from '../components/produccion/ModalPrintQR';
 import { deleteManyProduccion, deleteProduccion } from '../services/envasado.service';
 import usePolling from '../hooks/usePolling';
 import { deleteDataAlert, showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
+import { getColumnsGranel, getColumnsTransito } from '../components/produccion/produccionColumns';
+import StockFilters from '../components/produccion/StockFilters';
+import Swal from 'sweetalert2';
 import '../styles/users.css';
 
 const Produccion = () => {
+    // Componente principal para Gestión de Producción
     const { producciones, fetchAll } = useGetProducciones();
     const { user } = useAuth();
+
+    const [activeTab, setActiveTab] = useState('granel');
+    const [transitoStock, setTransitoStock] = useState([]);
 
     const [isEnvasadoOpen, setIsEnvasadoOpen] = useState(false);
     const [isTrasladoOpen, setIsTrasladoOpen] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
 
+    const [isPrintQROpen, setIsPrintQROpen] = useState(false);
+    const [qrRow, setQrRow] = useState(null);
+
+    const handlePrintQR = (row) => {
+        setQrRow(row);
+        setIsPrintQROpen(true);
+    };
+
+    const fetchTransito = async () => {
+        try {
+            const response = await axios.get('/envasado/stock/transito');
+            const data = response.data.data || [];
+            const formatted = data.map((item, index) => ({
+                ...item,
+                id: `${item.loteCodigo}-${item.definicionProductoId}-${item.calibre || 'null'}-${index}`,
+                cantidad: item.totalCantidad,
+                peso_neto_kg: item.totalKilos
+            }));
+            setTransitoStock(formatted);
+        } catch (error) {
+            console.error("Error fetching transito stock", error);
+        }
+    };
+
     const actualizarTodo = async () => {
         await fetchAll();
+        await fetchTransito();
     };
 
     const handleDeleteRow = async (row) => {
         const target = row || selectedRow;
         if (!target) return;
 
-        const result = await deleteDataAlert();
-        if (result.isConfirmed) {
-            let response;
-            if (target.ids && target.ids.length > 0) {
-                response = await deleteManyProduccion(target.ids);
-            } else {
-                response = await deleteProduccion(target.id);
+        const isTransito = activeTab === 'transito' || (target.ids && target.ids.length > 0);
+        
+        if (isTransito) {
+            const idsToDelete = target.ids || [target.id];
+            const maxQty = idsToDelete.length;
+
+            const { value: qty } = await Swal.fire({
+                title: '¿Cuántas cajas desea desarmar?',
+                text: `Máximo disponible: ${maxQty}. Los kilos regresarán al inventario a granel.`,
+                input: 'number',
+                inputAttributes: {
+                    min: 1,
+                    max: maxQty,
+                    step: 1
+                },
+                inputValue: maxQty,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, Desarmar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#dc2626'
+            });
+
+            if (qty) {
+                const quantity = parseInt(qty);
+                if (quantity > 0 && quantity <= maxQty) {
+                    const selectedIds = idsToDelete.slice(0, quantity);
+                    const response = await deleteManyProduccion(selectedIds);
+                    if (response.status === 'Success') {
+                        showSuccessAlert('Cajas Desarmadas', `Se han desarmado ${quantity} caja(s) y los kilos regresaron a granel.`);
+                        actualizarTodo();
+                        setSelectedRow(null);
+                    } else {
+                        showErrorAlert('Error', response.message || 'No se pudo desarmar.');
+                    }
+                } else {
+                    showErrorAlert('Error', 'Cantidad inválida.');
+                }
             }
-            if (response.status === 'Success') {
-                showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
-                actualizarTodo();
-                setSelectedRow(null);
-            } else {
-                showErrorAlert('Error', response.message || 'No se pudo eliminar.');
+        } else {
+            const result = await deleteDataAlert("¿Estás seguro?", "No podrás revertir esta acción.", "Sí, Eliminar");
+            if (result.isConfirmed) {
+                const response = await deleteProduccion(target.id);
+                if (response.status === 'Success') {
+                    showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
+                    actualizarTodo();
+                    setSelectedRow(null);
+                } else {
+                    showErrorAlert('Error', response.message || 'No se pudo eliminar.');
+                }
             }
         }
     };
-
-    const handleDelete = () => handleDeleteRow(selectedRow);
 
     const [selectedIds, setSelectedIds] = useState([]);
 
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return;
 
-        const rows = producciones.filter(p => selectedIds.includes(p.id));
+        const currentData = activeTab === 'granel' ? producciones : transitoStock;
+        const rows = currentData.filter(p => selectedIds.includes(p.id));
         const allIdsToDelete = rows.flatMap(r => r.ids || [r.id]);
 
         if (allIdsToDelete.length === 0) return;
 
-        const result = await deleteDataAlert();
+        const isTransito = activeTab === 'transito';
+        const title = isTransito ? "¿Desarmar múltiples cajas?" : "¿Estás seguro?";
+        const text = isTransito ? "Los kilos de estas cajas regresarán al inventario a granel." : "No podrás revertir esta acción.";
+        const btnText = isTransito ? "Sí, Desarmar Todo" : "Sí, Eliminar Todo";
+
+        const result = await deleteDataAlert(title, text, btnText);
         if (result.isConfirmed) {
             const response = await deleteManyProduccion(allIdsToDelete);
             if (response.status === 'Success') {
-                showSuccessAlert('Eliminado', 'Registros eliminados correctamente.');
+                showSuccessAlert(isTransito ? 'Cajas Desarmadas' : 'Eliminado', 
+                                 isTransito ? 'Las cajas seleccionadas fueron desarmadas exitosamente.' : 'Registros eliminados correctamente.');
                 actualizarTodo();
                 setSelectedIds([]);
             } else {
@@ -72,7 +146,8 @@ const Produccion = () => {
         if (selectedIds.length === 0) return;
 
         const newSelection = {};
-        const rows = producciones.filter(p => selectedIds.includes(p.id));
+        const currentData = activeTab === 'granel' ? producciones : transitoStock;
+        const rows = currentData.filter(p => selectedIds.includes(p.id));
 
         rows.forEach(row => {
             newSelection[row.id] = { qty: row.cantidad, row: row };
@@ -88,9 +163,7 @@ const Produccion = () => {
         actualizarTodo();
     }, []);
 
-    // Actualización automática cada 30 segundos
     usePolling(() => {
-        // Solo actualizamos si no hay un modal abierto ni selecciones activas para evitar que los datos salten mientras el usuario opera.
         if (!isEnvasadoOpen && !isTrasladoOpen && selectedIds.length === 0) {
             actualizarTodo();
         }
@@ -109,83 +182,43 @@ const Produccion = () => {
         setFiltersStock(prev => ({ ...prev, [name]: value }));
     };
 
+    
 
-
-    const columnsProduccion = [
-        { header: "Lote", accessor: "loteCodigo" },
-        { header: "Especie", accessor: "materiaPrimaNombre" },
-        { header: "Producto", accessor: "productoFinalNombre" },
-        { header: "Calibre", accessor: "calibre" },
-        { header: "Cantidad", accessor: "cantidad" },
-        { header: "Kilos Totales", accessor: "peso_neto_kg" },
-        { header: "Cámara", accessor: "ubicacionNombre" },
-        { header: "Hora Ingreso", accessor: "horaIngreso" },
-        { 
-            header: "Tiempo en Cámara", 
-            render: (row) => (
-                <span style={{ 
-                    padding: '4px 8px', 
-                    borderRadius: '4px', 
-                    backgroundColor: row.horasEnCamara > 48 ? '#fee2e2' : '#f1f5f9', 
-                    color: row.horasEnCamara > 48 ? '#ef4444' : '#475569',
-                    fontWeight: row.horasEnCamara > 48 ? 'bold' : 'normal'
-                }}>
-                    {row.horasEnCamara} hrs
-                </span>
-            )
-        },
-
-        {
-            header: "Acciones",
-            render: (row) => (
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    {user?.rol === 'administrador' && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRow(row);
-                            }}
-                            className="btn-delete"
-                            title="Eliminar"
-                            style={{
-                                padding: '0', borderRadius: '50%', width: '30px', height: '30px',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                backgroundColor: '#dc3545', border: 'none', color: 'white', fontSize: '1rem',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            🗑
-                        </button>
-                    )}
-                </div>
-            )
-        }
-    ];
+    const currentDataset = activeTab === 'granel' ? producciones : transitoStock;
+    const currentColumns = activeTab === 'granel' ? getColumnsGranel(handleDeleteRow, user) : getColumnsTransito(handleDeleteRow, user, handlePrintQR);
 
     const { uniqueLotes, uniqueProductos, uniqueUbicaciones } = useMemo(() => {
-        if (!producciones) return { uniqueLotes: [], uniqueProductos: [], uniqueUbicaciones: [] };
-        const lotes = [...new Set(producciones.map(p => p.loteCodigo).filter(Boolean))].sort();
-        const productos = [...new Set(producciones.map(p => p.productoFinalNombre).filter(Boolean))].sort();
-        const ubicaciones = [...new Set(producciones.map(p => p.ubicacionNombre).filter(Boolean))].sort();
+        if (!currentDataset) return { uniqueLotes: [], uniqueProductos: [], uniqueUbicaciones: [] };
+        const lotes = [...new Set(currentDataset.map(p => p.loteCodigo).filter(Boolean))].sort();
+        const productos = [...new Set(currentDataset.map(p => p.productoFinalNombre || p.productoNombre).filter(Boolean))].sort();
+        const ubicaciones = [...new Set(currentDataset.map(p => p.ubicacionNombre).filter(Boolean))].sort();
         return { uniqueLotes: lotes, uniqueProductos: productos, uniqueUbicaciones: ubicaciones };
-    }, [producciones]);
+    }, [currentDataset]);
 
-    const filteredProducciones = useMemo(() => {
-        if (!producciones) return [];
-        let filtered = producciones.filter(item => {
+    const filteredData = useMemo(() => {
+        if (!currentDataset) return [];
+        let filtered = currentDataset.filter(item => {
             const matchLote = (item.loteCodigo || '').toLowerCase().includes(filtersStock.loteCodigo.toLowerCase());
-            const matchProducto = (item.productoFinalNombre || '').toLowerCase().includes(filtersStock.producto.toLowerCase());
+            const matchProducto = (item.productoFinalNombre || item.productoNombre || '').toLowerCase().includes(filtersStock.producto.toLowerCase());
             const matchCalibre = (item.calibre || '').toLowerCase().includes(filtersStock.calibre.toLowerCase());
             const matchUbicacion = (item.ubicacionNombre || '').toLowerCase().includes(filtersStock.ubicacion.toLowerCase());
             return matchLote && matchProducto && matchCalibre && matchUbicacion;
         });
 
-        filtered.sort((a, b) => {
-            if (filtersStock.orderHora === 'asc') return a.id - b.id;
-            else return b.id - a.id;
-        });
+        if (activeTab === 'granel') {
+            filtered.sort((a, b) => {
+                if (filtersStock.orderHora === 'asc') return a.id - b.id;
+                else return b.id - a.id;
+            });
+        }
         return filtered;
-    }, [producciones, filtersStock]);
+    }, [currentDataset, filtersStock, activeTab]);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setSelectedIds([]);
+        setSelectedRow(null);
+    };
 
     return (
         <div className="main-container">
@@ -194,119 +227,97 @@ const Produccion = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                         <h1 className="title-table" style={{ margin: 0 }}>Gestión de Producción</h1>
 
-                        {/* ACTION BUTTONS (TOP RIGHT) */}
                         <div className="action-buttons" style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                                onClick={() => setIsEnvasadoOpen(true)}
-                                className="btn-new"
-                            >
-                                <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Ingresar Productos
-                            </button>
-
-                            {/* BULK ACTIONS */}
-                            {selectedIds.length > 0 && (
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    {user?.rol === 'administrador' && (
-                                        <button
-                                            onClick={handleBulkDelete}
-                                            className="btn-delete"
-                                            style={{
-                                                padding: '10px 20px', borderRadius: '4px',
-                                                border: 'none', fontWeight: 'bold'
-                                            }}
-                                        >
-                                            Eliminar ({selectedIds.length})
-                                        </button>
-                                    )}
+                            {activeTab === 'granel' && (
+                                <>
                                     <button
-                                        onClick={handleBulkTransfer}
+                                        onClick={() => setIsEnvasadoOpen(true)}
                                         className="btn-new"
-                                        style={{
-                                            backgroundColor: '#ffc107', color: '#000',
-                                            padding: '10px 20px', borderRadius: '4px',
-                                            border: 'none', fontWeight: 'bold'
-                                        }}
                                     >
-                                        Trasladar ({selectedIds.length})
+                                        <span style={{ fontSize: '1.2rem', lineHeight: '1' }}>+</span> Ingresar Productos
                                     </button>
-                                </div>
+
+                                    {selectedIds.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            {user?.rol === 'administrador' && (
+                                                <button
+                                                    onClick={handleBulkDelete}
+                                                    className="btn-delete"
+                                                    style={{
+                                                        padding: '10px 20px', borderRadius: '4px',
+                                                        border: 'none', fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    Eliminar ({selectedIds.length})
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={handleBulkTransfer}
+                                                className="btn-new"
+                                                style={{
+                                                    backgroundColor: '#ffc107', color: '#000',
+                                                    padding: '10px 20px', borderRadius: '4px',
+                                                    border: 'none', fontWeight: 'bold'
+                                                }}
+                                            >
+                                                Trasladar a Contenedor ({selectedIds.length})
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
-
-
                         </div>
                     </div>
                 </div>
 
                 <h3 style={{ color: '#003366', marginTop: '15px', marginBottom: '10px' }}>Inventario en Cámaras</h3>
+                
+                {/* TABS */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <button 
+                        onClick={() => handleTabChange('granel')}
+                        style={{
+                            padding: '8px 16px',
+                            backgroundColor: activeTab === 'granel' ? '#003366' : '#e2e8f0',
+                            color: activeTab === 'granel' ? '#ffffff' : '#334155',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        A Granel
+                    </button>
+                    <button 
+                        onClick={() => handleTabChange('transito')}
+                        style={{
+                            padding: '8px 16px',
+                            backgroundColor: activeTab === 'transito' ? '#003366' : '#e2e8f0',
+                            color: activeTab === 'transito' ? '#ffffff' : '#334155',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        En Tránsito
+                    </button>
+                </div>
+
                 <div className="table-container-box">
-                    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                        <input
-                            list="lotes-list"
-                            name="loteCodigo"
-                            placeholder="Lote..."
-                            value={filtersStock.loteCodigo}
-                            onChange={handleFilterStockChange}
-                            className="search-input"
-                        />
-                        <datalist id="lotes-list">
-                            {uniqueLotes.map(l => <option key={l} value={l} />)}
-                        </datalist>
-
-                        <input
-                            list="productos-list"
-                            name="producto"
-                            placeholder="Producto..."
-                            value={filtersStock.producto}
-                            onChange={handleFilterStockChange}
-                            className="search-input"
-                        />
-                        <datalist id="productos-list">
-                            {uniqueProductos.map(p => <option key={p} value={p} />)}
-                        </datalist>
-
-                        <input
-                            name="calibre"
-                            placeholder="Calibre..."
-                            value={filtersStock.calibre}
-                            onChange={handleFilterStockChange}
-                            className="search-input"
-                        />
-
-                        <select
-                            name="ubicacion"
-                            value={filtersStock.ubicacion}
-                            onChange={handleFilterStockChange}
-                            className="search-input"
-                        >
-                            <option value="">Todas las cámaras...</option>
-                            {uniqueUbicaciones.map(u => (
-                                <option key={u} value={u}>{u}</option>
-                            ))}
-                        </select>
-
-                        <select
-                            name="orderHora"
-                            value={filtersStock.orderHora}
-                            onChange={handleFilterStockChange}
-                            className="search-input"
-                            style={{ width: 'auto' }}
-                        >
-                            <option value="desc">Más Recientes</option>
-                            <option value="asc">Más Antiguos</option>
-                        </select>
-
-                        <button
-                            onClick={() => setFiltersStock({ loteCodigo: '', orderHora: 'desc', producto: '', calibre: '', ubicacion: '' })}
-                            className="btn-cancel"
-                            style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}
-                        >
-                            Limpiar
-                        </button>
-                    </div>
+                    <StockFilters 
+                        filtersStock={filtersStock} 
+                        handleFilterStockChange={handleFilterStockChange} 
+                        uniqueLotes={uniqueLotes} 
+                        uniqueProductos={uniqueProductos} 
+                        uniqueUbicaciones={uniqueUbicaciones} 
+                        activeTab={activeTab} 
+                        setFiltersStock={setFiltersStock} 
+                    />
 
                     <Table
-                        columns={columnsProduccion}
-                        data={filteredProducciones}
+                        columns={currentColumns}
+                        data={filteredData}
                         onRowClick={(row) => {
                             if (selectedRow && selectedRow.id === row.id) {
                                 setSelectedRow(null);
@@ -315,7 +326,8 @@ const Produccion = () => {
                             }
                         }}
                         selectedId={selectedRow?.id}
-                        multiSelect={true}
+                        multiSelect={activeTab === 'granel'}
+
                         selectedIds={selectedIds}
                         onSelectionChange={setSelectedIds}
                     />
@@ -337,6 +349,11 @@ const Produccion = () => {
                     setSelectedIds([]);
                 }}
                 initialSelection={Object.values(transferSelection).map(x => x.row ? { ...x.row, cantidadTransfer: x.qty } : null).filter(Boolean)}
+            />
+            <ModalPrintQR 
+                isOpen={isPrintQROpen}
+                onClose={() => setIsPrintQROpen(false)}
+                selectedRow={qrRow}
             />
         </div>
     );

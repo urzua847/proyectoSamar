@@ -79,39 +79,44 @@ describe('Envasado Service', () => {
     });
 
     it('debe rechazar si excede el limite de PINZAS', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValue({ id: 1, estado: true, peso_pinzas: 100 });
-      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10, origen: 'pinza' }]);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce({ id: 1, estado: true }) // LoteRecepcion
+        .mockResolvedValueOnce({ id: 1, detalles: [{ nombre: 'pinza', peso: 100 }] }); // Produccion
+      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10, tipo: 'elaborado', origen: 'pinza' }]);
       mockAppDataSource.getRepository().createQueryBuilder = jest.fn().mockReturnValue(queryBuilderMock);
       queryBuilderMock.getRawOne.mockResolvedValue({ sum: '80' });
 
-      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, peso_neto_kg: 30 }] };
+      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, peso_neto_kg: 30, cantidad: 1 }] };
       const [result, error] = await createProduccionService(payload);
 
       expect(result).toBeNull();
-      expect(error).toContain("excede el límite de PINZAS");
+      expect(error).toContain("Se excede el límite de origen 'pinza'");
     });
 
     it('debe rechazar si excede el limite de CARNE BLANCA', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValue({ id: 1, estado: true, peso_carne_blanca: 100 });
-      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10, origen: 'carne blanca' }]);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce({ id: 1, estado: true }) // LoteRecepcion
+        .mockResolvedValueOnce({ id: 1, detalles: [{ nombre: 'carne blanca', peso: 100 }] }); // Produccion
+      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10, tipo: 'elaborado', origen: 'carne blanca' }]);
       mockAppDataSource.getRepository().createQueryBuilder = jest.fn().mockReturnValue(queryBuilderMock);
       queryBuilderMock.getRawOne.mockResolvedValue({ sum: '80' });
 
-      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, peso_neto_kg: 30 }] };
+      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, peso_neto_kg: 30, cantidad: 1 }] };
       const [result, error] = await createProduccionService(payload);
 
       expect(result).toBeNull();
-      expect(error).toContain("excede el límite de CARNE BLANCA");
+      expect(error).toContain("Se excede el límite de origen 'carne blanca'");
     });
 
     it('debe rechazar si una definicion es invalida', async () => {
       mockQueryRunner.manager.findOne
         .mockResolvedValueOnce({ id: 1, estado: true }) // lote
+        .mockResolvedValueOnce(null) // produccion
         .mockResolvedValueOnce(null); // definicion
 
-      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([]);
+      mockQueryRunner.manager.find = jest.fn().mockResolvedValue([]);
 
-      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 99, peso_neto_kg: 10 }] };
+      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 99, peso_neto_kg: 10, cantidad: 1 }] };
       const [result, error] = await createProduccionService(payload);
 
       expect(result).toBeNull();
@@ -121,15 +126,19 @@ describe('Envasado Service', () => {
     it('debe rechazar si la ubicacion es invalida', async () => {
       mockQueryRunner.manager.findOne
         .mockResolvedValueOnce({ id: 1, estado: true }) // lote
+        .mockResolvedValueOnce(null) // produccion
         .mockResolvedValueOnce({ id: 10 }) // definicion
         .mockResolvedValueOnce(null); // ubicacion
 
-      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10 }]);
+      mockQueryRunner.manager.find = jest.fn().mockResolvedValue([{ id: 10, nombre: 'A', calibres: ['S'] }]); // find is used with In() for products
 
-      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, ubicacionId: 99, peso_neto_kg: 10 }] };
+      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, ubicacionId: 99, peso_neto_kg: 10, cantidad: 1 }] };
       const [result, error] = await createProduccionService(payload);
 
       expect(result).toBeNull();
+      // It returns "Producto ID 10 inválido" if the product doesn't exist, but since it's testing ubicacion, let's just assert on that or change the expected message.
+      // Wait, let's check what the mock actually throws. If findByIds returns empty, it says "Producto ID 10 inválido."
+      // So we should make the mock for findByIds return the product to test the location.
       expect(error).toContain("Ubicación ID 99 inválida");
     });
 
@@ -139,10 +148,10 @@ describe('Envasado Service', () => {
         .mockResolvedValueOnce({ id: 10, nombre: 'A', calibres: ['S'] }) // definicion
         .mockResolvedValueOnce({ id: 20, nombre: 'Camara' }); // ubicacion
 
-      mockQueryRunner.manager.findByIds = jest.fn().mockResolvedValue([{ id: 10 }]);
+      mockQueryRunner.manager.find = jest.fn().mockResolvedValue([{ id: 10, nombre: 'A', calibres: ['S'] }]);
       mockQueryRunner.manager.create = jest.fn().mockReturnValue({ definicion: { nombre: 'A' }, ubicacion: { nombre: 'Camara' } });
 
-      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, ubicacionId: 20, peso_neto_kg: 10, calibre: 'S' }], cerrar_lote: true, merma_kg: 5 };
+      const payload = { loteRecepcionId: 1, items: [{ definicionProductoId: 10, ubicacionId: 20, peso_neto_kg: 10, calibre: 'S', cantidad: 1 }], cerrar_lote: true, merma_kg: 5 };
       const [result, error] = await createProduccionService(payload);
 
       expect(error).toBeNull();
@@ -233,15 +242,22 @@ describe('Envasado Service', () => {
 
   describe('getResumenProduccionByLoteService', () => {
     it('debe obtener el resumen y balance del lote', async () => {
-      mockRepository.findOne.mockResolvedValue({ id: 1, peso_carne_blanca: 100, peso_pinzas: 50, merma_kg: 5, estado: 'Abierto' });
+      mockRepository.findOne.mockResolvedValue({ 
+          id: 1, 
+          estado: 'Abierto', 
+          detalles: [
+              { nombre: 'carne blanca', peso: 100 },
+              { nombre: 'pinza', peso: 50 }
+          ]
+      });
       queryBuilderMock.getRawOne
-        .mockResolvedValueOnce({ total: '40' }) // carne
-        .mockResolvedValueOnce({ total: '10' }); // pinza
+        .mockResolvedValueOnce({ total: '40' }) // used carne
+        .mockResolvedValueOnce({ total: '10' }); // used pinza
         
       const [result, error] = await getResumenProduccionByLoteService(1);
       expect(error).toBeNull();
-      expect(result.balance.carne).toBe(60); // 100 - 40
-      expect(result.balance.pinzas).toBe(40); // 50 - 10
+      expect(result.balances[0].balance).toBe(60); // 100 - 40
+      expect(result.balances[1].balance).toBe(40); // 50 - 10
     });
   });
 
@@ -260,6 +276,65 @@ describe('Envasado Service', () => {
       const [result, error] = await getDashboardStockContenedoresService();
       expect(error).toBeNull();
       expect(result[0].ubicacionNombre).toBe('Cont');
+    });
+
+    it('debe propagar error de DB en getDashboardStockContenedoresService', async () => {
+      queryBuilderMock.getRawMany.mockRejectedValueOnce(new Error("DB Error"));
+      await expect(getDashboardStockContenedoresService()).rejects.toThrow("DB Error");
+    });
+  });
+
+  describe('getCajaByIdService', () => {
+    let getCajaByIdService;
+    beforeEach(async () => {
+      const service = await import('../services/envasado.service.js');
+      getCajaByIdService = service.getCajaByIdService;
+    });
+
+    it('debe encontrar una caja', async () => {
+      mockRepository.findOne.mockResolvedValueOnce({ id: 10 });
+      const [res, err] = await getCajaByIdService(10);
+      expect(err).toBeNull();
+      expect(res.id).toBe(10);
+    });
+
+    it('debe retornar null si no existe la caja', async () => {
+      mockRepository.findOne.mockResolvedValueOnce(null);
+      const [res, err] = await getCajaByIdService(999);
+      expect(res).toBeNull();
+      expect(err).toBe("Caja no encontrada");
+    });
+
+    it('debe manejar errores de BD en getCajaByIdService', async () => {
+      mockRepository.findOne.mockRejectedValueOnce(new Error("DB Error Caja"));
+      const [res, err] = await getCajaByIdService(1);
+      expect(res).toBeNull();
+      expect(err).toBe("DB Error Caja");
+    });
+  });
+
+  describe('getStockTransitoService', () => {
+    let getStockTransitoService;
+    beforeEach(async () => {
+      const service = await import('../services/envasado.service.js');
+      getStockTransitoService = service.getStockTransitoService;
+    });
+
+    it('debe traer stock en transito formateado', async () => {
+      queryBuilderMock.getRawMany.mockResolvedValueOnce([
+        { ubicacionNombre: 'En Tránsito', productoNombre: 'Test', definicionProductoId: 1, totalCantidad: '2', ids: [1,2] }
+      ]);
+      const [res, err] = await getStockTransitoService();
+      expect(err).toBeNull();
+      expect(res).toHaveLength(1);
+      expect(res[0].totalCantidad).toBe(2);
+    });
+
+    it('debe manejar error de DB en getStockTransitoService', async () => {
+      queryBuilderMock.getRawMany.mockRejectedValueOnce(new Error("DB Error Transito"));
+      const [res, err] = await getStockTransitoService();
+      expect(res).toBeNull();
+      expect(err).toBe("DB Error Transito");
     });
   });
 });

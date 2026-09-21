@@ -94,6 +94,27 @@ const Home = () => {
             <h1 className="title-table" style={{ margin: 0 }}>Panel de Control</h1>
             <p style={{ color: '#64748b', margin: '5px 0 0 0' }}></p>
           </div>
+          <button 
+            onClick={() => navigate('/scanner')} 
+            style={{ 
+              backgroundColor: '#003366', 
+              color: 'white', 
+              padding: '10px 20px', 
+              border: 'none', 
+              borderRadius: '6px', 
+              cursor: 'pointer', 
+              fontWeight: 'bold', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Acceder al Escáner
+          </button>
         </header>
 
         {/* --- KPI CARDS --- */}

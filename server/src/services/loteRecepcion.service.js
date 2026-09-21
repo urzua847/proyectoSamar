@@ -6,7 +6,7 @@ import Proveedor from "../entity/proveedor.entity.js";
 import MateriaPrima from "../entity/materiaPrima.entity.js";
 import User from "../entity/user.entity.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
-import { Like } from "typeorm";
+import { Like, In } from "typeorm";
 import Produccion from "../entity/produccion.entity.js";
 import { logCreate, logUpdate } from "./audit.service.js";
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
@@ -82,7 +82,7 @@ export async function getLotesActivosService(options = {}) {
         // Get paginated lotes (exclude soft-deleted)
         const lotes = await loteRepository.find({
             where: { deletedAt: null },  // ← Filtrar registros eliminados
-            relations: ["proveedor", "materiaPrima", "productosTerminados"],
+            relations: ["proveedor", "materiaPrima", "productosTerminados", "producciones"],
             order: { createdAt: "DESC" },
             skip: offset,
             take: limit
@@ -130,7 +130,8 @@ export async function getLoteByIdService(id) {
                 "operario",
                 "productosTerminados",
                 "productosTerminados.definicion",
-                "productosTerminados.ubicacion"
+                "productosTerminados.ubicacion",
+                "producciones"
             ]
         });
 
@@ -185,8 +186,7 @@ export async function updateLoteService(id, data, user = null) {
         if (data.estado !== undefined) lote.estado = data.estado;
 
         if (data.en_proceso_produccion !== undefined) lote.en_proceso_produccion = data.en_proceso_produccion;
-        if (data.peso_carne_blanca !== undefined) lote.peso_carne_blanca = data.peso_carne_blanca;
-        if (data.peso_pinzas !== undefined) lote.peso_pinzas = data.peso_pinzas;
+        // peso_carne_blanca and peso_pinzas removed in favor of Produccion.detalles
         if (data.peso_total_producido !== undefined) lote.peso_total_producido = data.peso_total_producido;
         if (data.observacion_produccion !== undefined) lote.observacion_produccion = data.observacion_produccion;
         if (data.fecha_inicio_produccion !== undefined) lote.fecha_inicio_produccion = data.fecha_inicio_produccion;
@@ -245,23 +245,19 @@ export async function deleteLoteService(id, userRole, force = false, user = null
             try {
                 // Marcar producciones como eliminadas (si existen)
                 if (lote.producciones && lote.producciones.length > 0) {
-                    for (const produccion of lote.producciones) {
-                        produccion.deletedAt = new Date();
-                        await queryRunner.manager.save(produccion);
-                    }
+                    const produccionIds = lote.producciones.map(p => p.id);
+                    await queryRunner.manager.update(Produccion, { id: In(produccionIds) }, { deletedAt: new Date() });
                 }
 
                 // Marcar productos terminados como eliminados
                 if (lote.productosTerminados && lote.productosTerminados.length > 0) {
-                    for (const producto of lote.productosTerminados) {
-                        // Verificar que no esté vendido
-                        if (producto.estado === 'Vendido') {
-                            await queryRunner.rollbackTransaction();
-                            return [null, "No se puede eliminar: hay productos que ya fueron VENDIDOS (están en Pedidos)."];
-                        }
-                        producto.deletedAt = new Date();
-                        await queryRunner.manager.save(producto);
+                    const hasVendido = lote.productosTerminados.some(p => p.estado === 'Vendido');
+                    if (hasVendido) {
+                        await queryRunner.rollbackTransaction();
+                        return [null, "No se puede eliminar: hay productos que ya fueron VENDIDOS (están en Pedidos)."];
                     }
+                    const productoIds = lote.productosTerminados.map(p => p.id);
+                    await queryRunner.manager.update(ProductoTerminado, { id: In(productoIds) }, { deletedAt: new Date() });
                 }
             } catch (innerError) {
                 await queryRunner.rollbackTransaction();
@@ -279,7 +275,7 @@ export async function deleteLoteService(id, userRole, force = false, user = null
         };
 
         lote.deletedAt = new Date();
-        await queryRunner.manager.save(LoteRecepcion, lote);
+        await queryRunner.manager.update(LoteRecepcion, { id: lote.id }, { deletedAt: lote.deletedAt });
 
         // 4. Registrar en auditlog (importar el servicio al inicio del archivo)
         const { logSoftDelete } = await import('./audit.service.js');

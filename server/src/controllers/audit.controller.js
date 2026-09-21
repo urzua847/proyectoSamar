@@ -123,9 +123,11 @@ function generateSummary(log) {
 
         case 'Produccion':
             summary = `Producción ID ${log.entityId}`;
-            if (data.peso_carne_blanca) summary += `\nCarne: ${data.peso_carne_blanca}kg`;
-            if (data.peso_pinzas) summary += `, Pinzas: ${data.peso_pinzas}kg`;
-            if (data.peso_total) summary += `, Total: ${data.peso_total}kg`;
+            if (data.detalles && Array.isArray(data.detalles)) {
+                const parts = data.detalles.map(d => `${d.nombre}: ${d.peso}kg`);
+                summary += `\n` + parts.join(', ');
+            }
+            if (data.peso_total) summary += ` (Total: ${data.peso_total}kg)`;
             break;
 
         case 'ProductoTerminado':

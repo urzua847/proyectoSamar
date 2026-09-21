@@ -70,21 +70,11 @@ const ProgressBar = ({ total, yaIngresados, actual, restante, label, isExceededL
 
 export default function ProductionSummaryBar({
     isExceeded,
-    totalProducido,
-    totalCarneProducido,
-    totalPinzasProducido,
-    yaIngresados,
-    yaIngresadosCarne,
-    yaIngresadosPinzas,
-    ingresoActual,
-    ingresoActualCarne,
-    ingresoActualPinzas,
-    saldoRestante,
-    saldoRestanteCarne,
-    saldoRestantePinzas
+    dynamicBalances = []
 }) {
-    // Determine if we need to show breakdown bars or a generic one
-    const showBreakdown = totalCarneProducido > 0 || totalPinzasProducido > 0;
+    // Total global producido
+    const totalProducido = dynamicBalances.reduce((acc, bal) => acc + (Number(bal.input) || 0), 0);
+    const saldoRestanteTotal = dynamicBalances.reduce((acc, bal) => acc + (Number(bal.saldoRestante) || 0), 0);
 
     return (
         <div style={{
@@ -107,39 +97,23 @@ export default function ProductionSummaryBar({
                 </div>
             </div>
 
-            {/* Barras de Progreso */}
-            {showBreakdown ? (
-                <>
-                    {totalCarneProducido > 0 && (
-                        <ProgressBar 
-                            label="Carne Blanca" 
-                            total={totalCarneProducido} 
-                            yaIngresados={yaIngresadosCarne} 
-                            actual={ingresoActualCarne} 
-                            restante={saldoRestanteCarne} 
-                            isExceededLocal={saldoRestanteCarne < 0}
-                        />
-                    )}
-                    {totalPinzasProducido > 0 && (
-                        <ProgressBar 
-                            label="Pinzas" 
-                            total={totalPinzasProducido} 
-                            yaIngresados={yaIngresadosPinzas} 
-                            actual={ingresoActualPinzas} 
-                            restante={saldoRestantePinzas} 
-                            isExceededLocal={saldoRestantePinzas < 0}
-                        />
-                    )}
-                </>
+            {/* Barras de Progreso Dinámicas */}
+            {dynamicBalances.length > 0 ? (
+                dynamicBalances.map((bal, idx) => (
+                    <ProgressBar 
+                        key={idx}
+                        label={bal.nombre} 
+                        total={Number(bal.input)} 
+                        yaIngresados={Number(bal.used)} 
+                        actual={Number(bal.ingresoActual)} 
+                        restante={Number(bal.saldoRestante)} 
+                        isExceededLocal={Number(bal.saldoRestante) < -0.01}
+                    />
+                ))
             ) : (
-                <ProgressBar 
-                    label="Producción General" 
-                    total={totalProducido} 
-                    yaIngresados={yaIngresados} 
-                    actual={ingresoActual} 
-                    restante={saldoRestante} 
-                    isExceededLocal={saldoRestante < 0}
-                />
+                <div style={{ textAlign: 'center', color: '#64748b', fontStyle: 'italic', padding: '20px 0' }}>
+                    No hay detalles de producción primarios disponibles para este lote.
+                </div>
             )}
 
             {isExceeded && (
@@ -157,7 +131,7 @@ export default function ProductionSummaryBar({
                     gap: '12px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: '#dc2626', color: 'white', fontWeight: 'bold', flexShrink: 0 }}>!</div>
-                    <span>Atención: El saldo restante es negativo ({(saldoRestante || 0).toFixed(2)} kg). Estás ingresando más kilos de los que produjo el lote.</span>
+                    <span>Atención: El saldo restante es negativo ({(saldoRestanteTotal || 0).toFixed(2)} kg). Estás ingresando más kilos de los que produjo el lote en uno de los orígenes.</span>
                 </div>
             )}
         </div>

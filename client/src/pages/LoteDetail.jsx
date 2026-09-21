@@ -153,14 +153,28 @@ const LoteDetail = () => {
                     </div>
                     <div className="form-grid">
                         <div>
-                            <div className="form-row">
-                                <label className="form-label">Carne Blanca:</label>
-                                <input className="form-input-readonly" value={`${lote.peso_carne_blanca || 0} Kg`} readOnly />
-                            </div>
-                            <div className="form-row">
-                                <label className="form-label">Pinzas:</label>
-                                <input className="form-input-readonly" value={`${lote.peso_pinzas || 0} Kg`} readOnly />
-                            </div>
+                            {(() => {
+                                if (!lote.producciones || lote.producciones.length === 0) return (
+                                    <div style={{ color: '#888', fontStyle: 'italic', padding: '10px' }}>Sin producción</div>
+                                );
+                                
+                                // Aggregate detalles from all producciones (usually just 1)
+                                const aggr = {};
+                                lote.producciones.forEach(prod => {
+                                    if (prod.detalles && Array.isArray(prod.detalles)) {
+                                        prod.detalles.forEach(d => {
+                                            aggr[d.nombre] = (aggr[d.nombre] || 0) + Number(d.peso);
+                                        });
+                                    }
+                                });
+
+                                return Object.entries(aggr).map(([nombre, peso]) => (
+                                    <div className="form-row" key={nombre}>
+                                        <label className="form-label">{nombre}:</label>
+                                        <input className="form-input-readonly" value={`${peso.toFixed(2)} Kg`} readOnly />
+                                    </div>
+                                ));
+                            })()}
                         </div>
                         <div>
                             <div className="form-row">

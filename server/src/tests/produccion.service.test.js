@@ -49,7 +49,7 @@ describe('Producción Service', () => {
     it('debe rechazar si excede el peso bruto', async () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 1, peso_bruto_kg: 1000 });
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
-      const data = { loteRecepcionId: 1, peso_carne_blanca: 600, peso_pinzas: 500 };
+      const data = { loteRecepcionId: 1, detalles: [{ peso: 600 }, { peso: 500 }] };
       const [result, error] = await createProduccionYieldService(data);
       expect(result).toBeNull();
       expect(error).toContain("Error de Rendimiento");
@@ -58,9 +58,9 @@ describe('Producción Service', () => {
     it('debe crear producción exitosamente', async () => {
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 1, peso_bruto_kg: 1000 });
       mockQueryRunner.manager.findOne.mockResolvedValueOnce(null);
-      mockQueryRunner.manager.find.mockResolvedValue([{ peso_carne_blanca: 400, peso_pinzas: 300 }]);
-      mockQueryRunner.manager.create.mockReturnValue({ id: 10, peso_carne_blanca: 400, peso_pinzas: 300, peso_total: 700 });
-      const data = { loteRecepcionId: 1, peso_carne_blanca: 400, peso_pinzas: 300 };
+      mockQueryRunner.manager.find.mockResolvedValue([{ peso: 400 }, { peso: 300 }]);
+      mockQueryRunner.manager.create.mockReturnValue({ id: 10, total: 700 });
+      const data = { loteRecepcionId: 1, detalles: [{ peso: 400 }, { peso: 300 }] };
       const [result, error] = await createProduccionYieldService(data);
       expect(error).toBeNull();
       expect(result.id).toBe(10);
@@ -112,7 +112,7 @@ describe('Producción Service', () => {
       mockQueryRunner.manager.count.mockResolvedValueOnce(0); // Sin productos en camara
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 1, peso_bruto_kg: 1000 }); // Lote
 
-      const [result, error] = await updateProduccionYieldService(1, { peso_carne_blanca: 600, peso_pinzas: 500 });
+      const [result, error] = await updateProduccionYieldService(1, { detalles: [{ peso: 600 }, { peso: 500 }] });
       expect(result).toBeNull();
       expect(error).toContain("Error de Rendimiento");
     });
@@ -122,7 +122,7 @@ describe('Producción Service', () => {
       mockQueryRunner.manager.count.mockResolvedValueOnce(0); // Sin productos en camara
       mockQueryRunner.manager.findOne.mockResolvedValueOnce({ id: 1, peso_bruto_kg: 1000 }); // Lote
 
-      const [result, error] = await updateProduccionYieldService(1, { peso_carne_blanca: 400, peso_pinzas: 300 });
+      const [result, error] = await updateProduccionYieldService(1, { detalles: [{ peso: 400 }, { peso: 300 }] });
       expect(error).toBeNull();
       expect(result.editada).toBe(true);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();

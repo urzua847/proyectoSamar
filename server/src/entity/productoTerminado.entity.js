@@ -62,6 +62,12 @@ const ProductoTerminadoSchema = new EntitySchema({
       inverseSide: "productos",
       nullable: false,
     },
+    pedido: {
+      type: "many-to-one",
+      target: "Pedido",
+      nullable: true,
+      onDelete: "SET NULL",
+    },
   },
 });
 

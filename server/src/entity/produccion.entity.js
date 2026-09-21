@@ -11,19 +11,10 @@ const ProduccionSchema = new EntitySchema({
       primary: true,
       generated: true,
     },
-    peso_carne_blanca: {
-      type: "decimal",
-      precision: 10,
-      scale: 2,
+    detalles: {
+      type: "jsonb",
       nullable: false,
-      default: 0
-    },
-    peso_pinzas: {
-      type: "decimal",
-      precision: 10,
-      scale: 2,
-      nullable: false, 
-      default: 0
+      comment: "Desglose de pesos por producto primario. Ej: [{ productoId: 1, peso: 10.5, nombre: 'Carne Blanca' }]"
     },
     peso_total: {
       type: "decimal",

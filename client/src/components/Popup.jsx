@@ -65,6 +65,14 @@ export default function Popup({ show, setShow, data, action, title }) {
                                         required: isCreateMode
                                     },
                                     {
+                                        label: "Nombre de Usuario",
+                                        name: "username",
+                                        defaultValue: userData.username || "",
+                                        fieldType: 'input',
+                                        type: "text",
+                                        required: isCreateMode
+                                    },
+                                    {
                                         label: "Correo electrónico",
                                         name: "email",
                                         defaultValue: userData.email || "",

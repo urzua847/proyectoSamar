@@ -1,0 +1,88 @@
+/* Hide by default on screen */
+.print-only {
+    display: none;
+}
+
+/* Only display when printing */
+@media print {
+    /* Hide everything else */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the print area and its children */
+    #print-area, #print-area * {
+        visibility: visible;
+    }
+
+    #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Thermal label size config (e.g. 100mm x 50mm) */
+    @page {
+        size: 100mm 50mm; /* Common Zebra size */
+        margin: 0;
+    }
+
+    .qr-label {
+        width: 100mm;
+        height: 50mm;
+        box-sizing: border-box;
+        padding: 5mm;
+        page-break-after: always; /* Ensure 1 label per page */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: white;
+        color: black;
+        font-family: Arial, sans-serif;
+    }
+
+    .qr-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        width: 60%;
+    }
+
+    .qr-info h3 {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .qr-info p {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    .qr-date {
+        margin-top: 5px !important;
+        font-size: 9px !important;
+        color: #333;
+    }
+
+    .qr-code {
+        width: 35%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .qr-id-text {
+        margin-top: 3px;
+        font-size: 9px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }
+}

@@ -22,6 +22,12 @@ const UserSchema = new EntitySchema({
       nullable: false,
       unique: true,
     },
+    username: {
+      type: "varchar",
+      length: 50,
+      nullable: true, // We'll make it true temporarily for existing rows, or we can use default
+      unique: true,
+    },
     email: {
       type: "varchar",
       length: 255,

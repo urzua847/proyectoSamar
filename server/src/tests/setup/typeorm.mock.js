@@ -5,6 +5,7 @@ export const mockQueryRunner = {
   commitTransaction: jest.fn(),
   rollbackTransaction: jest.fn(),
   release: jest.fn(),
+  query: jest.fn(),
   manager: {
     findOne: jest.fn(),
     find: jest.fn(),

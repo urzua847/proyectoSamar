@@ -1,6 +1,6 @@
 "use strict";
 
-import { trasladoStockService } from "../services/traslado.service.js";
+import { trasladoStockService, trasladoPorScanService } from "../services/traslado.service.js";
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 import Joi from "joi";
 
@@ -30,6 +30,29 @@ export async function createTraslado(req, res) {
     if (errorService) return handleErrorClient(res, 400, errorService);
 
     handleSuccess(res, 200, "Traslado realizado con éxito", movimientos);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function trasladoPorScan(req, res) {
+  try {
+    const { boxId, destinoId } = req.body;
+    
+    if (!boxId || !destinoId) {
+        return handleErrorClient(res, 400, "Error de validación: Se requiere boxId y destinoId");
+    }
+
+    // El boxId del QR viene como "PT-1234", necesitamos parsearlo
+    let idNumerico = boxId;
+    if (typeof boxId === 'string' && boxId.startsWith('PT-')) {
+        idNumerico = parseInt(boxId.replace('PT-', ''), 10);
+    }
+
+    const [success, errorService] = await trasladoPorScanService(idNumerico, destinoId, req.user);
+    if (errorService) return handleErrorClient(res, 400, errorService);
+
+    handleSuccess(res, 200, "Caja escaneada y trasladada con éxito", { boxId: idNumerico, destinoId });
   } catch (error) {
     handleErrorServer(res, 500, error.message);
   }

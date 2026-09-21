@@ -23,10 +23,9 @@ export async function getLotesActivos() {
             fechaFormateada: formatTempo(lote.fecha_recepcion, "DD-MM-YYYY HH:mm"),
             proveedorNombre: lote.proveedor?.nombre,
             materiaPrimaNombre: lote.materiaPrima?.nombre,
+            materiaPrimaId: lote.materiaPrima?.id,
             estadoTexto: lote.estado ? 'Abierto' : 'Cerrado',
             tieneProduccion: (lote.productosTerminados && lote.productosTerminados.length > 0) || lote.en_proceso_produccion,
-            peso_carne_blanca: lote.peso_carne_blanca,
-            peso_pinzas: lote.peso_pinzas,
             peso_total: lote.peso_total_producido,
             observacion: lote.observacion_produccion,
             en_proceso_produccion: lote.en_proceso_produccion

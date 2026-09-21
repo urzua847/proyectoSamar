@@ -42,15 +42,19 @@ export const showToastInfo = (message, title = '') => {
   });
 };
 
-export async function deleteDataAlert() {
+export async function deleteDataAlert(
+  title = "¿Estás seguro?",
+  text = "No podrás revertir esta acción.",
+  confirmButtonText = "Sí, Eliminar"
+) {
   return Swal.fire({
-    title: "¿Estás seguro?",
-    text: "No podrás revertir esta acción.",
+    title,
+    text,
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#dc2626",
     cancelButtonColor: "#4b5563",
-    confirmButtonText: "Sí, Eliminar",
+    confirmButtonText,
     cancelButtonText: "Cancelar"
   });
 }

@@ -35,7 +35,7 @@ describe('Auth Service', () => {
       mockRepository.findOne.mockResolvedValueOnce(null);
       const [result, error] = await loginService({ email: 'test@test.com', password: '123' });
       expect(result).toBeNull();
-      expect(error.message).toBe('El correo electrónico es incorrecto');
+      expect(error.message).toBe('El nombre de usuario es incorrecto');
     });
 
     it('debe rechazar password incorrecto', async () => {
@@ -67,7 +67,7 @@ describe('Auth Service', () => {
       mockRepository.findOne.mockResolvedValueOnce({ email: 'test@test.com' }); // First findOne is for email
       const [result, error] = await registerService({ email: 'test@test.com' });
       expect(result).toBeNull();
-      expect(error.message).toBe('Correo electrónico en uso');
+      expect(error.message).toBe('Nombre de usuario en uso');
     });
 
     it('debe crear usuario si email y rut son unicos', async () => {

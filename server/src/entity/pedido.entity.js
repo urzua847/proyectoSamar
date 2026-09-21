@@ -27,8 +27,8 @@ const PedidoSchema = new EntitySchema({
     },
     estado: {
       type: "enum",
-      enum: ["Borrador", "Despachado"],
-      default: "Despachado",
+      enum: ["Pendiente", "Despachado"],
+      default: "Pendiente",
       nullable: false,
     },
     createdAt: {
@@ -48,6 +48,11 @@ const PedidoSchema = new EntitySchema({
       target: "DetallePedido",
       inverseSide: "pedido",
       cascade: true,
+    },
+    cajasAsignadas: {
+      type: "one-to-many",
+      target: "ProductoTerminado",
+      inverseSide: "pedido",
     },
   },
 });

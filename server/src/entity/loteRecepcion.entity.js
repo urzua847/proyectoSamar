@@ -40,20 +40,7 @@ const LoteRecepcionSchema = new EntitySchema({
         type: "boolean",
         default: false,
     },
-    peso_carne_blanca: {
-        type: "decimal",
-        precision: 10,
-        scale: 2,
-        nullable: true,
-        default: 0
-    },
-    peso_pinzas: {
-        type: "decimal",
-        precision: 10,
-        scale: 2,
-        nullable: true,
-        default: 0
-    },
+    // peso_carne_blanca y peso_pinzas removidos en favor del JSONB de Produccion.
     peso_total_producido: {
         type: "decimal",
         precision: 10,

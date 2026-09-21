@@ -22,8 +22,8 @@ export async function trasladoStockService(data, user = null) {
         }
 
         // 1. Validar Destino
-        const destino = await ubicacionRepository.findOne({ where: { id: destinoId, tipo: "contenedor" } });
-        if (!destino) throw new Error("Ubicación de destino inválida o no es un contenedor.");
+        const destino = await ubicacionRepository.findOne({ where: { id: destinoId } });
+        if (!destino) throw new Error("Ubicación de destino inválida.");
 
         const movimientos = [];
         const boxWeight = parseFloat(peso_caja);
@@ -194,6 +194,92 @@ export async function trasladoStockService(data, user = null) {
     } catch (error) {
         await queryRunner.rollbackTransaction();
         console.error("Error en trasladoStockService:", error);
+        return [null, error.message];
+    } finally {
+        await queryRunner.release();
+    }
+}
+
+export async function trasladoPorScanService(boxId, destinoId, user = null) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        if (!boxId || !destinoId) {
+            throw new Error("Se requiere el ID de la caja y el ID del destino.");
+        }
+
+        const destino = await ubicacionRepository.findOne({ where: { id: destinoId, tipo: "contenedor" } });
+        if (!destino) {
+            throw new Error("Ubicación de destino inválida o no es un contenedor.");
+        }
+
+        // Buscar la caja y bloquearla
+        const [caja] = await queryRunner.query(
+            `SELECT * FROM productos_terminados WHERE id = $1 FOR UPDATE`,
+            [boxId]
+        );
+
+        if (!caja) {
+            throw new Error("La caja escaneada no existe o fue eliminada.");
+        }
+
+        if (caja.estado !== "En Stock") {
+            throw new Error(`La caja no está en Stock (Estado actual: ${caja.estado}).`);
+        }
+
+        // Validar que el origen exista y sea diferente al destino
+        const origen = await queryRunner.manager.findOne(Ubicacion, { where: { id: caja.ubicacionId } });
+        if (!origen) {
+            throw new Error(`La ubicación de origen de esta caja es desconocida.`);
+        }
+        if (origen.id === destinoId) {
+            throw new Error(`La caja ya se encuentra en el destino seleccionado (${origen.nombre}).`);
+        }
+
+        // Actualizar ubicación usando el manager de TypeORM para evitar problemas de mayúsculas/minúsculas en columnas
+        const updateResult = await queryRunner.manager.update(
+            "ProductoTerminado",
+            { id: boxId },
+            { ubicacion: destino }
+        );
+
+        // Debug logging
+        import('fs').then(fs => {
+            fs.appendFileSync('debug_traslado.txt', JSON.stringify({
+                time: new Date().toISOString(),
+                boxId,
+                destinoId,
+                cajaEncontrada: caja,
+                updateResult
+            }, null, 2) + '\n');
+        }).catch(err => console.error("Error writing debug:", err));
+
+        // Registrar en auditoría
+        await logCreate('TrasladoQR', null, {
+            box_id: boxId,
+            origen_id: origen.id,
+            origen_nombre: origen.nombre,
+            destino_id: destino.id,
+            destino_nombre: destino.nombre,
+            peso_kg: caja.peso_neto_kg
+        }, user);
+
+        await queryRunner.commitTransaction();
+        return [true, null];
+
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error en trasladoPorScanService:", error);
+        
+        import('fs').then(fs => {
+            fs.appendFileSync('debug_traslado.txt', JSON.stringify({
+                time: new Date().toISOString(),
+                error: error.message
+            }, null, 2) + '\n');
+        }).catch(err => console.error("Error writing debug:", err));
+
         return [null, error.message];
     } finally {
         await queryRunner.release();
