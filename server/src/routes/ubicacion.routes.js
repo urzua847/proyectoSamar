@@ -6,6 +6,17 @@ import { isAdmin, isOperarioOrAdmin } from "../middlewares/authorization.middlew
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
 const router = Router();
+
+router.post("/fix-transit", async (req, res) => {
+    try {
+        const { AppDataSource } = await import("../config/configDb.js");
+        await AppDataSource.query(`UPDATE ubicaciones SET tipo = 'traslado' WHERE nombre = 'En Tránsito'`);
+        res.json({ success: true, message: "En Tránsito updated to traslado" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.use(authenticateJwt);
 
 router.get("/", isOperarioOrAdmin, getUbicaciones); // Operario necesita verlas

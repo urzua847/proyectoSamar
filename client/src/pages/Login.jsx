@@ -9,7 +9,7 @@ import Footer from '../components/Footer';
 const Login = () => {
     const navigate = useNavigate();
     const {
-        errorEmail,
+        errorUsername,
         errorPassword,
         errorData,
         handleInputChange
@@ -35,14 +35,14 @@ const Login = () => {
                     title="Iniciar sesión"
                     fields={[
                         {
-                            label: "Correo electrónico",
-                            name: "email",
-                            placeholder: "example@gmail.cl",
+                            label: "Nombre de Usuario",
+                            name: "username",
+                            placeholder: "Ej: jperez",
                             fieldType: 'input',
-                            type: "email",
+                            type: "text",
                             required: true,
-                            errorMessageData: errorEmail,
-                            onChange: (e) => handleInputChange('email', e.target.value),
+                            errorMessageData: errorUsername,
+                            onChange: (e) => handleInputChange('username', e.target.value),
                         },
                         {
                             label: "Contraseña",

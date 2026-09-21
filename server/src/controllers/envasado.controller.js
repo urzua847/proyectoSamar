@@ -1,6 +1,6 @@
 "use strict";
 
-import { createProduccionService, deleteProduccionService, deleteManyProduccionService, getProduccionesService, getStockCamarasService, getStockContenedoresService, getResumenProduccionByLoteService } from "../services/envasado.service.js";
+import { createProduccionService, deleteProduccionService, deleteManyProduccionService, getProduccionesService, getStockCamarasService, getStockContenedoresService, getResumenProduccionByLoteService, getCajaByIdService, getStockTransitoService } from "../services/envasado.service.js";
 import { createProduccionValidation } from "../validations/envasado.validation.js";
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
@@ -88,3 +88,24 @@ export async function getStockContenedores(req, res) {
   }
 }
 
+
+export async function getCajaById(req, res) {
+  try {
+    const { id } = req.params;
+    const [caja, error] = await getCajaByIdService(id);
+    if (error) return handleErrorClient(res, 404, error);
+    handleSuccess(res, 200, "Detalle de caja obtenido", caja);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function getStockTransito(req, res) {
+  try {
+    const [stock, error] = await getStockTransitoService();
+    if (error) return handleErrorClient(res, 404, error);
+    handleSuccess(res, 200, "Stock en transito obtenido exitosamente", stock);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}

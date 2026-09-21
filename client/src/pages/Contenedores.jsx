@@ -1,20 +1,17 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from '../services/root.service.js';
 import Table from '../components/Table';
 import '../styles/users.css';
 import '../styles/pedidos.css';
 import { deleteManyProduccion } from '../services/envasado.service';
-import { getClientes } from '../services/catalogos.service';
-import { deleteDataAlert, showSuccessAlert, showErrorAlert, showToastWarning, showToastSuccess, showToastError, confirmActionAlert } from '../helpers/sweetAlert';
+import { showSuccessAlert, showErrorAlert, showToastError } from '../helpers/sweetAlert';
 import Swal from 'sweetalert2';
 
 const Contenedores = () => {
     const { user } = useAuth();
     const [availableStock, setAvailableStock] = useState([]);
-    const [cart, setCart] = useState([]);
-    const [isCartOpen, setIsCartOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    
     // Filtros Stock
     const [filters, setFilters] = useState({
         lote: '',
@@ -23,23 +20,8 @@ const Contenedores = () => {
     });
     const [sortOrder, setSortOrder] = useState('desc');
 
-    // Clientes List
-    const [clientesList, setClientesList] = useState([]);
-
-    // Formulario Cabecera
-    const [header, setHeader] = useState({
-        cliente: '',
-        numero_guia: ''
-    });
-
-    // Ref para prevenir doble clic en agregar al carrito
-    const isAddingToCartRef = useRef(false);
-
     useEffect(() => {
         fetchContenedorStock();
-        if (clientesList.length === 0) {
-            getClientes().then(data => setClientesList(data || []));
-        }
     }, []);
 
     const fetchContenedorStock = async () => {
@@ -60,41 +42,29 @@ const Contenedores = () => {
         }
     };
 
-    const handleDeleteRow = async (row) => {
-        const idsToDelete = row.ids || [row.id];
-        const maxQty = idsToDelete.length;
-
-        const { value: qty } = await Swal.fire({
-            title: '¿Cuántas cajas desea devolver?',
-            text: `Máximo disponible: ${maxQty}`,
-            input: 'number',
-            inputAttributes: {
-                min: 1,
-                max: maxQty,
-                step: 1
-            },
-            inputValue: maxQty,
-            showCancelButton: true,
-            confirmButtonText: 'Sí, Devolver',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#eab308'
-        });
-
-        if (qty) {
-            const quantity = parseInt(qty);
-            if (quantity > 0 && quantity <= maxQty) {
-                const selectedIds = idsToDelete.slice(0, quantity);
-                const response = await deleteManyProduccion(selectedIds);
-                if (response.status === 'Success') {
-                    showSuccessAlert('Devuelto', `${quantity} caja(s) devuelta(s) a la cámara correctamente.`);
-                    fetchContenedorStock();
-                } else {
-                    showErrorAlert('Error', response.message || 'No se pudo eliminar el registro.');
-                }
-            } else {
-                showToastError('Cantidad inválida.');
-            }
+    const handleViewIds = (ids) => {
+        if (!ids || ids.length === 0) {
+            Swal.fire({ title: 'Sin IDs', text: 'No hay cajas físicas registradas.', icon: 'info' });
+            return;
         }
+        
+        // Grid de QRs para escanear de la pantalla
+        const gridHtml = ids.map(id => `
+            <div style="display: flex; flex-direction: column; alignItems: center; margin: 10px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PT-${id}" alt="QR PT-${id}" style="width: 120px; height: 120px;" />
+                <span style="margin-top: 8px; font-weight: bold; font-family: monospace; font-size: 1.1rem; color: #003366;">PT-${id}</span>
+            </div>
+        `).join('');
+
+        Swal.fire({
+            title: 'QRs para Pruebas (Scanner)',
+            html: `<div style="max-height: 400px; overflow-y: auto; text-align: center; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; display: flex; flex-wrap: wrap; justify-content: center;">
+                    ${gridHtml}
+                   </div>`,
+            width: '600px',
+            confirmButtonText: 'Cerrar',
+            confirmButtonColor: '#003366'
+        });
     };
 
     const columnsStock = [
@@ -102,119 +72,22 @@ const Contenedores = () => {
         { header: "Especie", accessor: "especieNombre" },
         { header: "Producto", accessor: "productoNombre" },
         { header: "Calibre", accessor: "calibre" },
-        { header: "Cajas Disp.", accessor: "totalCantidad", width: "100px", render: r => <div style={{ textAlign: 'center', fontWeight: 'bold' }}>{r.totalCantidad}</div> },
+        { header: "Cajas Disp.", accessor: "totalCantidad", width: "120px", render: r => (
+            <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                {r.totalCantidad}
+                <br/>
+                <span 
+                    onClick={(e) => { e.stopPropagation(); handleViewIds(r.ids); }}
+                    style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#0284c7', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                    (ver IDs)
+                </span>
+            </div>
+        )},
         { header: "Kg/Caja", render: r => <div style={{ textAlign: 'center' }}>{(Number(r.totalKilos) / (Number(r.totalCantidad) || 1)).toFixed(2)}</div> },
         { header: "Kilos Totales", accessor: "totalKilos", width: "120px", render: r => <div style={{ textAlign: 'right' }}>{r.totalKilos}</div> },
-        { header: "Ubicación", accessor: "ubicacionNombre" },
-        {
-            header: "Acción",
-            width: "140px",
-            render: (row) => (
-                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                    <StockActionCell item={row} onAdd={(qty) => handleAddToCart(row, qty)} />
-                    {(user?.rol === 'administrador' || user?.rol === 'operador' || user?.rol === 'operario') && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRow(row);
-                            }}
-                            className="btn-icon-circle"
-                            style={{ backgroundColor: '#eab308', color: 'white', border: 'none', background: 'transparent' }}
-                            title="Devolver a Cámara"
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 9l4-4m-4 4l4 4M3 9h14a5 5 0 0 1 0 10h-4"/>
-                            </svg>
-                        </button>
-                    )}
-                </div>
-            )
-        }
+        { header: "Ubicación", accessor: "ubicacionNombre" }
     ];
-
-    const handleAddToCart = (item, qtyBultos) => {
-        // Prevenir doble clic
-        if (isAddingToCartRef.current) {
-            console.log('⚠️  Doble clic en agregar al carrito detectado y prevenido');
-            return;
-        }
-
-        isAddingToCartRef.current = true;
-
-        const pesoTotal = Number(item.totalKilos) || 0;
-        const cajasTotal = Number(item.totalCantidad) || 1;
-        const pesoPorCaja = pesoTotal / cajasTotal;
-        const qtyToAdd = parseInt(qtyBultos);
-
-        setCart(prev => {
-            const existingItemIndex = prev.findIndex(c => c.id === item.id);
-            if (existingItemIndex >= 0) {
-                const currentQty = prev[existingItemIndex].cantidadBultos;
-                const newQty = currentQty + qtyToAdd;
-                if (item.totalCantidad && newQty > item.totalCantidad) {
-                    showToastWarning(`Stock insuficiente. Total intentado: ${newQty}, Disponible: ${item.totalCantidad} bultos.`);
-                    return prev;
-                }
-                const newCart = [...prev];
-                const updatedItem = { ...newCart[existingItemIndex] };
-                updatedItem.cantidadBultos = newQty;
-                updatedItem.subtotalKilos = (newQty * pesoPorCaja).toFixed(2);
-                newCart[existingItemIndex] = updatedItem;
-                showToastSuccess(`Actualizada cantidad de ${item.productoNombre}`);
-                return newCart;
-            } else {
-                if (item.totalCantidad && qtyToAdd > item.totalCantidad) {
-                    showToastWarning(`Stock insuficiente. Disponible: ${item.totalCantidad} bultos.`);
-                    return prev;
-                }
-                const kilosEstimados = (qtyToAdd * pesoPorCaja).toFixed(2);
-                showToastSuccess(`Agregado a pedido: ${qtyToAdd} bultos de ${item.productoNombre}`);
-                return [...prev, {
-                    ...item,
-                    cantidadBultos: qtyToAdd,
-                    subtotalKilos: kilosEstimados,
-                    uniqueId: Date.now()
-                }];
-            }
-        });
-
-        // Reset del flag después de un delay
-        setTimeout(() => {
-            isAddingToCartRef.current = false;
-        }, 300);
-    };
-
-    const handleRemoveFromCart = (uid) => setCart(prev => prev.filter(c => c.uniqueId !== uid));
-
-    const handleConfirmPedido = async (e) => {
-        e.preventDefault();
-        if (cart.length === 0) return showToastWarning("El carrito está vacío");
-        if (!header.cliente || !header.numero_guia) return showToastWarning("Complete Cliente y N° Guía");
-        
-        setIsSubmitting(true);
-        try {
-            const payload = {
-                ...header,
-                fecha: new Date(),
-                items: cart.map(c => ({
-                    productoId: !String(c.id).includes('-') ? c.id : undefined,
-                    productoIds: c.ids || [],
-                    cantidad_bultos: c.cantidadBultos
-                }))
-            };
-            await axios.post('/pedidos', payload);
-            showToastSuccess("Pedido registrado exitosamente!");
-            setCart([]);
-            setHeader({ ...header, numero_guia: '', cliente: '' });
-            fetchContenedorStock();
-            setIsCartOpen(false);
-        } catch (error) {
-            console.error(error);
-            showToastError("Error al registrar: " + (error.response?.data?.message || error.message));
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const filteredStock = useMemo(() => {
         let filtered = availableStock.filter(item => {
@@ -233,7 +106,6 @@ const Contenedores = () => {
                 return sortOrder === 'desc' ? loteB - loteA : loteA - loteB;
             }
             
-            // Criterio secundario: por contenedor
             const contA = Number(a.contenedorId) || 0;
             const contB = Number(b.contenedorId) || 0;
             if (contA !== contB) {
@@ -246,9 +118,6 @@ const Contenedores = () => {
         return filtered;
     }, [availableStock, filters, sortOrder]);
 
-    const totalKilosGlobal = cart.reduce((acc, curr) => acc + parseFloat(curr.subtotalKilos), 0).toFixed(2);
-    const totalBultosGlobal = cart.reduce((acc, curr) => acc + parseInt(curr.cantidadBultos), 0);
-
     return (
         <div className="main-container" style={{ position: 'relative' }}>
             <div className="table-wrapper">
@@ -258,31 +127,18 @@ const Contenedores = () => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: isCartOpen ? '1.2fr 0.8fr' : '1fr', gap: '20px', marginTop: '20px', transition: 'grid-template-columns 0.3s ease' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginTop: '20px' }}>
                     <div className="stock-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
                             <h3 style={{ color: '#003366', margin: 0, fontSize: '1.1rem' }}>Inventario Disponible</h3>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                {!isCartOpen && (
-                                    <button
-                                        onClick={() => setIsCartOpen(true)}
-                                        className="btn-new"
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                                    >
-                                        🛒 Ver Pedido
-                                        <span style={{ background: 'rgba(255,255,255,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                                            {totalBultosGlobal}
-                                        </span>
-                                    </button>
-                                )}
-                                {isCartOpen && (
-                                    <button
-                                        onClick={() => setIsCartOpen(false)}
-                                        className="btn-cancel"
-                                    >
-                                        Ocultar Pedido
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => window.open('/scanner', '_blank')}
+                                    className="btn-new"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#3b82f6', border: 'none' }}
+                                >
+                                    Gestión Contenedores
+                                </button>
                             </div>
                         </div>
                         <div className="table-container-box">
@@ -332,128 +188,8 @@ const Contenedores = () => {
                             />
                         </div>
                     </div>
-
-                    {isCartOpen && (
-                        <div className="order-panel">
-                            <div className="order-panel__header">
-                                <h3>🛒 Detalle del Pedido</h3>
-                                <button onClick={() => setIsCartOpen(false)} className="btn-close-x">&times;</button>
-                            </div>
-
-                            <div className="order-items-container">
-                                <table className="samar-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Cajas</th>
-                                            <th>Kg</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {cart.map(c => (
-                                            <tr key={c.uniqueId}>
-                                                <td>
-                                                    <span style={{ fontWeight: 600 }}>{c.productoNombre}</span> <span style={{ color: '#64748b' }}>({c.calibre})</span>
-                                                    <br />
-                                                    <small style={{ color: '#94a3b8' }}>{c.loteCodigo}</small>
-                                                </td>
-                                                <td style={{ textAlign: 'center' }}>{c.cantidadBultos}</td>
-                                                <td style={{ textAlign: 'center' }}>{c.subtotalKilos}</td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    <button onClick={() => handleRemoveFromCart(c.uniqueId)} className="btn-remove-small" title="Quitar">
-                                                        ✕
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {cart.length === 0 && (
-                                            <tr>
-                                                <td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                                                    No hay items seleccionados
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div>
-                                <div className="order-summary__totals">
-                                    <span>Total Cajas: {totalBultosGlobal}</span>
-                                    <span>Total Kg: {totalKilosGlobal}</span>
-                                </div>
-
-                                <form onSubmit={handleConfirmPedido} style={{ display: 'grid', gap: '15px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: 600 }}>Cliente</label>
-                                        <select
-                                            required
-                                            value={header.cliente}
-                                            onChange={e => setHeader({ ...header, cliente: e.target.value })}
-                                            className="search-input"
-                                            style={{ width: '100%', padding: '10px' }}
-                                        >
-                                            <option value="">-- Seleccionar --</option>
-                                            {clientesList.map(c => (
-                                                <option key={c.id} value={c.nombre}>{c.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: 600 }}>N° Guía Despacho</label>
-                                        <input
-                                            required
-                                            placeholder="Ej: 123456"
-                                            value={header.numero_guia}
-                                            onChange={e => setHeader({ ...header, numero_guia: e.target.value })}
-                                            className="search-input"
-                                            style={{ width: '100%', padding: '10px' }}
-                                        />
-                                    </div>
-
-                                    <button type="submit" disabled={cart.length === 0 || isSubmitting} className="btn-save" style={{ marginTop: '10px', padding: '12px' }}>
-                                        {isSubmitting ? 'Confirmando...' : 'Confirmar Pedido'}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
-
-        </div>
-    );
-};
-
-const StockActionCell = ({ item, onAdd }) => {
-    const [qty, setQty] = useState('');
-
-    const handleAdd = () => {
-        if (!qty || Number(qty) <= 0) return showToastWarning("Ingrese cantidad válida");
-        if (Number(qty) > Number(item.totalCantidad)) return showToastWarning("Cantidad excede stock disponible");
-        onAdd(Number(qty));
-        setQty('');
-    };
-
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <input
-                type="number"
-                min="1"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="0"
-                className="input-qty-stock"
-                onClick={(e) => e.stopPropagation()}
-            />
-            <button
-                onClick={(e) => { e.stopPropagation(); handleAdd(); }}
-                className="btn-add-stock"
-                title="Agregar al pedido"
-            >
-                +
-            </button>
         </div>
     );
 };

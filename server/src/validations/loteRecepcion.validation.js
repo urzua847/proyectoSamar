@@ -33,8 +33,7 @@ export const updateLoteValidation = Joi.object({
   estado: Joi.boolean().optional(),
   
   en_proceso_produccion: Joi.boolean().optional(),
-  peso_carne_blanca: Joi.number().min(0).optional(),
-  peso_pinzas: Joi.number().min(0).optional(),
+  peso_total_producido: Joi.number().min(0).optional(),
   peso_total_producido: Joi.number().min(0).optional(),
   observacion_produccion: Joi.string().allow('').optional(),
   fecha_inicio_produccion: Joi.date().optional().allow(null),

@@ -1,37 +1,46 @@
 import { useState, useEffect } from 'react';
 import { createProduccionYield } from '../../services/produccion.service';
+import { getProductos } from '../../services/producto.service';
 import '../../styles/popup.css';
 import { showSuccessAlert, showErrorAlert } from '../../helpers/sweetAlert';
 
 export default function PopupNuevaProduccion({ show, setShow, onSuccess, selectedLote }) {
-    const [formData, setFormData] = useState({
-        peso_carne_blanca: '',
-        peso_pinzas: '',
-        observacion: ''
-    });
+    const [primarios, setPrimarios] = useState([]);
+    const [formData, setFormData] = useState({});
+    const [observacion, setObservacion] = useState('');
 
     useEffect(() => {
-        if (show) {
-            setFormData({
-                peso_carne_blanca: '',
-                peso_pinzas: '',
-                observacion: ''
-            });
+        if (show && selectedLote) {
+            setFormData({});
+            setObservacion('');
+            
+            // Cargar productos primarios de esta especie
+            const loadProductos = async () => {
+                const res = await getProductos();
+                if (res.status === 'Success') {
+                    const filtered = res.data.filter(p => p.materiaPrima?.id === selectedLote.materiaPrimaId && p.tipo === 'primario');
+                    setPrimarios(filtered);
+                    
+                    const initialData = {};
+                    filtered.forEach(p => initialData[p.id] = '');
+                    setFormData(initialData);
+                }
+            };
+            loadProductos();
         }
     }, [show, selectedLote]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+    const handleChange = (id, value) => {
+        setFormData(prev => ({ ...prev, [id]: value }));
     };
 
-    const handleKeyDown = (e, nextFieldId) => {
+    const handleKeyDown = (e, index) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (nextFieldId === 'submit') {
-                handleSave();
+            if (index < primarios.length - 1) {
+                document.getElementById(`input-primario-${index + 1}`)?.focus();
             } else {
-                document.getElementById(nextFieldId)?.focus();
+                document.getElementById(`input-observacion`)?.focus();
             }
         }
     };
@@ -39,16 +48,21 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
     const handleSave = async () => {
         if (!selectedLote) return;
 
-        if (!formData.peso_carne_blanca && !formData.peso_pinzas) {
-            return showErrorAlert("Error", "Debes ingresar al menos un peso.");
+        const detalles = primarios.map(p => ({
+            productoId: p.id,
+            peso: Number(formData[p.id] || 0),
+            nombre: p.nombre
+        })).filter(d => d.peso > 0);
+
+        if (detalles.length === 0) {
+            return showErrorAlert("Error", "Debes ingresar al menos un peso válido.");
         }
 
         try {
             const response = await createProduccionYield({
                 loteRecepcionId: selectedLote.id,
-                peso_carne_blanca: Number(formData.peso_carne_blanca || 0),
-                peso_pinzas: Number(formData.peso_pinzas || 0),
-                observacion: formData.observacion
+                detalles: detalles,
+                observacion: observacion
             });
 
             if (response.status === 'Success') {
@@ -68,7 +82,7 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
 
     return (
         <div className="bg" onClick={() => setShow(false)}>
-            <div className="popup" onClick={e => e.stopPropagation()} style={{ padding: '30px' }}>
+            <div className="popup" onClick={e => e.stopPropagation()} style={{ padding: '30px', maxWidth: '600px', width: '90%' }}>
                 <button className='btn-close-x' onClick={() => setShow(false)}>X</button>
 
                 <h2 style={{ color: '#003366', marginBottom: '10px', textAlign: 'center' }}>
@@ -83,55 +97,43 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
 
                 <div className="form-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                        <div className="container_inputs" style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Carne Blanca (Kg)</label>
-                            <input
-                                id="input-carne"
-                                type="number"
-                                name="peso_carne_blanca"
-                                value={formData.peso_carne_blanca}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 'input-pinzas')}
-                                step="0.01"
-                                placeholder="0.00"
-                                style={{
-                                    padding: '12px 15px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '8px',
-                                    fontSize: '1rem',
-                                    textAlign: 'center'
-                                }}
-                            />
-                        </div>
-                        <div className="container_inputs" style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Pinzas (Kg)</label>
-                            <input
-                                id="input-pinzas"
-                                type="number"
-                                name="peso_pinzas"
-                                value={formData.peso_pinzas}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 'submit')}
-                                step="0.01"
-                                placeholder="0.00"
-                                style={{
-                                    padding: '12px 15px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '8px',
-                                    fontSize: '1rem',
-                                    textAlign: 'center'
-                                }}
-                            />
-                        </div>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                        {primarios.map((p, index) => (
+                            <div key={p.id} className="container_inputs" style={{ flex: '1 1 calc(50% - 20px)', minWidth: '150px' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{p.nombre} (Kg)</label>
+                                <input
+                                    id={`input-primario-${index}`}
+                                    type="number"
+                                    value={formData[p.id] || ''}
+                                    onChange={(e) => handleChange(p.id, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(e, index)}
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    style={{
+                                        padding: '12px 15px',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '8px',
+                                        fontSize: '1rem',
+                                        textAlign: 'center',
+                                        width: '100%',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+                        ))}
+                        {primarios.length === 0 && (
+                            <div style={{ width: '100%', textAlign: 'center', color: '#888', padding: '20px' }}>
+                                No se encontraron productos primarios para esta especie.
+                            </div>
+                        )}
                     </div>
 
                     <div className="container_inputs">
                         <label style={{ fontSize: '0.9rem' }}>Observación</label>
                         <textarea
-                            name="observacion"
-                            value={formData.observacion}
-                            onChange={handleChange}
+                            id="input-observacion"
+                            value={observacion}
+                            onChange={(e) => setObservacion(e.target.value)}
                             rows="3"
                             placeholder="Comentarios adicionales..."
                             style={{
@@ -151,6 +153,7 @@ export default function PopupNuevaProduccion({ show, setShow, onSuccess, selecte
                             onClick={handleSave}
                             className="btn-save"
                             style={{ width: '100%' }}
+                            disabled={primarios.length === 0}
                         >
                             Guardar
                         </button>

@@ -18,7 +18,7 @@ const MantenedorEntidades = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    const initialForm = { id: null, nombre: '', rut: '', direccion: '', telefono: '', email: '', tipo: 'cliente' };
+    const initialForm = { id: null, nombre: '', rut: '', direccion: '', telefono: '', email: '', giro: '', tipo: 'cliente' };
     const [form, setForm] = useState(initialForm);
 
     const fetchData = async () => {
@@ -260,12 +260,17 @@ const MantenedorEntidades = () => {
 
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Email</label>
-                                        <input type="email" className="form-control" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={{ padding: '10px 12px' }} />
+                                        <input type="email" className="form-control" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} style={{ padding: '10px 12px' }} />
                                     </div>
 
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Dirección</label>
-                                        <input className="form-control" value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} style={{ padding: '10px 12px' }} />
+                                        <input className="form-control" value={form.direccion || ''} onChange={e => setForm({ ...form, direccion: e.target.value })} style={{ padding: '10px 12px' }} />
+                                    </div>
+
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.9rem', color: '#444' }}>Giro</label>
+                                        <input className="form-control" value={form.giro || ''} onChange={e => setForm({ ...form, giro: e.target.value })} style={{ padding: '10px 12px' }} />
                                     </div>
 
                                     <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginTop: '4px' }}>

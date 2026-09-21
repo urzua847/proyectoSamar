@@ -118,7 +118,7 @@ const useProduccion = () => {
                 showSuccessAlert('¡Éxito!', `Se registraron ${itemsParaGuardar.length} productos${msgExtra}`);
                 setPlanilla({});
                 await fetchStock();
-                return true;
+                return response.data; 
             } else {
                 showErrorAlert('Error', response?.message || 'No se pudo guardar.');
                 return false;

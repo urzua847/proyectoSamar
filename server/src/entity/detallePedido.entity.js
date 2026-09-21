@@ -26,6 +26,11 @@ const DetallePedidoSchema = new EntitySchema({
       scale: 2,
       nullable: false,
     },
+    cajas_asignadas: {
+      type: "int",
+      default: 0,
+      nullable: false,
+    },
   },
   relations: {
     pedido: {
@@ -38,8 +43,13 @@ const DetallePedidoSchema = new EntitySchema({
     producto: {
       type: "many-to-one",
       target: "ProductoTerminado",
-      nullable: false,
+      nullable: true, // Se hace nullable porque un plan no tiene cajas físicas aún
     },
+    definicion_producto: {
+      type: "many-to-one",
+      target: "DefinicionProducto",
+      nullable: true, // Opcional, usado principalmente para requerimientos teóricos
+    }
   },
 });
 

@@ -5,7 +5,10 @@ import {
     createPedido, 
     getPedidos, 
     exportPedidosToExcel, 
-    exportPedidosToPDF 
+    exportPedidosToPDF,
+    completarDespacho,
+    deletePedido,
+    liberarCaja
 } from "../controllers/pedido.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
@@ -14,6 +17,9 @@ const router = Router();
 router.use(authenticateJwt);
 
 router.post("/", createPedido);
+router.delete("/:id", deletePedido);
+router.post("/:id/despachar", completarDespacho);
+router.post("/:id/liberar-caja", liberarCaja);
 router.get("/", getPedidos);
 
 // Rutas de exportación

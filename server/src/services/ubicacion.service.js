@@ -9,6 +9,9 @@ export async function getUbicacionesService() {
   try {
     const ubicaciones = await ubicacionRepository.find();
     if (!ubicaciones || ubicaciones.length === 0) return [null, "No hay ubicaciones"];
+    
+    // Eliminada la mutación errónea de tipo = 'traslado'
+    
     return [ubicaciones, null];
   } catch (error) { throw new Error(error.message); }
 }

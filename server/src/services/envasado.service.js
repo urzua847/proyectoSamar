@@ -5,6 +5,7 @@ import LoteRecepcion from "../entity/loteRecepcion.entity.js";
 import DefinicionProducto from "../entity/definicionProducto.entity.js";
 import Ubicacion from "../entity/ubicacion.entity.js";
 import { logCreate } from "./audit.service.js";
+import Produccion from "../entity/produccion.entity.js";
 
 const produccionRepository = AppDataSource.getRepository(ProductoTerminado);
 const loteRepository = AppDataSource.getRepository(LoteRecepcion);
@@ -35,72 +36,63 @@ export async function createProduccionService(data, user = null) {
 
     // 2. Pre-cargar definiciones de productos
     let newPinzaKg = 0;
-    let newCarneKg = 0;
-    
     const distinctDefIds = [...new Set(items.map(i => i.definicionProductoId))];
     const definitions = await queryRunner.manager.findByIds(DefinicionProducto, distinctDefIds);
     const defMap = new Map(definitions.map(d => [d.id, d]));
 
     const normalize = (str) => str ? str.toLowerCase().trim() : '';
 
-    // 3. Calcular totales por origen
+    // 3. Agrupar los kilos ingresados por su origen (basado en el nombre del origen)
+    const newWeightsByOrigen = {};
     for (const item of items) {
         const def = defMap.get(item.definicionProductoId);
-        if (def && def.origen) {
+        if (def && def.tipo === 'elaborado' && def.origen) {
             const org = normalize(def.origen);
-            if (org === 'pinza' || org === 'pinzas') newPinzaKg += Number(item.peso_neto_kg);
-            if (org === 'carne blanca' || org === 'carne_blanca') newCarneKg += Number(item.peso_neto_kg);
+            if (!newWeightsByOrigen[org]) newWeightsByOrigen[org] = 0;
+            newWeightsByOrigen[org] += Number(item.peso_neto_kg);
         }
     }
 
-    // 4. Validar límites de rendimiento
-    const hasYieldLimits = (Number(loteOrigen.peso_pinzas || 0) > 0) || (Number(loteOrigen.peso_carne_blanca || 0) > 0);
+    // 4. Validar límites de rendimiento usando Produccion.detalles
+    const produccion = await queryRunner.manager.findOne(Produccion, {
+        where: { loteRecepcion: { id: loteRecepcionId } }
+    });
 
-    if (hasYieldLimits) {
-        for (const item of items) {
-            const def = defMap.get(item.definicionProductoId);
-            if (def && def.tipo === 'elaborado' && !normalize(def.origen)) {
-                await queryRunner.rollbackTransaction();
-                return [null, `Error de Control: El producto '${def.nombre}' no tiene definido un 'Origen' válido (Pinza/Carne).`];
+    if (produccion && produccion.detalles && Array.isArray(produccion.detalles)) {
+        for (const org of Object.keys(newWeightsByOrigen)) {
+            const addedKg = newWeightsByOrigen[org];
+            if (addedKg > 0) {
+                // Find all previously packed products with this same origin for this lote
+                const currentSumRow = await queryRunner.manager.getRepository(ProductoTerminado)
+                    .createQueryBuilder("prod")
+                    .leftJoin("prod.definicion", "def")
+                    .where("prod.loteDeOrigenId = :loteId", { loteId: loteRecepcionId })
+                    .andWhere("LOWER(TRIM(def.origen)) = :origen", { origen: org })
+                    .select("SUM(prod.peso_neto_kg)", "sum")
+                    .getRawOne();
+                
+                const totalPacked = Number(currentSumRow.sum || 0) + addedKg;
+
+                // Find the limit for this origin from produccion.detalles
+                let limitKg = 0;
+                let foundSpecific = false;
+                
+                for (const det of produccion.detalles) {
+                    if (det.nombre && det.nombre.toLowerCase().trim() === org) {
+                        limitKg += Number(det.peso);
+                        foundSpecific = true;
+                    }
+                }
+
+                if (!foundSpecific) {
+                    limitKg = Number(produccion.peso_total || loteOrigen.peso_total_producido);
+                }
+
+                if (totalPacked > limitKg) {
+                    await queryRunner.rollbackTransaction();
+                    return [null, `Error: Se excede el límite de origen '${org}'. Disponible total: ${(limitKg - Number(currentSumRow.sum || 0)).toFixed(2)} kg. Intentas guardar: ${addedKg.toFixed(2)} kg.`];
+                }
             }
-        }
-    }
-
-    // 5. Validar límite de Pinzas
-    if (newPinzaKg > 0) {
-        const currentPinzaSum = await queryRunner.manager.getRepository(ProductoTerminado)
-            .createQueryBuilder("prod")
-            .leftJoin("prod.definicion", "def")
-            .where("prod.loteDeOrigenId = :loteId", { loteId: loteRecepcionId })
-            .andWhere("(LOWER(def.origen) = 'pinza' OR LOWER(def.origen) = 'pinzas')")
-            .select("SUM(prod.peso_neto_kg)", "sum")
-            .getRawOne();
-        
-        const totalPinza = Number(currentPinzaSum.sum || 0) + newPinzaKg;
-        const limitPinza = Number(loteOrigen.peso_pinzas || 0);
-
-        if (totalPinza > limitPinza) {
-            await queryRunner.rollbackTransaction();
-            return [null, `Error: Se excede el límite de PINZAS. Disponible: ${(limitPinza - Number(currentPinzaSum.sum || 0)).toFixed(2)} kg. Intentas guardar: ${newPinzaKg.toFixed(2)} kg.`];
-        }
-    }
-
-    // 6. Validar límite de Carne Blanca
-    if (newCarneKg > 0) {
-        const currentCarneSum = await queryRunner.manager.getRepository(ProductoTerminado)
-            .createQueryBuilder("prod")
-            .leftJoin("prod.definicion", "def")
-            .where("prod.loteDeOrigenId = :loteId", { loteId: loteRecepcionId })
-            .andWhere("(LOWER(def.origen) = 'carne blanca' OR LOWER(def.origen) = 'carne_blanca')")
-            .select("SUM(prod.peso_neto_kg)", "sum")
-            .getRawOne();
-        
-        const totalCarne = Number(currentCarneSum.sum || 0) + newCarneKg;
-        const limitCarne = Number(loteOrigen.peso_carne_blanca || 0);
-
-        if (totalCarne > limitCarne) {
-            await queryRunner.rollbackTransaction();
-            return [null, `Error: Se excede el límite de CARNE BLANCA. Disponible: ${(limitCarne - Number(currentCarneSum.sum || 0)).toFixed(2)} kg. Intentas guardar: ${newCarneKg.toFixed(2)} kg.`];
         }
     }
 
@@ -453,46 +445,43 @@ export async function getResumenProduccionByLoteService(loteId) {
         const lote = await loteRepository.findOne({ where: { id: loteId } });
         if (!lote) return [null, "Lote no encontrado"];
 
-        const sumCarne = await produccionRepository
-            .createQueryBuilder("prod")
-            .leftJoin("prod.definicion", "def")
-            .where("prod.loteDeOrigenId = :loteId", { loteId })
-            .andWhere("(LOWER(def.origen) = 'carne blanca' OR LOWER(def.origen) = 'carne_blanca')")
-            .select("SUM(prod.peso_neto_kg)", "total")
-            .getRawOne();
-        
-        const sumPinza = await produccionRepository
-            .createQueryBuilder("prod")
-            .leftJoin("prod.definicion", "def")
-            .where("prod.loteDeOrigenId = :loteId", { loteId })
-            .andWhere("(LOWER(def.origen) = 'pinza' OR LOWER(def.origen) = 'pinzas')")
-            .select("SUM(prod.peso_neto_kg)", "total")
-            .getRawOne();
+        const produccion = await AppDataSource.getRepository(Produccion).findOne({
+            where: { loteRecepcion: { id: loteId } }
+        });
 
-        const usedCarne = Number(sumCarne.total || 0);
-        const usedPinzas = Number(sumPinza.total || 0);
+        const balances = [];
 
-        const limitCarne = Number(lote.peso_carne_blanca || 0);
-        const limitPinzas = Number(lote.peso_pinzas || 0);
+        if (produccion && produccion.detalles && Array.isArray(produccion.detalles)) {
+            for (const det of produccion.detalles) {
+                const orgName = det.nombre.toLowerCase().trim();
+                
+                const sumRow = await AppDataSource.getRepository(ProductoTerminado)
+                    .createQueryBuilder("prod")
+                    .leftJoin("prod.definicion", "def")
+                    .where("prod.loteDeOrigenId = :loteId", { loteId })
+                    .andWhere("LOWER(TRIM(def.origen)) LIKE :origen", { origen: `%${orgName}%` })
+                    .select("SUM(prod.peso_neto_kg)", "total")
+                    .getRawOne();
+
+                const used = Number(sumRow.total || 0);
+                const limit = Number(det.peso);
+
+                balances.push({
+                    productoId: det.productoId,
+                    nombre: det.nombre,
+                    input: limit,
+                    used: used,
+                    balance: limit - used
+                });
+            }
+        }
 
         return [{
             loteId: lote.id,
             estado: lote.estado,
             merma_kg: Number(lote.merma_kg || 0),
-            input: {
-                carne: limitCarne,
-                pinzas: limitPinzas
-            },
-            used: {
-                carne: usedCarne,
-                pinzas: usedPinzas
-            },
-            balance: {
-                carne: limitCarne - usedCarne,
-                pinzas: limitPinzas - usedPinzas
-            }
+            balances: balances
         }, null];
-
     } catch (error) {
         console.error("Error getResumenProduccionByLoteService:", error);
         return [null, error.message];
@@ -565,4 +554,63 @@ export async function getDashboardStockContenedoresService() {
     console.error("Error en getDashboardStockContenedoresService:", error);
     throw new Error(error.message);
   }
+}
+
+export async function getCajaByIdService(id) {
+    try {
+        const caja = await produccionRepository.findOne({
+            where: { id },
+            relations: ["loteDeOrigen", "definicion", "ubicacion", "loteDeOrigen.materiaPrima"]
+        });
+        if (!caja) return [null, "Caja no encontrada"];
+        return [caja, null];
+    } catch (error) {
+        return [null, error.message];
+    }
+}
+
+export async function getStockTransitoService() {
+    try {
+        const stock = await produccionRepository
+            .createQueryBuilder("prod")
+            .leftJoin("prod.ubicacion", "ubi")
+            .leftJoin("prod.definicion", "def")
+            .leftJoin("prod.loteDeOrigen", "lote")
+            .leftJoin("lote.materiaPrima", "mp")
+            .select("ubi.nombre", "ubicacionNombre")
+            .addSelect("def.nombre", "productoNombre")
+            .addSelect("def.id", "definicionProductoId")
+            .addSelect("prod.calibre", "calibre")
+            .addSelect("lote.codigo", "loteCodigo")
+            .addSelect("mp.nombre", "materiaPrimaNombre")
+            .addSelect("SUM(prod.peso_neto_kg)", "totalKilos")
+            .addSelect("COUNT(prod.id)", "totalCantidad")
+            .addSelect("array_agg(prod.id)", "ids")
+            .where("ubi.nombre = :ubiName", { ubiName: "En Tránsito" })
+            .groupBy("ubi.nombre")
+            .addGroupBy("def.nombre")
+            .addGroupBy("def.id")
+            .addGroupBy("prod.calibre")
+            .addGroupBy("lote.codigo")
+            .addGroupBy("mp.nombre")
+            .orderBy("lote.codigo", "ASC")
+            .getRawMany();
+
+        const formattedStock = stock.map(item => ({
+            ubicacionNombre: item.ubicacionNombre || item.ubicacionnombre,
+            productoNombre: item.productoNombre || item.productonombre,
+            definicionProductoId: item.definicionProductoId || item.definicionproductoid,
+            calibre: item.calibre,
+            loteCodigo: item.loteCodigo || item.lotecodigo,
+            materiaPrimaNombre: item.materiaPrimaNombre || item.materiaprimanombre,
+            totalKilos: item.totalKilos || item.totalkilos,
+            totalCantidad: Number(item.totalCantidad || item.totalcantidad),
+            ids: item.ids
+        }));
+
+        return [formattedStock, null];
+    } catch (error) {
+        console.error("Error en getStockTransitoService:", error);
+        return [null, error.message];
+    }
 }

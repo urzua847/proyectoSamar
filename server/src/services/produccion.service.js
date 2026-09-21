@@ -14,7 +14,7 @@ export async function createProduccionYieldService(data, user = null) {
   await queryRunner.startTransaction();
 
   try {
-    const { loteRecepcionId, peso_carne_blanca, peso_pinzas, observacion } = data;
+    const { loteRecepcionId, detalles, observacion } = data;
 
     // 1. Validar existencia del lote
     const lote = await queryRunner.manager.findOne(LoteRecepcion, { where: { id: loteRecepcionId } });
@@ -33,12 +33,9 @@ export async function createProduccionYieldService(data, user = null) {
     }
 
     // 3. Crear registro de producción
-    const nuevoPesoCarne = Number(peso_carne_blanca);
-    const nuevoPesoPinzas = Number(peso_pinzas);
-    const total = nuevoPesoCarne + nuevoPesoPinzas;
+    const total = detalles.reduce((acc, item) => acc + Number(item.peso), 0);
 
     // VALIDACIÓN DE YIELD (Alta Prioridad)
-    // El peso procesado no puede ser mayor al peso bruto original de la materia prima.
     if (total > Number(lote.peso_bruto_kg)) {
         await queryRunner.rollbackTransaction();
         return [null, `Error de Rendimiento: El total procesado (${total.toFixed(2)} kg) excede el peso bruto del lote (${Number(lote.peso_bruto_kg).toFixed(2)} kg).`];
@@ -46,26 +43,15 @@ export async function createProduccionYieldService(data, user = null) {
 
     const produccion = queryRunner.manager.create(Produccion, {
         loteRecepcion: lote,
-        peso_carne_blanca: nuevoPesoCarne,
-        peso_pinzas: nuevoPesoPinzas,
+        detalles,
         peso_total: total,
         observacion
     });
 
     await queryRunner.manager.save(Produccion, produccion);
 
-    // 4. Recalcular totales del lote
-    const allProducciones = await queryRunner.manager.find(Produccion, { 
-      where: { loteRecepcion: { id: loteRecepcionId } } 
-    });
-    
-    const totalCarne = allProducciones.reduce((acc, p) => acc + Number(p.peso_carne_blanca), 0);
-    const totalPinzas = allProducciones.reduce((acc, p) => acc + Number(p.peso_pinzas), 0);
-    
-    // 5. Actualizar lote (en la misma transacción)
-    lote.peso_carne_blanca = totalCarne;
-    lote.peso_pinzas = totalPinzas;
-    lote.peso_total_producido = totalCarne + totalPinzas;
+    // 4. Actualizar lote (en la misma transacción)
+    lote.peso_total_producido = total;
     lote.observacion_produccion = observacion || null;
     lote.en_proceso_produccion = true; 
     
@@ -75,22 +61,21 @@ export async function createProduccionYieldService(data, user = null) {
     await logCreate('Produccion', produccion.id, {
       loteRecepcionId: lote.id,
       lote_codigo: lote.codigo,
-      peso_carne_blanca: produccion.peso_carne_blanca,
-      peso_pinzas: produccion.peso_pinzas,
+      detalles: produccion.detalles,
       peso_total: produccion.peso_total
     }, user);
 
-    // 6. Commit si todo salió bien
+    // 5. Commit si todo salió bien
     await queryRunner.commitTransaction();
     return [produccion, null];
 
   } catch (error) {
-    // 7. Rollback en caso de error
+    // 6. Rollback en caso de error
     await queryRunner.rollbackTransaction();
     console.error("Error createProduccionYieldService:", error);
     return [null, error.message];
   } finally {
-    // 8. Liberar recursos
+    // 7. Liberar recursos
     await queryRunner.release();
   }
 }
@@ -124,7 +109,7 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
     await queryRunner.startTransaction();
 
     try {
-        const { peso_carne_blanca, peso_pinzas, observacion } = data;
+        const { detalles, observacion } = data;
 
         // 1. Buscar la producción existente del lote
         const produccion = await queryRunner.manager.findOne(Produccion, {
@@ -143,8 +128,7 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
 
         // Guardar estado previo para la auditoría
         const previousData = {
-            peso_carne_blanca: Number(produccion.peso_carne_blanca),
-            peso_pinzas: Number(produccion.peso_pinzas),
+            detalles: produccion.detalles,
             peso_total: Number(produccion.peso_total)
         };
 
@@ -164,9 +148,7 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
             return [null, "Lote no encontrado."];
         }
 
-        const nuevoPesoCarne = Number(peso_carne_blanca);
-        const nuevoPesoPinzas = Number(peso_pinzas);
-        const total = nuevoPesoCarne + nuevoPesoPinzas;
+        const total = detalles.reduce((acc, item) => acc + Number(item.peso), 0);
 
         // 5. Validación de yield
         if (total > Number(lote.peso_bruto_kg)) {
@@ -175,23 +157,19 @@ export async function updateProduccionYieldService(loteId, data, user = null) {
         }
 
         // 6. Actualizar producción y marcar como editada
-        produccion.peso_carne_blanca = nuevoPesoCarne;
-        produccion.peso_pinzas = nuevoPesoPinzas;
+        produccion.detalles = detalles;
         produccion.peso_total = total;
         produccion.observacion = observacion || produccion.observacion;
         produccion.editada = true;
         await queryRunner.manager.save(Produccion, produccion);
 
         // 7. Recalcular y actualizar lote
-        lote.peso_carne_blanca = nuevoPesoCarne;
-        lote.peso_pinzas = nuevoPesoPinzas;
         lote.peso_total_producido = total;
         lote.observacion_produccion = observacion !== undefined ? observacion : lote.observacion_produccion;
         await queryRunner.manager.save(LoteRecepcion, lote);
 
         await logUpdate('Produccion', produccion.id, previousData, {
-            peso_carne_blanca: nuevoPesoCarne,
-            peso_pinzas: nuevoPesoPinzas,
+            detalles,
             peso_total: total
         }, user);
 

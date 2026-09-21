@@ -4,6 +4,8 @@ import { AppDataSource } from "../config/configDb.js";
 import Pedido from "../entity/pedido.entity.js";
 import DetallePedido from "../entity/detallePedido.entity.js";
 import ProductoTerminado from "../entity/productoTerminado.entity.js";
+import Ubicacion from "../entity/ubicacion.entity.js";
+import DefinicionProducto from "../entity/definicionProducto.entity.js";
 import { logCreate } from "./audit.service.js";
 
 export async function createPedidoService(data, user = null) {
@@ -153,8 +155,25 @@ export async function createPedidoService(data, user = null) {
                      kilos_totales: subtotalKilos
                  });
                  await queryRunner.manager.save(DetallePedido, detalle);
+            } else if (item.definicionProductoId) {
+                 // --- MODO PLANIFICACION ---
+                 const defId = item.definicionProductoId;
+                 const definicion = await queryRunner.manager.findOne(DefinicionProducto, { where: { id: defId } });
+                 if (!definicion) throw new Error(`Definición de Producto ID ${defId} no encontrada.`);
+                 
+                 const pesoCaja = parseFloat(item.peso_caja || 0);
+                 const subtotalKilos = cantidadBultosReq * pesoCaja;
+
+                 const detalle = queryRunner.manager.create(DetallePedido, {
+                     pedido: nuevoPedido,
+                     definicion_producto: { id: defId },
+                     cantidad_bultos: cantidadBultosReq,
+                     tipo_formato: item.tipo_formato,
+                     kilos_totales: subtotalKilos
+                 });
+                 await queryRunner.manager.save(DetallePedido, detalle);
             } else {
-                 throw new Error("Item de pedido sin ID de producto válido.");
+                 throw new Error("Item de pedido sin ID de producto o definición válido.");
             }
         }
 
@@ -203,8 +222,11 @@ export async function getPedidosService(options = {}) {
         // Build query
         let query = pedidoRepo.createQueryBuilder('pedido')
             .leftJoinAndSelect('pedido.detalles', 'detalles')
+            .leftJoinAndSelect('detalles.definicion_producto', 'definicion_producto')
             .leftJoinAndSelect('detalles.producto', 'producto')
-            .leftJoinAndSelect('producto.definicion', 'definicion');
+            .leftJoinAndSelect('producto.definicion', 'definicion')
+            .leftJoinAndSelect('pedido.cajasAsignadas', 'cajasAsignadas')
+            .leftJoinAndSelect('cajasAsignadas.definicion', 'cajaDefinicion');
 
         // Apply filters
         if (options.cliente) {
@@ -269,8 +291,11 @@ export async function getPedidosForExport(filters = {}) {
         // Build query
         let query = pedidoRepo.createQueryBuilder('pedido')
             .leftJoinAndSelect('pedido.detalles', 'detalles')
+            .leftJoinAndSelect('detalles.definicion_producto', 'definicion_producto')
             .leftJoinAndSelect('detalles.producto', 'producto')
-            .leftJoinAndSelect('producto.definicion', 'definicion');
+            .leftJoinAndSelect('producto.definicion', 'definicion')
+            .leftJoinAndSelect('pedido.cajasAsignadas', 'cajasAsignadas')
+            .leftJoinAndSelect('cajasAsignadas.definicion', 'cajaDefinicion');
 
         // Apply filters (same as getPedidosService)
         if (filters.cliente) {
@@ -308,6 +333,204 @@ export async function getPedidosForExport(filters = {}) {
     } catch (error) {
         console.error('[ERROR] getPedidosForExport:', error);
         return [null, error.message];
+    }
+}
+
+export async function deletePedidoService(id, user = null) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const pedido = await queryRunner.manager.findOne(Pedido, { 
+            where: { id }, 
+            relations: ["detalles", "detalles.producto"] 
+        });
+        if (!pedido) throw new Error("Pedido no encontrado.");
+
+        if (pedido.detalles && pedido.detalles.some(d => (d.cajas_asignadas || 0) > 0)) {
+            throw new Error("No se puede eliminar un pedido que ya tiene cajas ingresadas/despachadas.");
+        }
+
+        // Restaurar estado de los productos (legacy fallback)
+        if (pedido.detalles && pedido.detalles.length > 0) {
+            for (const detalle of pedido.detalles) {
+                if (detalle.producto) {
+                    const prod = await queryRunner.manager.findOne(ProductoTerminado, { where: { id: detalle.producto.id } });
+                    if (prod) {
+                        prod.estado = "En Stock";
+                        await queryRunner.manager.save(ProductoTerminado, prod);
+                    }
+                }
+            }
+            await queryRunner.manager.remove(DetallePedido, pedido.detalles);
+        }
+
+        await queryRunner.manager.remove(Pedido, pedido);
+        await logCreate('EliminarPedido', null, { pedido_id: id }, user);
+
+        await queryRunner.commitTransaction();
+        return [true, null];
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error en deletePedidoService:", error);
+        return [null, error.message];
+    } finally {
+        await queryRunner.release();
+    }
+}
+
+export async function completarDespachoPedidoService(pedidoId, cajasIds, user, cerrarPedido = false) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const pedido = await queryRunner.manager.findOne(Pedido, {
+            where: { id: pedidoId },
+            relations: ["detalles", "detalles.definicion_producto"]
+        });
+
+        if (!pedido) throw new Error("Pedido no encontrado");
+
+        let cajasDespachadas = [];
+
+        if (cajasIds && cajasIds.length > 0) {
+            for (const cajaId of cajasIds) {
+                const caja = await queryRunner.manager.findOne(ProductoTerminado, {
+                    where: { id: cajaId },
+                    relations: ["definicion"]
+                });
+
+                if (!caja) throw new Error(`Caja ID ${cajaId} no encontrada`);
+                if (caja.estado === "Despachado") throw new Error(`Caja ID ${cajaId} ya se encuentra despachada`);
+                
+                const requerimiento = pedido.detalles.find(d => 
+                    d.definicion_producto && caja.definicion && 
+                    d.definicion_producto.id === caja.definicion.id
+                );
+                
+                if (!requerimiento) {
+                    throw new Error(`La caja de ${caja.definicion?.nombre || 'Desconocido'} no corresponde a ninguno de los productos solicitados en este pedido.`);
+                }
+
+                caja.estado = "Despachado";
+                caja.pedido = pedido;
+                await queryRunner.manager.save(ProductoTerminado, caja);
+
+                requerimiento.kilos_totales = Number(requerimiento.kilos_totales || 0) + Number(caja.peso_neto_kg);
+                requerimiento.cajas_asignadas = (requerimiento.cajas_asignadas || 0) + 1;
+                await queryRunner.manager.save(DetallePedido, requerimiento);
+
+                cajasDespachadas.push(caja);
+            }
+        }
+
+        if (cerrarPedido) {
+            const isComplete = pedido.detalles.every(d => (d.cajas_asignadas || 0) >= d.cantidad_bultos);
+            if (!isComplete && user.rol !== 'administrador') {
+                throw new Error("El pedido no está completo. Solo un administrador puede forzar el cierre de un despacho incompleto.");
+            }
+            
+            // Recalculate actual kilos for each requirement based on assigned boxes
+            const cajasAsignadas = await queryRunner.manager.find(ProductoTerminado, {
+                where: { pedido: { id: pedidoId } },
+                relations: ["definicion"]
+            });
+
+            for (const detalle of pedido.detalles) {
+                const cajasReales = cajasAsignadas.filter(c => c.definicion && detalle.definicion_producto && c.definicion.id === detalle.definicion_producto.id);
+                const sumKilosReales = cajasReales.reduce((sum, caja) => sum + Number(caja.peso_neto_kg || 0), 0);
+                
+                detalle.kilos_totales = sumKilosReales; // Replace requested estimate with actual delivered sum
+                await queryRunner.manager.save(DetallePedido, detalle);
+            }
+
+            pedido.estado = "Despachado";
+            await queryRunner.manager.save(Pedido, pedido);
+        }
+
+        await queryRunner.commitTransaction();
+        return [pedido, null];
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error en completarDespachoPedidoService:", error);
+        return [null, error.message];
+    } finally {
+        await queryRunner.release();
+    }
+}
+
+export async function liberarCajaDePedidoService(pedidoId, cajaId, user) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const pedido = await queryRunner.manager.findOne(Pedido, {
+            where: { id: pedidoId },
+            relations: ["detalles", "detalles.definicion_producto"]
+        });
+
+        if (!pedido) throw new Error("Pedido no encontrado");
+        if (pedido.estado !== "Pendiente") throw new Error("Solo se pueden liberar cajas de pedidos en estado Pendiente.");
+
+        const caja = await queryRunner.manager.findOne(ProductoTerminado, {
+            where: { id: cajaId },
+            relations: ["definicion", "pedido"]
+        });
+
+        if (!caja) throw new Error("Caja no encontrada.");
+        if (!caja.pedido || caja.pedido.id !== Number(pedidoId)) throw new Error("Esta caja no está asignada a este pedido.");
+
+        const requerimiento = pedido.detalles.find(d => 
+            d.definicion_producto && caja.definicion && 
+            d.definicion_producto.id === caja.definicion.id
+        );
+
+        if (!requerimiento) {
+            throw new Error(`Detalle de requerimiento para ${caja.definicion?.nombre} no encontrado en el pedido.`);
+        }
+
+        // Find "En Transito" container
+        let transitoContainer = await queryRunner.manager.findOne(Ubicacion, {
+            where: { tipo: 'transito' }
+        });
+        
+        if (!transitoContainer) {
+            // Fallback just in case
+            transitoContainer = await queryRunner.manager.findOne(Ubicacion, {
+                where: { nombre: 'En Tránsito' }
+            });
+        }
+
+        // Revert box state and move to transito
+        caja.estado = "En Stock";
+        caja.pedido = null;
+        if (transitoContainer) {
+            caja.ubicacion = transitoContainer;
+        }
+        await queryRunner.manager.save(ProductoTerminado, caja);
+
+        // Revert requirement state
+        requerimiento.kilos_totales = Number(requerimiento.kilos_totales || 0) - Number(caja.peso_neto_kg);
+        if (requerimiento.kilos_totales < 0) requerimiento.kilos_totales = 0;
+        
+        requerimiento.cajas_asignadas = (requerimiento.cajas_asignadas || 0) - 1;
+        if (requerimiento.cajas_asignadas < 0) requerimiento.cajas_asignadas = 0;
+        
+        await queryRunner.manager.save(DetallePedido, requerimiento);
+
+        await logCreate('LiberarCajaPedido', null, { pedido_id: pedidoId, caja_id: cajaId }, user);
+
+        await queryRunner.commitTransaction();
+        return [true, null];
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Error en liberarCajaDePedidoService:", error);
+        return [null, error.message];
+    } finally {
+        await queryRunner.release();
     }
 }
 

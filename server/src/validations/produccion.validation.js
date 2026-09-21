@@ -6,13 +6,23 @@ export const createProduccionYieldValidation = Joi.object({
   loteRecepcionId: Joi.number().integer().positive().required()
     .messages({ "any.required": "El ID del Lote es obligatorio." }),
   
-  peso_carne_blanca: Joi.number().min(0).required(),
-  peso_pinzas: Joi.number().min(0).required(),
+  detalles: Joi.array().items(
+    Joi.object({
+      productoId: Joi.number().integer().positive().required(),
+      peso: Joi.number().min(0).required(),
+      nombre: Joi.string().required()
+    })
+  ).min(1).required(),
   observacion: Joi.string().allow('', null).optional()
 }).unknown(false);
 
 export const updateProduccionYieldValidation = Joi.object({
-  peso_carne_blanca: Joi.number().min(0).required(),
-  peso_pinzas: Joi.number().min(0).required(),
+  detalles: Joi.array().items(
+    Joi.object({
+      productoId: Joi.number().integer().positive().required(),
+      peso: Joi.number().min(0).required(),
+      nombre: Joi.string().required()
+    })
+  ).min(1).required(),
   observacion: Joi.string().allow('', null).optional()
 }).unknown(false);

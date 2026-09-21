@@ -47,6 +47,11 @@ const EntidadSchema = new EntitySchema({
         length: 100,
         nullable: true
     },
+    giro: {
+        type: "varchar",
+        length: 255,
+        nullable: true
+    },
     tipo: {
         type: "varchar",
         nullable: false   

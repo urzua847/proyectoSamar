@@ -48,6 +48,7 @@ const Users = () => {
 
   const columns = [
     { header: "Nombre", accessor: "nombreCompleto" },
+    { header: "Usuario", accessor: "username" },
     { header: "Correo", accessor: "email" },
     { header: "RUT", accessor: "rutFormateado" },
     { header: "Rol", accessor: "rolFormateado" },

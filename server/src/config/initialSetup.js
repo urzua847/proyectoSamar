@@ -21,6 +21,7 @@ async function createUsers() {
   await Promise.all([
     userRepository.save(userRepository.create({
       nombreCompleto: "Admin",
+      username: "admin",
       rut: "11111111-1",
       email: "admin@correo.com",
       password: await encryptPassword("admin123"),
@@ -28,6 +29,7 @@ async function createUsers() {
     })),
     userRepository.save(userRepository.create({
       nombreCompleto: "Operario",
+      username: "operario",
       rut: "22222222-2",
       email: "operario@correo.com",
       password: await encryptPassword("123456"),
@@ -38,19 +40,23 @@ async function createUsers() {
 }
 
 /* ==============================================
-   2. MATERIAS PRIMAS (Jaiba, etc.)
+   2. MATERIAS PRIMAS (Jaiba, Pulpo)
    ============================================== */
 async function createMateriasPrimas() {
   const repo = AppDataSource.getRepository(MateriaPrima);
   
   const mps = [
-      { nombre: "Jaiba" }
+      { nombre: "Jaiba", rendimiento_teorico_global: 14.87 },
+      { nombre: "Pulpo", rendimiento_teorico_global: 76.80 }
   ];
 
   for (const mpData of mps) {
       const exists = await repo.findOne({ where: { nombre: mpData.nombre } });
       if (!exists) {
           await repo.save(repo.create(mpData));
+      } else {
+          exists.rendimiento_teorico_global = mpData.rendimiento_teorico_global;
+          await repo.save(exists);
       }
   }
   console.log("Materias Primas creadas.");
@@ -92,16 +98,23 @@ async function createProveedores() {
 async function createUbicaciones() {
   const repo = AppDataSource.getRepository(Ubicacion);
   const count = await repo.count();
-  if (count > 0) return;
+  if (count === 0) {
+    await repo.save([
+      repo.create({ nombre: "Cámara 1", tipo: "camara" }),
+      repo.create({ nombre: "Cámara 2", tipo: "camara" }),
+      repo.create({ nombre: "Cámara 3", tipo: "camara" }),
+      repo.create({ nombre: "Contenedor 1", tipo: "contenedor" }),
+      repo.create({ nombre: "Contenedor 2", tipo: "contenedor" }),
+    ]);
+    console.log("Ubicaciones base creadas.");
+  }
 
-  await repo.save([
-    repo.create({ nombre: "Cámara 1", tipo: "camara" }),
-    repo.create({ nombre: "Cámara 2", tipo: "camara" }),
-    repo.create({ nombre: "Cámara 3", tipo: "camara" }),
-    repo.create({ nombre: "Contenedor 1", tipo: "contenedor" }),
-    repo.create({ nombre: "Contenedor 2", tipo: "contenedor" }),
-  ]);
-  console.log("Ubicaciones creadas.");
+  // Asegurar siempre que existe En Tránsito (incluso si la BD ya tenía datos previos)
+  const existeTransito = await repo.findOne({ where: { nombre: "En Tránsito", tipo: "contenedor" } });
+  if (!existeTransito) {
+    await repo.save(repo.create({ nombre: "En Tránsito", tipo: "contenedor", capacidad_maxima: 100000 }));
+    console.log("Ubicación 'En Tránsito' añadida.");
+  }
 }
 
 /* ==============================================
@@ -112,70 +125,118 @@ async function createProductos() {
   const matRepo = AppDataSource.getRepository(MateriaPrima);
   
   const jaiba = await matRepo.findOne({ where: { nombre: "Jaiba" } });
-  if (!jaiba) {
-     console.error("Error Seeding: Materia Prima 'Jaiba' not found. Skipping Products.");
+  const pulpo = await matRepo.findOne({ where: { nombre: "Pulpo" } });
+  if (!jaiba || !pulpo) {
+     console.error("Error Seeding: Materias Primas not found. Skipping Products.");
      return;
   }
 
   const productosDef = [
-    // 1. PRODUCTOS PRIMARIOS
+    // 1. PRODUCTOS JAIBA PRIMARIOS
+    { nombre: "Carne Blanca", tipo: "primario", materiaPrima: jaiba, origen: "Jaiba" },
+    { nombre: "Pinza", tipo: "primario", materiaPrima: jaiba, origen: "Jaiba" },
+
+    // 2. PRODUCTOS PULPO PRIMARIOS
+    { nombre: "Tentáculo", tipo: "primario", materiaPrima: pulpo, origen: "Pulpo" },
+    { nombre: "Pulpo Entero", tipo: "primario", materiaPrima: pulpo, origen: "Pulpo" },
+
+    // JAIBA ELABORADOS
     { 
-        nombre: "Carne Blanca", 
-        tipo: "primario", 
-        materiaPrima: jaiba, 
-        calibres: null 
+        nombre: "Pinza Carne de Jaiba Cocida Congelada Super Premium", 
+        tipo: "elaborado", materiaPrima: jaiba, origen: "Pinza",
+        calibres: ["200 grs", "400 grs", "500 grs", "1000 grs"],
+        fichaTecnica: {
+            especieCientifica: "Cancer edwarsii",
+            ingredientes: "100% carne entera",
+            vidaUtil: "Congelado 24 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Ámbar",
+            textura: "Semi blanda e hidratada"
+        }
     },
     { 
-        nombre: "Pinza",
-        tipo: "primario", 
-        materiaPrima: jaiba, 
-        calibres: null 
+        nombre: "Carne de Jaiba Cocida Congelada Premium", 
+        tipo: "elaborado", materiaPrima: jaiba, origen: "Carne Blanca",
+        calibres: ["200 grs", "400 grs", "500 grs", "1000 grs"],
+        fichaTecnica: {
+            especieCientifica: "Cancer edwarsii",
+            ingredientes: "50% carne entera y 50% carne blanca molida",
+            vidaUtil: "Congelado 24 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Ámbar",
+            textura: "Semi blanda e hidratada"
+        }
+    },
+    { 
+        nombre: "Pinza Coctel de Jaiba Cocida Congelada", 
+        tipo: "elaborado", materiaPrima: jaiba, origen: "Pinza",
+        calibres: ["Chica - 250 grs", "Chica - 500 grs", "Grande - 250 grs", "Grande - 500 grs", "Jumbo - 500 grs"],
+        fichaTecnica: {
+            especieCientifica: "Cancer edwarsii",
+            ingredientes: "Pinzas de Jaiba Coctel en bolsa (uña con su carne)",
+            vidaUtil: "Congelado 24 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Ámbar",
+            textura: "Semi blanda e hidratada"
+        }
     },
 
-    // A. Tres Segmentos (Directo a congelar)
+    // PULPO ELABORADOS
     { 
-        nombre: "Tres Segmentos", 
-        tipo: "elaborado", 
-        materiaPrima: jaiba, 
-        calibres: ["250 grs", "500 grs", "1000 grs"],
-        origen: "Pinza" 
+        nombre: "Carne de Pulpo Cocido Congelado", 
+        tipo: "elaborado", materiaPrima: pulpo, origen: "Pulpo Entero",
+        calibres: ["300 grs", "500 grs", "1000 grs", "1500 grs"],
+        fichaTecnica: {
+            especieCientifica: "Octopus vulgaris",
+            ingredientes: "Pulpo cocido congelado entero",
+            vidaUtil: "Congelado 12 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Burdeos o Morado",
+            textura: "Semi blanda"
+        }
     },
-
-    // B. Pinza Coctel (Desconchada) - Combinamos Tamaño y Peso
     { 
-        nombre: "Pinza Coctel", 
-        tipo: "elaborado", 
-        materiaPrima: jaiba, 
-        calibres: ["Chica - 250 grs", "Chica - 500 grs", "Grande - 250 grs", "Grande - 500 grs"],
-        origen: "Pinza" 
+        nombre: "Carne de Pulpo Cocido Trozo Tentáculo Congelado", 
+        tipo: "elaborado", materiaPrima: pulpo, origen: "Tentáculo",
+        calibres: ["500 grs", "1000 grs"],
+        fichaTecnica: {
+            especieCientifica: "Octopus vulgaris – Enteroctopus megalocyathus",
+            ingredientes: "Pulpo cocido congelado Trozo Tentáculo",
+            vidaUtil: "Congelado 12 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Burdeos o Morado",
+            textura: "Semi blanda"
+        }
     },
-
-    // C. Pinza Jumbo (Alta Calidad) - Combinamos Tamaño y Peso
     { 
-        nombre: "Pinza Jumbo", 
-        tipo: "elaborado", 
-        materiaPrima: jaiba, 
-        calibres: ["Chica - 250 grs", "Chica - 500 grs", "Grande - 250 grs", "Grande - 500 grs"],
-        origen: "Pinza"
-    },
-
-    // D. Molde Jaiba (Carne Blanca + Carne Codo para decoración)
-    { 
-        nombre: "Molde Jaiba", 
-        tipo: "elaborado", 
-        materiaPrima: jaiba, 
-        calibres: ["250 grs", "500 grs", "1000 grs"],
-        origen: "Carne Blanca"
+        nombre: "Carne de Pulpo Crudo Congelado", 
+        tipo: "elaborado", materiaPrima: pulpo, origen: "Pulpo Entero",
+        calibres: ["Peso variable", "500 grs", "1000 grs"],
+        fichaTecnica: {
+            especieCientifica: "Octopus vulgaris / Enteroctopus megalocyathus",
+            ingredientes: "Pulpo crudo congelado",
+            vidaUtil: "Congelado 12 meses",
+            almacenamiento: "Mantener entre -18 a -22 ºC",
+            ph: "6.7 - 7.3",
+            color: "Burdeos o Morado",
+            textura: "Semi blanda"
+        }
     }
   ];
 
   for (const prodData of productosDef) {
       const existing = await prodRepo.findOne({ where: { nombre: prodData.nombre } });
       if (existing) {
-          existing.materiaPrima = jaiba;
+          existing.materiaPrima = prodData.materiaPrima;
           existing.tipo = prodData.tipo;
           existing.origen = prodData.origen || existing.origen;
           existing.calibres = prodData.calibres || existing.calibres;
+          existing.fichaTecnica = prodData.fichaTecnica || existing.fichaTecnica;
           await prodRepo.save(existing);
       } else {
           await prodRepo.save(prodRepo.create(prodData));
@@ -202,3 +263,4 @@ export async function createInitialData() {
     console.error("Error en setup inicial:", error);
   }
 }
+ 

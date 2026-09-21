@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../components/Table';
 import useGetRecepciones from '../hooks/recepcion/useGetRecepciones';
@@ -8,6 +8,7 @@ import PopupRecepcion from '../components/PopupRecepcion';
 import PopupNuevaProduccion from '../components/produccion/PopupNuevaProduccion';
 import PopupEditarProduccion from '../components/produccion/PopupEditarProduccion';
 import { updateLote } from '../services/recepcion.service';
+import { getProductos } from '../services/catalogos.service';
 import { showSuccessAlert, showErrorAlert, confirmStrictDelete, showToastSuccess, showToastError, showToastWarning, confirmActionAlert } from '../helpers/sweetAlert';
 import TouchButton from '../components/TouchButton';
 import Badge from '../components/Badge';
@@ -31,6 +32,12 @@ const Recepcion = () => {
     const [isEditProduccionOpen, setIsEditProduccionOpen] = useState(false);
 
     const [selectedLote, setSelectedLote] = useState(null);
+    const [activeTab, setActiveTab] = useState('Todas');
+    const [productosCatalogo, setProductosCatalogo] = useState([]);
+
+    useEffect(() => {
+        getProductos().then(res => setProductosCatalogo(res || []));
+    }, []);
 
     // Estado de Filtros
     const [filters, setFilters] = useState({
@@ -94,86 +101,119 @@ const Recepcion = () => {
         }
     };
 
-    const columns = [
-        {
-            header: "Lote",
-            render: (row) => (
-                <span
-                    onClick={(e) => { e.stopPropagation(); navigate(`/recepcion/${row.id}`); }}
-                    style={{
-                        color: '#1a6bbf',
-                        textDecoration: 'underline',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap'
-                    }}
-                    title="Ver detalle del lote"
-                >
-                    {row.codigo}
-                </span>
-            )
-        },
-        { header: "Recepción", accessor: "fechaFormateada" },
-        { header: "Proveedor", accessor: "proveedorNombre" },
-        { header: "Especie", accessor: "materiaPrimaNombre" },
-        { header: "Peso Total", accessor: "peso_bruto_kg" },
-        { header: "Bandejas", accessor: "numero_bandejas" },
-        { header: "Carne Blanca (Kg)", accessor: "peso_carne_blanca" },
-        { header: "Pinzas (Kg)", accessor: "peso_pinzas" },
-        {
-            header: "Kilos Totales",
-            render: (row) => row.peso_total_producido || (Number(row.peso_carne_blanca || 0) + Number(row.peso_pinzas || 0)).toFixed(2)
-        },
-        { header: "Observación", accessor: "observacion_produccion" },
-        {
-            header: "Estado Lote",
-            accessor: "estadoTexto",
-            render: (row) => (
-                <Badge status={row.estado ? 'success' : 'danger'} variant="solid">
-                    {row.estadoTexto}
-                </Badge>
-            )
-        },
-        {
-            header: "Acciones",
-            render: (row) => (
-                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                    {/* EDIT - Solo admin */}
-                    {isAdmin && (
-                        <ActionButton
-                            variant="edit"
-                            title="Editar Lote"
-                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
-                        />
-                    )}
+    const getProduccionTotalByNombre = (row, nombre) => {
+        if (!row.producciones || row.producciones.length === 0) return "0.00";
+        let total = 0;
+        row.producciones.forEach(prod => {
+            if (prod.detalles && Array.isArray(prod.detalles)) {
+                prod.detalles.forEach(d => {
+                    if (d.nombre.toLowerCase().includes(nombre.toLowerCase())) {
+                        total += Number(d.peso);
+                    }
+                });
+            }
+        });
+        return total > 0 ? total.toFixed(2) : "0.00";
+    };
 
-                    {/* TOGGLE STATE */}
-                    {(isAdmin || row.estado) && (
-                        <ActionButton
-                            variant={row.estado ? "transfer" : "custom"}
-                            title={row.estado ? (isAdmin ? "Cerrar Lote" : "Bloquear Lote") : "Reabrir Lote (admin)"}
-                            onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
-                            disabled={!isAdmin && !row.estado}
-                            icon={row.estado ? "🔒" : "🔓"}
-                        />
-                    )}
+    const columns = useMemo(() => {
+        const baseCols = [
+            {
+                header: "Lote",
+                render: (row) => (
+                    <span
+                        onClick={(e) => { e.stopPropagation(); navigate(`/recepcion/${row.id}`); }}
+                        style={{
+                            color: '#1a6bbf',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            whiteSpace: 'nowrap'
+                        }}
+                        title="Ver detalle del lote"
+                    >
+                        {row.codigo}
+                    </span>
+                )
+            },
+            { header: "Recepción", accessor: "fechaFormateada" },
+            { header: "Proveedor", accessor: "proveedorNombre" },
+            { header: "Especie", accessor: "materiaPrimaNombre" },
+            { header: "Peso Total", accessor: "peso_bruto_kg" },
+            { header: "Bandejas", accessor: "numero_bandejas" }
+        ];
 
-                    {/* DELETE - Solo admin */}
-                    {isAdmin && (
-                        <ActionButton
-                            variant="delete"
-                            title="Eliminar Lote"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setDataLote(row);
-                                handleDelete();
-                            }}
-                        />
-                    )}
-                </div>
-            )
+        let dynamicCols = [];
+        if (activeTab !== 'Todas') {
+            const primaryProducts = productosCatalogo.filter(p => 
+                p.materiaPrima?.nombre?.toLowerCase() === activeTab.toLowerCase() && 
+                p.tipo === 'primario'
+            );
+            
+            dynamicCols = primaryProducts.map(prod => ({
+                header: `${prod.nombre} (Kg)`,
+                render: (row) => getProduccionTotalByNombre(row, prod.nombre)
+            }));
         }
-    ];
+
+        const endCols = [
+            {
+                header: "Kilos Totales",
+                render: (row) => row.peso_total_producido ? Number(row.peso_total_producido).toFixed(2) : "0.00"
+            },
+            { header: "Observación", accessor: "observacion_produccion" },
+            {
+                header: "Estado Lote",
+                accessor: "estadoTexto",
+                render: (row) => (
+                    <Badge status={row.estado ? 'success' : 'danger'} variant="solid">
+                        {row.estadoTexto}
+                    </Badge>
+                )
+            },
+            {
+                header: "Acciones",
+                render: (row) => (
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                        {/* EDIT - Solo admin */}
+                        {isAdmin && (
+                            <ActionButton
+                                variant="edit"
+                                title="Editar Lote"
+                                onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
+                            />
+                        )}
+
+                        {/* TOGGLE STATE */}
+                        {(isAdmin || row.estado) && (
+                            <ActionButton
+                                variant={row.estado ? "transfer" : "custom"}
+                                title={row.estado ? (isAdmin ? "Cerrar Lote" : "Bloquear Lote") : "Reabrir Lote (admin)"}
+                                onClick={(e) => { e.stopPropagation(); handleToggleEstado(row); }}
+                                disabled={!isAdmin && !row.estado}
+                                icon={row.estado ? "🔒" : "🔓"}
+                            />
+                        )}
+
+                        {/* DELETE - Solo admin */}
+                        {isAdmin && (
+                            <ActionButton
+                                variant="delete"
+                                title="Eliminar Lote"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDataLote(row);
+                                    handleDelete();
+                                }}
+                            />
+                        )}
+                    </div>
+                )
+            }
+        ];
+
+        return [...baseCols, ...dynamicCols, ...endCols];
+    }, [activeTab, isAdmin, handleToggleEstado, handleOpenEdit, handleDelete, navigate, productosCatalogo]);
 
 
     const handleFilterChange = (e) => {
@@ -184,6 +224,9 @@ const Recepcion = () => {
     const filteredLotes = useMemo(() => {
         if (!lotes) return [];
         let filtered = lotes.filter(item => {
+            if (activeTab !== 'Todas' && item.materiaPrimaNombre && !item.materiaPrimaNombre.toLowerCase().includes(activeTab.toLowerCase())) {
+                return false;
+            }
             return Object.keys(filters).every(key => {
                 if (!filters[key]) return true;
                 
@@ -206,7 +249,7 @@ const Recepcion = () => {
         });
 
         return filtered;
-    }, [lotes, filters, sortOrder]);
+    }, [lotes, filters, sortOrder, activeTab]);
 
     const handleCreateSubmit = async (data) => {
         const success = await handleCreateLote(data);
@@ -219,6 +262,25 @@ const Recepcion = () => {
     return (
         <div className='main-container'>
             <div className='table-wrapper'>
+
+                {/* Tabs de Especie */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <button 
+                        className={`tab-button ${activeTab === 'Todas' ? 'active' : ''}`} 
+                        onClick={() => setActiveTab('Todas')}
+                        style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', background: activeTab === 'Todas' ? '#1a6bbf' : '#fff', color: activeTab === 'Todas' ? '#fff' : '#333', cursor: 'pointer' }}
+                    >Todas</button>
+                    <button 
+                        className={`tab-button ${activeTab === 'Jaiba' ? 'active' : ''}`} 
+                        onClick={() => setActiveTab('Jaiba')}
+                        style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', background: activeTab === 'Jaiba' ? '#1a6bbf' : '#fff', color: activeTab === 'Jaiba' ? '#fff' : '#333', cursor: 'pointer' }}
+                    >Jaiba</button>
+                    <button 
+                        className={`tab-button ${activeTab === 'Pulpo' ? 'active' : ''}`} 
+                        onClick={() => setActiveTab('Pulpo')}
+                        style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', background: activeTab === 'Pulpo' ? '#1a6bbf' : '#fff', color: activeTab === 'Pulpo' ? '#fff' : '#333', cursor: 'pointer' }}
+                    >Pulpo</button>
+                </div>
 
                 <div className='top-table' style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>

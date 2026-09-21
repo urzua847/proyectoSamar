@@ -13,12 +13,14 @@ import Recepcion from './pages/Recepcion';
 import Produccion from './pages/Produccion';
 import Contenedores from './pages/Contenedores';
 import Despachos from './pages/Despachos';
+import Pedidos from './pages/Pedidos';
 import MantenedorProductos from './pages/MantenedorProductos';
 import PanelControl from './pages/PanelControl';
 import MantenedorEntidades from './pages/MantenedorEntidades';
 import LoteDetail from './pages/LoteDetail';
 import EntityDetail from './pages/EntityDetail';
 import Auditoria from './pages/Auditoria';
+import ScannerCarga from './pages/ScannerCarga';
 
 const router = createBrowserRouter([
   {
@@ -75,6 +77,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: '/pedidos',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <Pedidos />
+          </ProtectedRoute>
+        )
+      },
+      {
         path: '/panelDeControl',
         element: (
           <ProtectedRoute allowedRoles={['administrador']}>
@@ -113,6 +123,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['administrador', 'operario']}>
             <LoteDetail />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: '/scanner',
+        element: (
+          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+            <ScannerCarga />
           </ProtectedRoute>
         )
       },

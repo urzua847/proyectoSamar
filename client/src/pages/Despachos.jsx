@@ -5,7 +5,7 @@ import '../styles/users.css';
 import '../styles/pedidos.css';
 import { showSuccessAlert, showErrorAlert } from '../helpers/sweetAlert';
 
-const Despachos = () => {
+const Despachos = ({ isEmbedded = false }) => {
     const [orderHistory, setOrderHistory] = useState([]);
     const [expandedRows, setExpandedRows] = useState({});
 
@@ -35,17 +35,25 @@ const Despachos = () => {
 
             if (!Array.isArray(rawData)) { setOrderHistory([]); return; }
 
-            const data = rawData.map(v => ({
-                id: v.id,
-                fechaISO: v.fecha,  // guardamos la fecha original para comparar
-                fecha: formatTempo(v.fecha, "DD-MM-YYYY HH:mm"),
-                cliente: v.cliente,
-                guia: v.numero_guia || '-',
-                estado: v.estado,
-                totalItems: v.detalles?.length || 0,
-                totalKilos: v.detalles?.reduce((acc, curr) => acc + Number(curr.kilos_totales), 0).toFixed(2),
-                details: v.detalles
-            }));
+            const data = rawData.map(v => {
+                const hasPhysicalBoxes = v.cajasAsignadas && v.cajasAsignadas.length > 0;
+                const calculatedKilos = hasPhysicalBoxes
+                    ? v.cajasAsignadas.reduce((acc, caja) => acc + Number(caja.peso_neto_kg || 0), 0)
+                    : v.detalles?.reduce((acc, curr) => acc + Number(curr.kilos_totales), 0) || 0;
+
+                return {
+                    id: v.id,
+                    fechaISO: v.fecha,  // guardamos la fecha original para comparar
+                    fecha: formatTempo(v.fecha, "DD-MM-YYYY HH:mm"),
+                    cliente: v.cliente,
+                    guia: v.numero_guia || '-',
+                    estado: v.estado,
+                    totalItems: v.detalles?.reduce((acc, curr) => acc + Number(curr.cajas_asignadas != null ? curr.cajas_asignadas : curr.cantidad_bultos || 0), 0) || 0,
+                    totalKilos: calculatedKilos.toFixed(2),
+                    details: v.detalles,
+                    cajasFisicas: v.cajasAsignadas || []
+                };
+            });
             setOrderHistory(data);
         } catch (error) {
             console.error("Error fetching history", error);
@@ -151,11 +159,11 @@ const Despachos = () => {
     };
 
     return (
-        <div className="main-container">
-            <div className="table-wrapper">
-                <div className="top-table" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h1 className="title-table" style={{ margin: 0 }}>Historial de Despachos</h1>
-                    <div style={{ display: 'flex', gap: '10px' }}>
+        <div className={isEmbedded ? "" : "main-container"}>
+            <div className={isEmbedded ? "" : "table-wrapper"}>
+                <div className="top-table" style={{ display: 'flex', justifyContent: isEmbedded ? 'flex-end' : 'space-between', alignItems: 'center' }}>
+                    {!isEmbedded && <h1 className="title-table" style={{ margin: 0 }}>Historial de Despachos</h1>}
+                    <div style={{ display: 'flex', gap: '10px', width: isEmbedded ? '100%' : 'auto', justifyContent: isEmbedded ? 'flex-end' : 'flex-start' }}>
                         <button onClick={handleExportExcel} className="btn-new" style={{ padding: '8px 16px' }}>
                             Exportar Excel
                         </button>
@@ -197,7 +205,7 @@ const Despachos = () => {
                         </div>
                         <input
                             type="text"
-                            placeholder="N° Guía..."
+                            placeholder="N° Documento..."
                             value={historialFilters.numero_guia}
                             onChange={e => setHistorialFilters({ ...historialFilters, numero_guia: e.target.value })}
                             className="search-input"
@@ -226,7 +234,7 @@ const Despachos = () => {
                                     <th style={{ width: '50px' }}>ID</th>
                                     <th style={{ width: '100px' }}>Fecha</th>
                                     <th style={{ width: '150px' }}>Cliente</th>
-                                    <th style={{ width: '100px' }}>Guía</th>
+                                    <th style={{ width: '100px' }}>Documento</th>
                                     <th style={{ width: '200px' }}>Producto</th>
                                     <th style={{ width: '120px' }}>Calibre</th>
                                     <th style={{ width: '70px' }}>Cajas</th>
@@ -244,8 +252,8 @@ const Despachos = () => {
 
                                     // Agrupar productos por nombre + calibre
                                     const groupedProducts = products.reduce((acc, p) => {
-                                        const nombre = p.producto?.definicion?.nombre || 'N/A';
-                                        const calibre = p.tipo_formato || 'N/A';
+                                        const nombre = p.definicion_producto?.nombre || p.producto?.definicion?.nombre || 'N/A';
+                                        const calibre = p.tipo_formato || p.producto?.calibre || 'N/A';
                                         const key = `${nombre}_${calibre}`;
 
                                         if (!acc[key]) {
@@ -253,15 +261,26 @@ const Despachos = () => {
                                                 nombre,
                                                 calibre,
                                                 totalCajas: 0,
+                                                totalCajasSolicitadas: 0,
                                                 totalKilos: 0
                                             };
                                         }
-                                        acc[key].totalCajas += parseFloat(p.cantidad_bultos) || 0;
+                                        acc[key].totalCajas += parseFloat(p.cajas_asignadas != null ? p.cajas_asignadas : p.cantidad_bultos) || 0;
+                                        acc[key].totalCajasSolicitadas += parseFloat(p.cantidad_bultos) || 0;
                                         acc[key].totalKilos += parseFloat(p.kilos_totales) || 0;
                                         return acc;
                                     }, {});
 
-                                    const productList = Object.values(groupedProducts);
+                                    const productList = Object.values(groupedProducts).map(group => {
+                                        const matchingBoxes = (pedido.cajasFisicas || []).filter(c => 
+                                            (c.definicion?.nombre === group.nombre || c.cajaDefinicion?.nombre === group.nombre) && 
+                                            c.calibre === group.calibre
+                                        );
+                                        if (matchingBoxes.length > 0) {
+                                            group.totalKilos = matchingBoxes.reduce((sum, c) => sum + parseFloat(c.peso_neto_kg || 0), 0);
+                                        }
+                                        return group;
+                                    });
 
                                     return (
                                         <Fragment key={pedido.id}>
@@ -308,7 +327,7 @@ const Despachos = () => {
                                                                         <tr>
                                                                             <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Producto</th>
                                                                             <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Calibre</th>
-                                                                            <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Cajas</th>
+                                                                            <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Cajas (Entregadas / Solicitadas)</th>
                                                                             <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Kilos/Caja</th>
                                                                             <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem' }}>Total Kilos</th>
                                                                         </tr>
@@ -318,8 +337,12 @@ const Despachos = () => {
                                                                             <tr key={idx} style={{ borderBottom: idx === productList.length - 1 ? 'none' : '1px solid #e2e8f0' }}>
                                                                                 <td style={{ padding: '8px 12px' }}>{product.nombre}</td>
                                                                                 <td style={{ padding: '8px 12px' }}>{product.calibre}</td>
-                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>{product.totalCajas}</td>
-                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>{(product.totalKilos / product.totalCajas).toFixed(2)}</td>
+                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                                                                    <span style={{ color: product.totalCajas < product.totalCajasSolicitadas ? '#d97706' : '#16a34a', fontWeight: 'bold' }}>
+                                                                                        {product.totalCajas}
+                                                                                    </span> / {product.totalCajasSolicitadas}
+                                                                                </td>
+                                                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>{(product.totalCajas > 0 ? (product.totalKilos / product.totalCajas) : 0).toFixed(2)}</td>
                                                                                 <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '500' }}>{product.totalKilos.toFixed(2)}</td>
                                                                             </tr>
                                                                         ))}

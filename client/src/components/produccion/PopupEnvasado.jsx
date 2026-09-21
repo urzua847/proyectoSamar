@@ -68,44 +68,11 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
         ? productosCatalogo.filter(p => p.materiaPrima?.id === activeLote.materiaPrima?.id && p.tipo === 'elaborado')
         : [];
 
-    const totalCarneProducido = useMemo(() => {
-        if (resumenYield?.input) return Number(resumenYield.input.carne || 0);
-        return activeLote ? Number(activeLote.peso_carne_blanca || 0) : 0;
-    }, [resumenYield, activeLote]);
+    const dynamicBalances = useMemo(() => {
+        if (!resumenYield || !resumenYield.balances) return [];
 
-    const totalPinzasProducido = useMemo(() => {
-        if (resumenYield?.input) return Number(resumenYield.input.pinzas || 0);
-        return activeLote ? Number(activeLote.peso_pinzas || 0) : 0;
-    }, [resumenYield, activeLote]);
-
-    const totalProducido = useMemo(() => {
-        if (resumenYield?.input) {
-            return Number(resumenYield.input.carne || 0) + Number(resumenYield.input.pinzas || 0);
-        }
-        return activeLote
-            ? (Number(activeLote.peso_total_producido) || (Number(activeLote.peso_carne_blanca || 0) + Number(activeLote.peso_pinzas || 0)) || Number(activeLote.peso_bruto_kg || 0))
-            : 0;
-    }, [resumenYield, activeLote]);
-
-    const yaIngresadosCarne = useMemo(() => {
-        if (!resumenYield?.used) return 0;
-        return Number(resumenYield.used.carne || 0);
-    }, [resumenYield]);
-
-    const yaIngresadosPinzas = useMemo(() => {
-        if (!resumenYield?.used) return 0;
-        return Number(resumenYield.used.pinzas || 0);
-    }, [resumenYield]);
-
-    const yaIngresados = useMemo(() => {
-        if (!resumenYield?.used) return 0;
-        return Number(resumenYield.used.carne || 0) + Number(resumenYield.used.pinzas || 0);
-    }, [resumenYield]);
-
-    const { ingresoActualCarne, ingresoActualPinzas, ingresoActual } = useMemo(() => {
-        let carne = 0;
-        let pinzas = 0;
-        let total = 0;
+        const currentIngresos = {};
+        resumenYield.balances.forEach(b => currentIngresos[b.nombre] = 0);
 
         Object.keys(formData).forEach(key => {
             const firstHyphen = key.indexOf('-');
@@ -114,34 +81,44 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
             const val = parseFloat(entry?.pesoTotal);
             const kg = isNaN(val) ? 0 : val;
 
-            total += kg;
-
             const prodDef = productosCatalogo.find(p => p.id === prodId);
             if (prodDef && prodDef.origen) {
-                const origenStr = prodDef.origen.toLowerCase();
-                if (origenStr === 'carne blanca' || origenStr === 'carne_blanca') carne += kg;
-                else if (origenStr === 'pinza') pinzas += kg;
+                const origenStr = prodDef.origen.toLowerCase().trim();
+                
+                const matchedBalances = resumenYield.balances.filter(b => {
+                    const balName = b.nombre.toLowerCase().trim();
+                    return origenStr === balName || origenStr.includes(balName) || balName.includes(origenStr);
+                });
+
+                if (matchedBalances.length > 0) {
+                    const exactMatch = matchedBalances.find(b => b.nombre.toLowerCase().trim() === origenStr);
+                    if (exactMatch) {
+                        currentIngresos[exactMatch.nombre] += kg;
+                    } else {
+                        // Si hace match con múltiples y no es exacto, divide el peso (ej. "Pinza y Carne Blanca")
+                        const kgPerBalance = kg / matchedBalances.length;
+                        matchedBalances.forEach(b => {
+                            currentIngresos[b.nombre] += kgPerBalance;
+                        });
+                    }
+                }
             }
         });
 
-        return { ingresoActualCarne: carne, ingresoActualPinzas: pinzas, ingresoActual: total };
-    }, [formData, productosCatalogo]);
-
-    const saldoRestanteCarne = useMemo(() => {
-        return totalCarneProducido - yaIngresadosCarne - ingresoActualCarne;
-    }, [totalCarneProducido, yaIngresadosCarne, ingresoActualCarne]);
-
-    const saldoRestantePinzas = useMemo(() => {
-        return totalPinzasProducido - yaIngresadosPinzas - ingresoActualPinzas;
-    }, [totalPinzasProducido, yaIngresadosPinzas, ingresoActualPinzas]);
-
-    const saldoRestante = useMemo(() => {
-        return totalProducido - yaIngresados - ingresoActual;
-    }, [totalProducido, yaIngresados, ingresoActual]);
+        return resumenYield.balances.map(bal => {
+            const currentIngreso = currentIngresos[bal.nombre] || 0;
+            const saldo = bal.balance - currentIngreso;
+            return {
+                ...bal,
+                ingresoActual: currentIngreso,
+                saldoRestante: saldo
+            };
+        });
+    }, [resumenYield, formData, productosCatalogo]);
 
     const isExceeded = useMemo(() => {
-        return saldoRestanteCarne < 0 || saldoRestantePinzas < 0;
-    }, [saldoRestanteCarne, saldoRestantePinzas]);
+        return dynamicBalances.some(b => b.saldoRestante < -0.01); // Pequeno margen de error flotante
+    }, [dynamicBalances]);
 
     const obtenerGramaje = (textoCalibre) => {
         if (!textoCalibre) return 0;
@@ -245,37 +222,8 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
             return;
         }
 
-        let totalCarne = 0;
-        let totalPinzas = 0;
-
-        itemsToSave.forEach(item => {
-            const prodDef = productosCatalogo.find(p => p.id === item.definicionProductoId);
-            if (prodDef && prodDef.origen) {
-                const origenStr = prodDef.origen.toLowerCase();
-                if (origenStr === 'carne blanca' || origenStr === 'carne_blanca') totalCarne += item.peso_neto_kg;
-                if (origenStr === 'pinza') totalPinzas += item.peso_neto_kg;
-            }
-        });
-
-        if (resumenYield) {
-            const balanceCarne = Number(resumenYield.balance.carne || 0);
-            const balancePinzas = Number(resumenYield.balance.pinzas || 0);
-
-            if (totalCarne > balanceCarne) {
-                showErrorAlert(
-                    'Límite Excedido',
-                    `Carne Blanca: Intentas guardar ${totalCarne.toFixed(2)} kg, pero solo quedan ${balanceCarne.toFixed(2)} kg disponibles.`
-                );
-                return;
-            }
-            if (totalPinzas > balancePinzas) {
-                showErrorAlert(
-                    'Límite Excedido',
-                    `Pinzas: Intentas guardar ${totalPinzas.toFixed(2)} kg, pero solo quedan ${balancePinzas.toFixed(2)} kg disponibles.`
-                );
-                return;
-            }
-        }
+        // La validación de límites (isExceeded) ya se realiza al inicio de handleConfirmar 
+        // de forma completamente dinámica usando los saldos restantes.
 
         setIsSubmitting(true);
         try {
@@ -302,6 +250,15 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
             return nextState;
         });
     };
+
+    const groupedProducts = {};
+    filteredProducts.forEach(prod => {
+        const origin = prod.origen || 'Otros';
+        if (!groupedProducts[origin]) groupedProducts[origin] = [];
+        groupedProducts[origin].push(prod);
+    });
+
+    const saldoRestante = dynamicBalances.reduce((acc, curr) => acc + (curr.saldoRestante > 0 ? curr.saldoRestante : 0), 0);
 
     if (!show) return null;
 
@@ -371,106 +328,118 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredProducts.flatMap((prod, prodIdx) => {
-                                                const calibres = Array.isArray(prod.calibres)
-                                                    ? prod.calibres
-                                                    : (typeof prod.calibres === 'string'
-                                                        ? prod.calibres.split(',').map(c => c.trim()).filter(c => c !== '')
-                                                        : []);
-                                                
-                                                if (calibres.length === 0) {
-                                                    return [(
-                                                        <tr key={`empty-${prod.id}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                            <td style={{ padding: '20px', fontWeight: '700', color: '#1e293b', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc' }}>{prod.nombre}</td>
-                                                            <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px', fontStyle: 'italic' }}>Sin calibres definidos</td>
-                                                        </tr>
-                                                    )];
-                                                }
+                                            {Object.entries(groupedProducts).flatMap(([origen, products]) => {
+                                                const groupHeader = (
+                                                    <tr key={`group-${origen}`} style={{ background: '#e2e8f0', color: '#0f172a' }}>
+                                                        <td colSpan="5" style={{ padding: '12px 20px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.9rem', color: '#003366' }}>
+                                                            Origen: {origen}
+                                                        </td>
+                                                    </tr>
+                                                );
 
-                                                return calibres.map((cal, idx) => {
-                                                    const key = `${prod.id}-${cal}`;
-                                                    const data = formData[key] || {};
-                                                    const rowErrors = errors[key] || {};
-                                                    const gramaje = obtenerGramaje(cal);
+                                                const groupRows = products.flatMap((prod, prodIdx) => {
+                                                    const calibres = Array.isArray(prod.calibres)
+                                                        ? prod.calibres
+                                                        : (typeof prod.calibres === 'string'
+                                                            ? prod.calibres.split(',').map(c => c.trim()).filter(c => c !== '')
+                                                            : []);
                                                     
-                                                    const origenStr = prod.origen ? prod.origen.toLowerCase() : '';
-                                                    const isCarne = origenStr === 'carne blanca' || origenStr === 'carne_blanca';
-                                                    const isPinza = origenStr === 'pinza';
-                                                    const isOverdrawn = (isCarne && saldoRestanteCarne < 0) || (isPinza && saldoRestantePinzas < 0);
-                                                    const hasQtyError = rowErrors.cantidad || (isOverdrawn && (data.cantidad > 0 || data.pesoTotal > 0));
+                                                    if (calibres.length === 0) {
+                                                        return [(
+                                                            <tr key={`empty-${prod.id}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                                <td style={{ padding: '20px', fontWeight: '700', color: '#1e293b', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc' }}>{prod.nombre}</td>
+                                                                <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px', fontStyle: 'italic' }}>Sin calibres definidos</td>
+                                                            </tr>
+                                                        )];
+                                                    }
 
-                                                    // Estilos para inputs modernos (Option 1)
-                                                    const inputStyle = {
-                                                        width: '100%',
-                                                        padding: '10px 12px',
-                                                        textAlign: 'center',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid transparent',
-                                                        backgroundColor: hasQtyError ? '#fee2e2' : '#f1f5f9',
-                                                        boxShadow: hasQtyError ? '0 0 0 1px #ef4444' : 'inset 0 1px 2px rgba(0,0,0,0.05)',
-                                                        transition: 'all 0.2s',
-                                                        outline: 'none',
-                                                        fontSize: '0.95rem'
-                                                    };
-                                                    const inputStylePeso = {
-                                                        ...inputStyle,
-                                                        backgroundColor: gramaje > 0 ? '#e2e8f0' : (hasQtyError ? '#fee2e2' : '#f1f5f9'),
-                                                    };
+                                                    return calibres.map((cal, idx) => {
+                                                        const key = `${prod.id}-${cal}`;
+                                                        const data = formData[key] || {};
+                                                        const rowErrors = errors[key] || {};
+                                                        const gramaje = obtenerGramaje(cal);
+                                                        
+                                                        const origenStr = prod.origen ? prod.origen.toLowerCase() : '';
+                                                        const relatedBalance = dynamicBalances.find(b => 
+                                                            origenStr.includes(b.nombre.toLowerCase()) || b.nombre.toLowerCase().includes(origenStr)
+                                                        );
+                                                        const isOverdrawn = relatedBalance ? relatedBalance.saldoRestante < -0.01 : false;
+                                                        const hasQtyError = rowErrors.cantidad || (isOverdrawn && (data.cantidad > 0 || data.pesoTotal > 0));
 
-                                                    return (
-                                                        <tr key={`${prod.id}-${idx}`} style={{ borderBottom: idx === calibres.length - 1 ? '2px solid #e2e8f0' : '1px solid #f8fafc' }}>
-                                                            {idx === 0 && (
-                                                                <td rowSpan={calibres.length} style={{ padding: '20px', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '1.05rem' }}>
-                                                                    {prod.nombre}
+                                                        // Estilos para inputs modernos (Option 1)
+                                                        const inputStyle = {
+                                                            width: '100%',
+                                                            padding: '10px 12px',
+                                                            textAlign: 'center',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid transparent',
+                                                            backgroundColor: hasQtyError ? '#fee2e2' : '#f1f5f9',
+                                                            boxShadow: hasQtyError ? '0 0 0 1px #ef4444' : 'inset 0 1px 2px rgba(0,0,0,0.05)',
+                                                            transition: 'all 0.2s',
+                                                            outline: 'none',
+                                                            fontSize: '0.95rem'
+                                                        };
+                                                        const inputStylePeso = {
+                                                            ...inputStyle,
+                                                            backgroundColor: gramaje > 0 ? '#e2e8f0' : (hasQtyError ? '#fee2e2' : '#f1f5f9'),
+                                                        };
+
+                                                        return (
+                                                            <tr key={`${prod.id}-${idx}`} style={{ borderBottom: idx === calibres.length - 1 ? '2px solid #e2e8f0' : '1px solid #f8fafc' }}>
+                                                                {idx === 0 && (
+                                                                    <td rowSpan={calibres.length} style={{ padding: '20px', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9', background: '#f8fafc', fontSize: '1.05rem' }}>
+                                                                        {prod.nombre}
+                                                                    </td>
+                                                                )}
+                                                                <td style={{ fontWeight: '600', padding: '16px 20px', whiteSpace: 'nowrap', color: '#475569', fontSize: '0.95rem' }}>{cal}</td>
+                                                                <td style={{ padding: '12px 20px' }}>
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="0"
+                                                                        value={data.cantidad || ''}
+                                                                        onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
+                                                                        style={inputStyle}
+                                                                        onFocus={(e) => e.target.style.border = '1px solid #3b82f6'}
+                                                                        onBlur={(e) => e.target.style.border = '1px solid transparent'}
+                                                                    />
                                                                 </td>
-                                                            )}
-                                                            <td style={{ fontWeight: '600', padding: '16px 20px', whiteSpace: 'nowrap', color: '#475569', fontSize: '0.95rem' }}>{cal}</td>
-                                                            <td style={{ padding: '12px 20px' }}>
-                                                                <input
-                                                                    type="number"
-                                                                    placeholder="0"
-                                                                    value={data.cantidad || ''}
-                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'cantidad', e.target.value)}
-                                                                    style={inputStyle}
-                                                                    onFocus={(e) => e.target.style.border = '1px solid #3b82f6'}
-                                                                    onBlur={(e) => e.target.style.border = '1px solid transparent'}
-                                                                />
-                                                            </td>
-                                                            <td style={{ padding: '12px 20px' }}>
-                                                                <input
-                                                                    type="number"
-                                                                    placeholder="0.00"
-                                                                    value={data.pesoTotal || ''}
-                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
-                                                                    disabled={gramaje > 0}
-                                                                    style={inputStylePeso}
-                                                                    onFocus={(e) => e.target.style.border = gramaje > 0 ? '1px solid transparent' : '1px solid #3b82f6'}
-                                                                    onBlur={(e) => e.target.style.border = '1px solid transparent'}
-                                                                />
-                                                            </td>
-                                                            <td style={{ padding: '12px 20px' }}>
-                                                                <select
-                                                                    value={data.ubicacion || camaraGlobal}
-                                                                    onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
-                                                                    style={{
-                                                                        width: '100%',
-                                                                        padding: '10px 12px',
-                                                                        borderRadius: '6px',
-                                                                        border: rowErrors.ubicacion ? '1px solid #ef4444' : '1px solid #cbd5e1',
-                                                                        backgroundColor: '#ffffff',
-                                                                        outline: 'none',
-                                                                        fontSize: '0.95rem'
-                                                                    }}
-                                                                >
-                                                                    <option value="">- Selec -</option>
-                                                                    {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
-                                                                        <option key={u.id} value={u.id}>{u.nombre}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </td>
-                                                        </tr>
-                                                    );
+                                                                <td style={{ padding: '12px 20px' }}>
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="0.00"
+                                                                        value={data.pesoTotal || ''}
+                                                                        onChange={(e) => handleInputChange(prod.id, cal, 'pesoTotal', e.target.value)}
+                                                                        disabled={gramaje > 0}
+                                                                        style={inputStylePeso}
+                                                                        onFocus={(e) => e.target.style.border = gramaje > 0 ? '1px solid transparent' : '1px solid #3b82f6'}
+                                                                        onBlur={(e) => e.target.style.border = '1px solid transparent'}
+                                                                    />
+                                                                </td>
+                                                                <td style={{ padding: '12px 20px' }}>
+                                                                    <select
+                                                                        value={data.ubicacion || camaraGlobal}
+                                                                        onChange={(e) => handleInputChange(prod.id, cal, 'ubicacion', e.target.value)}
+                                                                        style={{
+                                                                            width: '100%',
+                                                                            padding: '10px 12px',
+                                                                            borderRadius: '6px',
+                                                                            border: rowErrors.ubicacion ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                                                            backgroundColor: '#ffffff',
+                                                                            outline: 'none',
+                                                                            fontSize: '0.95rem'
+                                                                        }}
+                                                                    >
+                                                                        <option value="">- Selec -</option>
+                                                                        {(ubicaciones || []).filter(u => u.tipo === 'camara').map(u => (
+                                                                            <option key={u.id} value={u.id}>{u.nombre}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    });
                                                 });
+                                                return [groupHeader, ...groupRows];
                                             })}
                                             {filteredProducts.length === 0 && (
                                                 <tr>
@@ -564,18 +533,7 @@ export default function PopupEnvasado({ show, setShow, onSuccess }) {
                     <div style={{ padding: '24px' }}>
                         <ProductionSummaryBar 
                             isExceeded={isExceeded}
-                            totalProducido={totalProducido}
-                            totalCarneProducido={totalCarneProducido}
-                            totalPinzasProducido={totalPinzasProducido}
-                            yaIngresados={yaIngresados}
-                            yaIngresadosCarne={yaIngresadosCarne}
-                            yaIngresadosPinzas={yaIngresadosPinzas}
-                            ingresoActual={ingresoActual}
-                            ingresoActualCarne={ingresoActualCarne}
-                            ingresoActualPinzas={ingresoActualPinzas}
-                            saldoRestante={saldoRestante}
-                            saldoRestanteCarne={saldoRestanteCarne}
-                            saldoRestantePinzas={saldoRestantePinzas}
+                            dynamicBalances={dynamicBalances}
                         />
                     </div>
                 </div>
