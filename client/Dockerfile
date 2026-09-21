@@ -1,17 +1,22 @@
-FROM node:20-alpine
+# Etapa de construcción (Build)
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Instalar dependencias
 COPY package*.json ./
+RUN npm ci
 
-RUN npm install
-
+# Copiar el código fuente y construir
 COPY . .
+RUN npm run build
 
-# Puerto común de Vite (5173) o React Scripts (3000). Ajusta según uses.
-EXPOSE 5173
+# Etapa de Producción (Nginx)
+FROM nginx:alpine
 
-# Necesario para que Vite escuche fuera del contenedor
-ENV HOST=0.0.0.0 
+# Copiar los estáticos compilados desde la etapa anterior a Nginx
+COPY --from=build /app/dist /usr/share/nginx/html
 
-CMD ["npm", "run", "dev"]
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
