@@ -52,7 +52,7 @@ const Navbar = () => {
                     {(userRole === 'administrador' || userRole === 'operario') && (
                         <li><NavLink to="/camaras" onClick={closeMenu}>Cámaras</NavLink></li>
                     )}
-                    {(userRole === 'administrador' || userRole === 'operario') && (
+                    {(userRole === 'administrador' || userRole === 'operario' || userRole === 'control_contenedor') && (
                         <li><NavLink to="/contenedores" onClick={closeMenu}>Contenedores</NavLink></li>
                     )}
 

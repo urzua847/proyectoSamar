@@ -11,16 +11,17 @@ import {
     liberarCaja
 } from "../controllers/pedido.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
+import { isOperarioOrAdmin, isOperarioOrAdminOrControl } from "../middlewares/authorization.middleware.js";
 
 const router = Router();
 
 router.use(authenticateJwt);
 
-router.post("/", createPedido);
-router.delete("/:id", deletePedido);
-router.post("/:id/despachar", completarDespacho);
-router.post("/:id/liberar-caja", liberarCaja);
-router.get("/", getPedidos);
+router.post("/", isOperarioOrAdmin, createPedido);
+router.delete("/:id", isOperarioOrAdmin, deletePedido);
+router.post("/:id/despachar", isOperarioOrAdmin, completarDespacho);
+router.post("/:id/liberar-caja", isOperarioOrAdmin, liberarCaja);
+router.get("/", isOperarioOrAdminOrControl, getPedidos);
 
 // Rutas de exportación
 router.get("/export/excel", exportPedidosToExcel);

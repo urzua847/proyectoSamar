@@ -25,3 +25,15 @@ export async function isOperarioOrAdmin(req, res, next) {
     return handleErrorClient(res, 403, "Error de autorización.");
   }
 }
+
+export async function isOperarioOrAdminOrControl(req, res, next) {
+  try {
+    const { rol } = req.user;
+    if (rol !== "operario" && rol !== "administrador" && rol !== "control_contenedor") {
+        return handleErrorClient(res, 403, "Acceso denegado", "Se requiere rol de operario, administrador o control de contenedor.");
+    }
+    next();
+  } catch (error) {
+    return handleErrorClient(res, 403, "Error de autorización.");
+  }
+}

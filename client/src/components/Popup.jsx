@@ -97,7 +97,7 @@ export default function Popup({ show, setShow, data, action, title }) {
                                         options: [
                                             { value: 'administrador', label: 'Administrador' },
                                             { value: 'operario', label: 'Operario' },
-                                            { value: 'usuario', label: 'Usuario' },
+                                            { value: 'control_contenedor', label: 'Control Contenedor' },
                                         ],
                                         required: true,
                                         defaultValue: userData.rol || "",
