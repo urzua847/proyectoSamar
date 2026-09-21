@@ -63,7 +63,7 @@ const router = createBrowserRouter([
       {
         path: '/contenedores',
         element: (
-          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+          <ProtectedRoute allowedRoles={['administrador', 'operario', 'control_contenedor']}>
             <Contenedores />
           </ProtectedRoute>
         )
@@ -129,7 +129,7 @@ const router = createBrowserRouter([
       {
         path: '/scanner',
         element: (
-          <ProtectedRoute allowedRoles={['administrador', 'operario']}>
+          <ProtectedRoute allowedRoles={['administrador', 'operario', 'control_contenedor']}>
             <ScannerCarga />
           </ProtectedRoute>
         )

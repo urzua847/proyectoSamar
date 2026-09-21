@@ -28,5 +28,5 @@ export const createUserValidation = Joi.object({
   email: Joi.string().email().allow('', null),
   rut: Joi.string().required(),
   password: Joi.string().min(6).required(),
-  rol: Joi.string().valid('administrador', 'usuario', 'operario').required(),
+  rol: Joi.string().valid('administrador', 'usuario', 'operario', 'control_contenedor').required(),
 }).unknown(false);
