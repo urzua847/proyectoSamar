@@ -226,7 +226,8 @@ export async function getPedidosService(options = {}) {
             .leftJoinAndSelect('detalles.producto', 'producto')
             .leftJoinAndSelect('producto.definicion', 'definicion')
             .leftJoinAndSelect('pedido.cajasAsignadas', 'cajasAsignadas')
-            .leftJoinAndSelect('cajasAsignadas.definicion', 'cajaDefinicion');
+            .leftJoinAndSelect('cajasAsignadas.definicion', 'cajaDefinicion')
+            .leftJoinAndSelect('cajasAsignadas.loteDeOrigen', 'cajaLoteDeOrigen');
 
         // Apply filters
         if (options.cliente) {
@@ -250,6 +251,12 @@ export async function getPedidosService(options = {}) {
         if (options.numero_guia) {
             query = query.andWhere('pedido.numero_guia LIKE :guia', {
                 guia: `%${options.numero_guia}%`
+            });
+        }
+
+        if (options.estado) {
+            query = query.andWhere('pedido.estado = :estado', {
+                estado: options.estado
             });
         }
 

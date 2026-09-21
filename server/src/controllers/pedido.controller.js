@@ -35,7 +35,7 @@ export async function createPedido(req, res) {
 
 export async function getPedidos(req, res) {
   try {
-    const { page, limit, cliente, fecha_desde, fecha_hasta, numero_guia } = req.query;
+    const { page, limit, cliente, fecha_desde, fecha_hasta, numero_guia, estado } = req.query;
     
     const options = {
       page: page ? parseInt(page) : 1,
@@ -43,7 +43,8 @@ export async function getPedidos(req, res) {
       cliente,
       fecha_desde,
       fecha_hasta,
-      numero_guia
+      numero_guia,
+      estado
     };
 
     const [result, error] = await getPedidosService(options);

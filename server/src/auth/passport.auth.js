@@ -15,7 +15,7 @@ passport.use(
     try {
       const userRepository = AppDataSource.getRepository(User);
       const user = await userRepository.findOne({
-        where: { email: jwt_payload.email },
+        where: { username: jwt_payload.username },
       });
 
       if (user) {
